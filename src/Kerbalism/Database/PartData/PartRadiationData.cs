@@ -205,15 +205,14 @@ OVERVIEW :
 
 		#region FIELDS
 
-		// rad/s received by that part
-		public double radiationRate;
+
 
 		// total radiation dose received since launch
 		public double accumulatedRadiation;
 
-		public bool raycastDone = true;
+		private bool raycastDone = true;
 
-		public double elapsedSecSinceLastUpdate;
+		private double elapsedSecSinceLastUpdate;
 
 		// all active radiation shields whose protecting field include this part.
 		private List<CoilArrayShielding> radiationCoilArrays;
@@ -236,6 +235,9 @@ OVERVIEW :
 		#endregion
 
 		#region PROPERTIES
+
+		// rad/s received by that part
+		public double RadiationRate { get; private set; }
 
 		public bool IsReceiver
 		{
@@ -295,7 +297,7 @@ OVERVIEW :
 			if (radNode == null)
 				return;
 
-			partData.radiationData.radiationRate = Lib.ConfigValue(radNode, "radRate", 0.0);
+			partData.radiationData.RadiationRate = Lib.ConfigValue(radNode, "radRate", 0.0);
 			partData.radiationData.accumulatedRadiation = Lib.ConfigValue(radNode, "radAcc", 0.0);
 
 			if (radNode.HasValue("sunFactor"))
@@ -329,7 +331,7 @@ OVERVIEW :
 				return false;
 
 			ConfigNode radiationNode = partDataNode.AddNode(NODENAME_RADIATION);
-			radiationNode.AddValue("radRate", partData.radiationData.radiationRate);
+			radiationNode.AddValue("radRate", partData.radiationData.RadiationRate);
 			radiationNode.AddValue("radAcc", partData.radiationData.accumulatedRadiation);
 
 			if (partData.radiationData.sunRaycastTask != null)
@@ -423,7 +425,7 @@ OVERVIEW :
 				emittersRadiation = 0.0;
 
 				// add "ambiant" radiation (background, belts, bodies...)
-				radiationRate = RemainingRadiation(partData.vesselData.EnvRadiation, false, true);
+				RadiationRate = RemainingRadiation(partData.vesselData.EnvRadiation, false, true);
 
 				// synchronize emitters references and add their radiation
 				int vesselEmittersCount = partData.vesselData.PartCache.RadiationEmitters.Count;
@@ -445,7 +447,7 @@ OVERVIEW :
 						emitterRaycastTasks[i].CheckEmitterHasChanged(partData.vesselData.PartCache.RadiationEmitters[i]);
 					}
 
-					radiationRate += emitterRaycastTasks[i].Radiation;
+					RadiationRate += emitterRaycastTasks[i].Radiation;
 					emittersRadiation += emitterRaycastTasks[i].Radiation;
 				}
 
@@ -453,21 +455,21 @@ OVERVIEW :
 				stormRadiationFactor = sunRaycastTask.sunRadiationFactor;
 				if (partData.vesselData.EnvStorm)
 				{
-					radiationRate += partData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
+					RadiationRate += partData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
 					stormRadiation = partData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
 				}
 
 				// substract magnetic shields effects
 				foreach (CoilArrayShielding arrayData in radiationCoilArrays)
 				{
-					radiationRate -= arrayData.RadiationRemoved;
+					RadiationRate -= arrayData.RadiationRemoved;
 				}
 
 				// clamp to nominal
-				radiationRate = Math.Max(radiationRate, Radiation.Nominal);
+				RadiationRate = Math.Max(RadiationRate, Radiation.Nominal);
 
 				// accumulate total radiation received by this part
-				accumulatedRadiation += radiationRate * elapsedSecSinceLastUpdate;
+				accumulatedRadiation += RadiationRate * elapsedSecSinceLastUpdate;
 			}
 
 			elapsedSecSinceLastUpdate = 0.0;
@@ -480,10 +482,10 @@ OVERVIEW :
 
 				if (partData.vesselData.LoadedOrEditor && IsReceiver)
 				{
-					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(radiationRate)), this));
-					partData.LoadedPart.Fields[nameof(radiationRate)].guiName = "Radiation";
-					partData.LoadedPart.Fields[nameof(radiationRate)].guiFormat = "F10";
-					partData.LoadedPart.Fields[nameof(radiationRate)].guiUnits = " rad/s";
+					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(RadiationRate)), this));
+					partData.LoadedPart.Fields[nameof(RadiationRate)].guiName = "Radiation";
+					partData.LoadedPart.Fields[nameof(RadiationRate)].guiFormat = "F10";
+					partData.LoadedPart.Fields[nameof(RadiationRate)].guiUnits = " rad/s";
 
 					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(emittersRadiation), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
 					partData.LoadedPart.Fields[nameof(emittersRadiation)].guiName = "Emitters";

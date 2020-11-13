@@ -194,7 +194,7 @@ namespace KERBALISM
 
 		private void EditorCrewChanged(VesselCrewManifest crewManifest)
 		{
-			if (crewAssignementRefreshWasJustFiredFromCrewChanged)
+			if (crewManifest == null || crewAssignementRefreshWasJustFiredFromCrewChanged)
 			{
 				crewAssignementRefreshWasJustFiredFromCrewChanged = false;
 				return;

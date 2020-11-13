@@ -93,7 +93,7 @@ namespace KERBALISM
 								comfortMask |= (int)Comfort.firmGround;
 
 							pressurizedPartsCrewCount += habitat.crewCount;
-							radiationRate += habitat.partData.radiationData.radiationRate;
+							radiationRate += habitat.partData.radiationData.RadiationRate;
 							radiationConsideredPartsCount++;
 
 							break;
@@ -115,7 +115,7 @@ namespace KERBALISM
 							// waste evaluation
 							poisoningLevel += habitat.wasteLevel;
 							wasteConsideredPartsCount++;
-							radiationRate += habitat.partData.radiationData.radiationRate;
+							radiationRate += habitat.partData.radiationData.RadiationRate;
 							radiationConsideredPartsCount++;
 							break;
 						case PressureState.AlwaysDepressurized:
@@ -128,7 +128,7 @@ namespace KERBALISM
 								shieldingAmount += habitat.shieldingAmount;
 								poisoningLevel += habitat.wasteLevel;
 								wasteConsideredPartsCount++;
-								radiationRate += habitat.partData.radiationData.radiationRate;
+								radiationRate += habitat.partData.radiationData.RadiationRate;
 								radiationConsideredPartsCount++;
 							}
 							// waste in suits evaluation
