@@ -1751,6 +1751,26 @@ namespace KERBALISM
 			EditorLogic.fetch.SetBackup();
 		}
 
+		/// <summary>
+		/// return the nth module (zero based count) of the specified type on the part, or null if not found
+		/// </summary>
+		public static PartModule FindModule(this Part part, string moduleType, int modulePosition)
+		{
+			int positionCount = 0;
+			for (int i = 0; i < part.Modules.Count; i++)
+			{
+				if (part.Modules[i].moduleName.Equals(moduleType))
+				{
+					if (positionCount == modulePosition)
+					{
+						return part.Modules[i];
+					}
+					positionCount++;
+				}
+			}
+			return null;
+		}
+
 		#endregion
 
 		#region CREW

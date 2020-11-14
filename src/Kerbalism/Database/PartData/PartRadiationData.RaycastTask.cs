@@ -232,6 +232,9 @@ namespace KERBALISM
 				base.Raycast(nextTask);
 
 				Vector3 sunDirection = origin.partData.vesselData.MainStarDirection;
+
+				DebugDrawer.DebugLine(origin.partData.LoadedPart.WCoM, sunDirection, 250f, Color.red, 3);
+
 				OcclusionRaycast(origin.partData.LoadedPart.WCoM, sunDirection);
 
 				// Explaination :
@@ -344,12 +347,14 @@ namespace KERBALISM
 			{
 				base.Raycast(nextTask);
 
-				Vector3 rayDir = origin.partData.LoadedPart.WCoM - emitter.RadiationData.partData.LoadedPart.WCoM;
+				Vector3 rayDir = emitter.RadiationData.partData.LoadedPart.WCoM - origin.partData.LoadedPart.WCoM;
 				float distance = rayDir.magnitude;
 
 				// compute initial radiation strength according to the emitter distance
 				reductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
 				rayDir /= distance;
+
+				DebugDrawer.DebugLine(origin.partData.LoadedPart.WCoM, rayDir, 250f, Color.yellow, 3);
 
 				OcclusionRaycast(origin.partData.LoadedPart.WCoM, rayDir);
 
@@ -357,7 +362,7 @@ namespace KERBALISM
 				{
 					// optimization to avoid keeping computing radiation levels that don't matter
 					// also make sure we ignore the origin part
-					if (reductionFactor < minFactor || prd == origin)
+					if (reductionFactor < minFactor || prd == origin || prd == emitter.RadiationData)
 					{
 						prd.ResetRaycastHit();
 						continue;

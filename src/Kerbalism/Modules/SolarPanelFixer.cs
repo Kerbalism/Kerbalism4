@@ -1591,70 +1591,76 @@ namespace KERBALISM
 		private static readonly List<Trans> transforms = new List<Trans>();
 		public Material lineMaterial;
 
-		private struct Line
+		private class Line
 		{
 			public readonly Vector3 start;
 			public readonly Vector3 end;
 			public readonly Color color;
+			public int frames;
 
-			public Line(Vector3 start, Vector3 end, Color color)
+			public Line(Vector3 start, Vector3 end, Color color, int frames = 1)
 			{
 				this.start = start;
 				this.end = end;
 				this.color = color;
+				this.frames = frames;
 			}
 		}
 
-		private struct Point
+		private class Point
 		{
 			public readonly Vector3 pos;
 			public readonly Color color;
+			public int frames;
 
-			public Point(Vector3 pos, Color color)
+			public Point(Vector3 pos, Color color, int frames = 1)
 			{
 				this.pos = pos;
 				this.color = color;
+				this.frames = frames;
 			}
 		}
 
-		private struct Trans
+		private class Trans
 		{
 			public readonly Vector3 pos;
 			public readonly Vector3 up;
 			public readonly Vector3 right;
 			public readonly Vector3 forward;
+			public int frames;
 
-			public Trans(Vector3 pos, Vector3 up, Vector3 right, Vector3 forward)
+			public Trans(Vector3 pos, Vector3 up, Vector3 right, Vector3 forward, int frames = 1)
 			{
 				this.pos = pos;
 				this.up = up;
 				this.right = right;
 				this.forward = forward;
+				this.frames = frames;
 			}
 		}
 
 		[Conditional("DEBUG")]
-		public static void DebugLine(Vector3 start, Vector3 end, Color col)
+		public static void DebugLine(Vector3 start, Vector3 end, Color col, int frames = 1)
 		{
-			lines.Add(new Line(start, end, col));
+			lines.Add(new Line(start, end, col, frames));
 		}
 
 		[Conditional("DEBUG")]
-		public static void DebugLine(Vector3 start, Vector3 direction, float length, Color col)
+		public static void DebugLine(Vector3 start, Vector3 direction, float length, Color col, int frames = 1)
 		{
-			lines.Add(new Line(start, start + (direction.normalized * length), col));
+			lines.Add(new Line(start, start + (direction.normalized * length), col, frames));
 		}
 
 		[Conditional("DEBUG")]
-		public static void DebugPoint(Vector3 start, Color col)
+		public static void DebugPoint(Vector3 start, Color col, int frames = 1)
 		{
-			points.Add(new Point(start, col));
+			points.Add(new Point(start, col, frames));
 		}
 
 		[Conditional("DEBUG")]
-		public static void DebugTransforms(Transform t)
+		public static void DebugTransforms(Transform t, int frames = 1)
 		{
-			transforms.Add(new Trans(t.position, t.up, t.right, t.forward));
+			transforms.Add(new Trans(t.position, t.up, t.right, t.forward, frames));
 		}
 
 		[Conditional("DEBUG")]
@@ -1704,36 +1710,50 @@ namespace KERBALISM
 
 					GL.Begin(GL.LINES);
 
-					for (int i = 0; i < lines.Count; i++)
+					for (int i = lines.Count - 1; i >= 0; i--)
 					{
 						Line line = lines[i];
+						line.frames--;
 						DrawLine(line.start, line.end, line.color);
+						if (line.frames <= 0)
+						{
+							lines.RemoveAt(i);
+						}
 					}
 
-					for (int i = 0; i < points.Count; i++)
+					for (int i = points.Count - 1; i >= 0; i--)
 					{
 						Point point = points[i];
+						point.frames--;
 						DrawPoint(point.pos, point.color);
+						if (point.frames <= 0)
+						{
+							points.RemoveAt(i);
+						}
 					}
 
-					for (int i = 0; i < transforms.Count; i++)
+					for (int i = transforms.Count - 1; i >= 0; i--)
 					{
 						Trans t = transforms[i];
+						t.frames--;
 						DrawTransform(t.pos, t.up, t.right, t.forward);
+						if (t.frames <= 0)
+						{
+							transforms.RemoveAt(i);
+						}
 					}
 				}
 				catch (Exception e)
 				{
 					UnityEngine.Debug.Log("EndOfFrameDrawing Exception" + e);
+					lines.Clear();
+					points.Clear();
+					transforms.Clear();
 				}
 				finally
 				{
 					GL.End();
 					GL.PopMatrix();
-
-					lines.Clear();
-					points.Clear();
-					transforms.Clear();
 				}
 			}
 		}

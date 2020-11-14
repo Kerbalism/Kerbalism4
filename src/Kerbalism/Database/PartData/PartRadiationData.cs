@@ -130,11 +130,11 @@ OVERVIEW :
 			{
 				if (IsWallOccluder)
 				{
-					occlusionFactor = (partMass * 0.5 * ALUMINUM_DENSITY) / partSurface;
+					occlusionFactor = ((partMass * 0.5) / ALUMINUM_DENSITY) / partSurface;
 				}
 				else
 				{
-					occlusionFactor = (partMass * 0.5 * ALUMINUM_DENSITY) / partVolume;
+					occlusionFactor = ((partMass * 0.5) / ALUMINUM_DENSITY) / partVolume;
 				}
 			}
 		}
@@ -375,6 +375,7 @@ OVERVIEW :
 
 		// debug info
 		private bool debug = false;
+		private double radiationRate;
 		private double stormRadiationFactor;
 		private double stormRadiation;
 		private double emittersRadiation;
@@ -467,6 +468,7 @@ OVERVIEW :
 
 				// clamp to nominal
 				RadiationRate = Math.Max(RadiationRate, Radiation.Nominal);
+				radiationRate = RadiationRate;
 
 				// accumulate total radiation received by this part
 				accumulatedRadiation += RadiationRate * elapsedSecSinceLastUpdate;
@@ -482,10 +484,10 @@ OVERVIEW :
 
 				if (partData.vesselData.LoadedOrEditor && IsReceiver)
 				{
-					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(RadiationRate)), this));
-					partData.LoadedPart.Fields[nameof(RadiationRate)].guiName = "Radiation";
-					partData.LoadedPart.Fields[nameof(RadiationRate)].guiFormat = "F10";
-					partData.LoadedPart.Fields[nameof(RadiationRate)].guiUnits = " rad/s";
+					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(radiationRate), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+					partData.LoadedPart.Fields[nameof(radiationRate)].guiName = "Radiation";
+					partData.LoadedPart.Fields[nameof(radiationRate)].guiFormat = "F10";
+					partData.LoadedPart.Fields[nameof(radiationRate)].guiUnits = " rad/s";
 
 					partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(emittersRadiation), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
 					partData.LoadedPart.Fields[nameof(emittersRadiation)].guiName = "Emitters";

@@ -211,6 +211,8 @@ namespace KERBALISM
 				meshVolume = Lib.ConfigValue(node, "meshVolume", 0.0);
 				meshSurface = Lib.ConfigValue(node, "meshSurface", 0.0);
 				attachNodesSurface = Lib.ConfigValue(node, "attachNodesSurface", 0.0);
+				surface = GetBestSurface(false);
+				volume = GetBestVolume();
 			}
 
 			public void Save(ConfigNode node)

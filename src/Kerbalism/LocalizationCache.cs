@@ -47,14 +47,14 @@ namespace KERBALISM
 	public static class LocalHelpers
 	{
 		// change this to the full path of the LocalizationCache.cs source file
-		private const string PathToLocalizationCache = @"/Users/martind/sandbox/Kerbalism/src/Kerbalism/LocalizationCache.cs";
+		private const string PathToLocalizationCache = @"C:\Users\Got\source\repos\Kerbalism\Kerbalism\src\Kerbalism\LocalizationCache.cs";
 
 		// set this to true (and change the path) to generate on KSP startup
 		// the english localization file based on the contents of LocalizationCache.cs
 		// IMPORTANT: don't let this to true when commiting
 		// - will only work with dev builds
 		public static bool GenerateEnglishLoc = false;
-		private const string PathToEnglishLocOutput = @"/tmp/en-us.cfg";
+		private const string PathToEnglishLocOutput = @"C:\Users\Got\source\repos\Kerbalism\Kerbalism\GameData\Kerbalism\Localization\en-us.cfg";
 
 		// set this to true (and change the paths) to generate on KSP startup
 		// the non-english localization file based on the contents of LocalizationCache.cs
@@ -685,12 +685,12 @@ namespace KERBALISM
 		////////////////////////////////////////////////////////////////////
 		// Module: Emitter
 		////////////////////////////////////////////////////////////////////
-		public static string Emitter_Action = GetLoc("Emitter_Action"); // "Toggle Active Shield"
-		public static string Emitter_EmitIonizing = GetLoc("Emitter_EmitIonizing"); // "Emit ionizing radiation"
-		public static string Emitter_ReduceIncoming = GetLoc("Emitter_ReduceIncoming"); // "Reduce incoming radiation"
-		public static string Emitter_Emitted = GetLoc("Emitter_Emitted"); // "Radiation emitted"
-		public static string Emitter_ActiveShielding = GetLoc("Emitter_ActiveShielding"); // "Active shielding"
-		public static string Emitter_none = GetLoc("Emitter_none"); // "none"
+		public static string Emitter_Name = GetLoc("Emitter_Name"); // "Radiation emitter"
+		public static string Emitter_EmitHigh = GetLoc("Emitter_EmitHigh"); // "Emit high energy ionizing radiation"
+		public static string Emitter_EmitLow = GetLoc("Emitter_EmitLow"); // "Emit low energy ionizing radiation"
+		public static string Emitter_Passive = GetLoc("Emitter_Passive"); // "Passive radiation"
+		public static string Emitter_Active = GetLoc("Emitter_Active"); // "Max radiation"
+		public static string Emitter_Activation = GetLoc("Emitter_Activation"); // "Activated by"
 
 		////////////////////////////////////////////////////////////////////
 		// Module: Deploy

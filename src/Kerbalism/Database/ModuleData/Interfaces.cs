@@ -19,6 +19,7 @@ namespace KERBALISM
 		double RadiationRate { get; }
 		int ModuleId { get; }
 		bool IsActive { get; }
+		bool HighEnergy { get; }
 		PartRadiationData RadiationData { get; }
 	}
 }
