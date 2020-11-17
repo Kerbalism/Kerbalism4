@@ -399,7 +399,7 @@ namespace KERBALISM
 		/// <summary> shortest distance from a ray to a point, squared. rayDir must be normalized</summary>
 		public static float RayPointDistanceSquared(Vector3d rayOrigin, Vector3d rayDir, Vector3d point)
 		{
-			return Vector3.Cross(rayDir, point - rayOrigin).magnitude;
+			return Vector3.Cross(rayDir, point - rayOrigin).sqrMagnitude;
 		}
 
 

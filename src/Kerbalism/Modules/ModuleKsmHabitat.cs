@@ -128,16 +128,7 @@ namespace KERBALISM
 		// IVolumeAndSurfaceModule
 		public void SetupPrefabPartModel()
 		{
-			SetupAnimations();
 
-			// determine habitat permanent state based on if animations exists and are valid
-			isDeployable = deployAnimator.IsDefined;
-			isCentrifuge = rotateAnimator.IsDefined;
-			hasShielding = Features.Radiation && maxShieldingFactor > 0.0;
-
-			// ensure correct state
-			if (!isDeployable)
-				deployWithPressure = false;
 
 			if (isDeployable)
 				deployAnimator.Still(1f);
@@ -197,6 +188,17 @@ namespace KERBALISM
 				// parse config defined depressurization duration
 				if (!Lib.ConfigDuration(node, "depressurizationDuration", false, out depressurizationSpeed))
 					depressurizationSpeed = -1.0;
+
+				SetupAnimations();
+
+				// determine habitat permanent state based on if animations exists and are valid
+				isDeployable = deployAnimator.IsDefined;
+				isCentrifuge = rotateAnimator.IsDefined;
+				hasShielding = Features.Radiation && maxShieldingFactor > 0.0;
+
+				// ensure correct state
+				if (!isDeployable)
+					deployWithPressure = false;
 			}
 		}
 

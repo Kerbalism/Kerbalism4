@@ -1,9 +1,5 @@
-﻿using Steamworks;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace KERBALISM
@@ -19,25 +15,57 @@ namespace KERBALISM
 		// the hit point closest from rayOrigin
 		private RaycastHit fromHit;
 		private bool fromHitExists = false;
-		// dot product between the ray and the surface normal (cosinus of the angle)
-		private double fromHitNormalDot;
 
 		// the hit point farthest from rayOrigin
 		private RaycastHit toHit;
 		private bool toHitExists = false;
-		// dot product between the ray and the surface normal (cosinus of the angle)
-		private double toHitNormalDot;
 
 		// distance between the two hit points
 		private double hitPenetration;
 
+		// we maintain our own cache of renderers because despite FindModelRenderersCached() caching
+		// a list, it instantiate a copy of it every time. Note that anything iterating on this list MUST
+		// check if Renderer == null before using it, and if that check is true, set partRenderers = null
+		// Also note that this will ignore any renderer creating druing the part lifetime, like fairing
+		// edition in the editor (and possibly procedural parts mods).
+		private List<Renderer> partRenderers;
+
+		public void UpdateRenderers()
+		{
+			if (partData.LoadedPart == null)
+			{
+				if (partRenderers != null)
+				{
+					partRenderers = null;
+				}
+			}
+			else
+			{
+				if (partRenderers == null)
+				{
+					// On instantiating a new vessel from the VAB, child parts will be parented (as in unity-parented)
+					// to their parent. This mean doing a FindComponentInChildren() on the root part will return the whole vessel.
+					// Note this isn't the case on a loaded from save vessel : parts are top level (world) objects.
+					// So, we rely on the stock FindModelRenderersCached() which get the model GO by its name (usually the first child
+					// of the part GO). Note that as usual there are a few special casesregarding the GO name, so better to let KSP
+					// handle this.
+					partRenderers = partData.LoadedPart.FindModelRenderersCached();
+					for (int i = partRenderers.Count - 1; i >= 0; i--)
+					{
+						if (!(partRenderers[i] is MeshRenderer || partRenderers[i] is SkinnedMeshRenderer))
+						{
+							partRenderers.RemoveAt(i);
+						}
+					}
+				}
+			}
+		}
+
 		/// <summary>
 		/// Compute penetration and ray impact angle
 		/// </summary>
-		private void AnalyzeRaycastHit(Vector3 rayDir)
+		private void AnalyzeRaycastHit()
 		{
-			fromHitNormalDot = Math.Abs(Vector3.Dot(rayDir, fromHit.normal));
-			toHitNormalDot = Math.Abs(Vector3.Dot(rayDir, toHit.normal));
 			hitPenetration = (fromHit.point - toHit.point).magnitude;
 		}
 
@@ -61,7 +89,8 @@ namespace KERBALISM
 
 				if (layerMask < 0)
 				{
-					layerMask = LayerMask.GetMask(new string[] { "Default" });
+					// AeroFXIgnore -> solar panels, possibly other parts...
+					layerMask = LayerMask.GetMask(new string[] { "Default", "AeroFxIgnore" });
 				}
 			}
 
@@ -71,6 +100,45 @@ namespace KERBALISM
 				{
 					origin.raycastDone = true;
 				}
+			}
+
+			protected Bounds GetPartBounds(PartRadiationData prd)
+			{
+				if (prd.partRenderers == null)
+				{
+					return default;
+				}
+
+				Vector3 min = default;
+				Vector3 max = default;
+				bool first = true;
+				foreach (Renderer renderer in prd.partRenderers)
+				{
+					if (renderer == null)
+					{
+						prd.partRenderers = null;
+					}
+
+					if (!renderer.enabled)
+					{
+						continue;
+					}
+
+					if (first)
+					{
+						first = false;
+						min = renderer.bounds.min;
+						max = renderer.bounds.max;
+					}
+					else
+					{
+						min = Vector3.Min(min, renderer.bounds.min);
+						max = Vector3.Max(max, renderer.bounds.max);
+					}
+				}
+
+				Vector3 size = max - min;
+				return new Bounds(min + (size * 0.5f), size);
 			}
 
 			// TODO : call this on scene changes
@@ -86,6 +154,96 @@ namespace KERBALISM
 			private static int layerMask = -1;
 
 			protected static List<PartRadiationData> hittedParts = new List<PartRadiationData>();
+
+			protected enum Direction { X = 0, Y = 1, Z = 2}
+
+			protected struct Section
+			{
+				readonly float aMin;
+				readonly float aMax;
+				readonly float bMin;
+				readonly float bMax;
+
+				public Section(Vector3 point, Bounds bb, Direction dir)
+				{
+					Vector3 bbMin = bb.min;
+					Vector3 bbMax = bb.max;
+					switch (dir)
+					{
+						case Direction.X:
+							aMin = point.y - bbMin.y;
+							aMax = bbMax.y - point.y;
+							bMin = point.z - bbMin.z;
+							bMax = bbMax.z - point.z;
+							break;
+						case Direction.Y:
+							aMin = point.x - bbMin.x;
+							aMax = bbMax.x - point.x;
+							bMin = point.z - bbMin.z;
+							bMax = bbMax.z - point.z;
+							break;
+						case Direction.Z:
+							aMin = point.x - bbMin.x;
+							aMax = bbMax.x - point.x;
+							bMin = point.y - bbMin.y;
+							bMax = bbMax.y - point.y;
+							break;
+						default:
+							aMin = aMax = bMin = bMax = 0f;
+							break;
+					}
+				}
+
+				public double OccluderMinFactor(Section occluder)
+				{
+					float factor = 0f;
+
+					factor += Math.Min(
+						aMin > 0f ? Math.Min(1f, occluder.aMin / aMin) : 1f,
+						aMax > 0f ? Math.Min(1f, occluder.aMax / aMax) : 1f);
+					factor += Math.Min(
+						bMin > 0f ? Math.Min(1f, occluder.bMin / bMin) : 1f,
+						bMax > 0f ? Math.Min(1f, occluder.bMax / bMax) : 1f);
+
+					// x^1.5 : arbitrary balancing based on experimentation
+					return Math.Pow(factor / 2.0, 1.5);
+				}
+
+				public double OccluderFactor(Section occluder)
+				{
+					float factor = 0f;
+
+					factor += aMin > 0f ? Math.Min(1f, occluder.aMin / aMin) : 1f;
+					factor += aMax > 0f ? Math.Min(1f, occluder.aMax / aMax) : 1f;
+					factor += bMin > 0f ? Math.Min(1f, occluder.bMin / bMin) : 1f;
+					factor += bMax > 0f ? Math.Min(1f, occluder.bMax / bMax) : 1f;
+
+					// x^1.5 : arbitrary balancing based on experimentation
+					return Math.Pow(factor / 4.0, 1.5);
+				}
+
+				public override string ToString()
+				{
+					return $"{aMin:F2}, {aMax:F2}, {bMin:F2}, {bMax:F2}";
+				}
+			}
+
+			protected Direction PrimaryDirection(Vector3 rayDirection)
+			{
+				float maxWeight = 0f;
+				int max = 0;
+				for (int i = 0; i < 3; i++)
+				{
+					float dirWeight = Math.Abs(rayDirection[i]);
+					if (dirWeight > maxWeight)
+					{
+						max = i;
+						maxWeight = dirWeight;
+					}
+				}
+
+				return (Direction)max;
+			}
 
 			/// <summary>
 			/// Get the PartRadiationData that this transform belong to. If the transform isn't cached, return false.
@@ -221,6 +379,8 @@ namespace KERBALISM
 			}
 		}
 
+		private enum WorldDir { X, Y, Z }
+
 		private class SunRaycastTask : RaycastTask
 		{
 			public double sunRadiationFactor = 1.0;
@@ -233,9 +393,15 @@ namespace KERBALISM
 
 				Vector3 sunDirection = origin.partData.vesselData.MainStarDirection;
 
-				DebugDrawer.DebugLine(origin.partData.LoadedPart.WCoM, sunDirection, 250f, Color.red, 3);
-
 				OcclusionRaycast(origin.partData.LoadedPart.WCoM, sunDirection);
+
+				Bounds originBounds = GetPartBounds(origin);
+				Direction direction = PrimaryDirection(sunDirection);
+				Section originSection = new Section(origin.partData.LoadedPart.WCoM, originBounds, direction);
+
+				DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Point(origin.partData.LoadedPart.WCoM, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.partData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
 
 				// Explaination :
 				// When high energy charged particules from CME events hit a solid surface, three things happen :
@@ -261,28 +427,45 @@ namespace KERBALISM
 						continue;
 					}
 
-					prd.AnalyzeRaycastHit(sunDirection);
+					prd.AnalyzeRaycastHit();
+
+					//Vector3 midPoint = prd.toHit.point + ((prd.fromHit.point - prd.toHit.point) * 0.5f);
+					//DebugDrawer.Draw(new DebugDrawer.Point(midPoint, Color.green, 30));
+
+					Bounds occluderBounds = GetPartBounds(prd);
+					Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
+					double sectionRatio = originSection.OccluderFactor(occluderSection);
 
 					// get the high energy radiation that is blocked by the part, using "high energy" HVL.
-					double partBremsstrahlung = cmeRadiation - prd.RemainingRadiation(cmeRadiation, true);
+					double partBremsstrahlung = cmeRadiation * prd.OcclusionFactor(true) * sectionRatio;
 
 					// get the remaining high energy radiation
 					cmeRadiation -= partBremsstrahlung;
 
 					// get the remaining bremsstrahlung that hasn't been blocked by the part, using "low energy" HVL.
-					bremsstrahlung = prd.RemainingRadiation(bremsstrahlung, false);
+					bremsstrahlung -= bremsstrahlung * prd.OcclusionFactor(false) * sectionRatio;
 
 					// add the bremsstrahlung created by the CME radiation hitting the part
 					// Assumption : the bremsstrahlung is emitted in the same direction as the original CME radiation, in a 20° cone
 					double sqrDistance = (prd.toHit.point - origin.partData.LoadedPart.WCoM).sqrMagnitude;
 					bremsstrahlung += partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
 
+					DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
+
+					prd.lastRaycast = $"sun-{Time.frameCount}";
+					prd.rayPenetration = prd.hitPenetration;
+					prd.crossSectionFactor = sectionRatio;
+					prd.blockedRad = partBremsstrahlung;
+					prd.bremsstrahlung = partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
+
 					prd.ResetRaycastHit();
 				}
 
 				// factor in the origin part wall shielding
-				cmeRadiation = origin.RemainingRadiation(cmeRadiation, true, true);
-				bremsstrahlung = origin.RemainingRadiation(bremsstrahlung, false, true);
+				cmeRadiation -= cmeRadiation * origin.OcclusionFactor(true, true, false);
+				bremsstrahlung -= bremsstrahlung * origin.OcclusionFactor(false, true, false);
 
 				sunRadiationFactor = Math.Max(cmeRadiation + bremsstrahlung, 0.0);
 			}
@@ -354,27 +537,43 @@ namespace KERBALISM
 				reductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
 				rayDir /= distance;
 
-				DebugDrawer.DebugLine(origin.partData.LoadedPart.WCoM, rayDir, 250f, Color.yellow, 3);
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.partData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
 
 				OcclusionRaycast(origin.partData.LoadedPart.WCoM, rayDir);
+
+				Bounds originBounds = GetPartBounds(origin);
+				Direction direction = PrimaryDirection(rayDir);
+				Section originSection = new Section(origin.partData.LoadedPart.WCoM, originBounds, direction);
 
 				foreach (PartRadiationData prd in hittedParts)
 				{
 					// optimization to avoid keeping computing radiation levels that don't matter
-					// also make sure we ignore the origin part
+					// also make sure we ignore the origin and emitter parts
 					if (reductionFactor < minFactor || prd == origin || prd == emitter.RadiationData)
 					{
 						prd.ResetRaycastHit();
 						continue;
 					}
 
-					prd.AnalyzeRaycastHit(rayDir);
-					reductionFactor = prd.RemainingRadiation(reductionFactor, false);
+					prd.AnalyzeRaycastHit();
+
+					Bounds occluderBounds = GetPartBounds(prd);
+					Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
+					double sectionRatio = originSection.OccluderFactor(occluderSection);
+
+					prd.blockedRad = reductionFactor * prd.OcclusionFactor(false) * sectionRatio;
+					reductionFactor -= prd.blockedRad;
+					//reductionFactor -= reductionFactor * prd.OcclusionFactor(false);
 					prd.ResetRaycastHit();
+
+					prd.lastRaycast = $"emt-{Time.frameCount}";
+					prd.rayPenetration = prd.hitPenetration;
+					prd.crossSectionFactor = sectionRatio;
+					prd.bremsstrahlung = 0.0;
 				}
 
 				// factor in the origin part wall shielding
-				reductionFactor = origin.RemainingRadiation(reductionFactor, false, true);
+				reductionFactor -= reductionFactor * origin.OcclusionFactor(false, true, false);
 			}
 		}
 	}

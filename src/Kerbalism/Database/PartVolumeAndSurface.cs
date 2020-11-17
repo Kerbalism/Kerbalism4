@@ -56,13 +56,13 @@ namespace KERBALISM
 			if (!requireEvaluation)
 				return;
 
+			foreach (IVolumeAndSurfaceModule vsModule in vsModules)
+			{
+				vsModule.SetupPrefabPartModel();
+			}
+
 			if (!partDatabase.TryGetValue(prefab.name, out Definition partInfo))
 			{
-				foreach (IVolumeAndSurfaceModule vsModule in vsModules)
-				{
-					vsModule.SetupPrefabPartModel();
-				}
-
 				partInfo = GetPartVolumeAndSurface(prefab, Settings.VolumeAndSurfaceLogging);
 				partInfo.GetUsingMethod(Method.Best, out partInfo.volume, out partInfo.surface, false);
 				partDatabase.Add(prefab.name, partInfo);

@@ -162,6 +162,7 @@
     <Compile Include="Database\PartData\PartDataCollectionBase.cs" />
     <Compile Include="Database\PartData\PartDataCollectionShip.cs" />
     <Compile Include="Database\PartData\PartRadiationData.cs" />
+    <Compile Include="Database\PartData\PartRadiationData.Occlusion.cs" />
     <Compile Include="Database\PartData\PartResourceData.cs" />
     <Compile Include="Database\PartData\PartResourceDataCollection.cs" />
     <Compile Include="Database\PartVolumeAndSurface.cs" />
@@ -180,6 +181,7 @@
     <Compile Include="Modules\ModuleKsmGreenhouse.cs" />
     <Compile Include="Modules\ModuleKsmRadiationEmitter.cs" />
     <Compile Include="Modules\ModuleKsmRadiationCoil.cs" />
+    <Compile Include="Modules\BoundsTestModule.cs" />
     <Compile Include="Patches\InternalModelAndHelmets.cs" />
     <Compile Include="Patches\ModuleCommand.cs" />
     <Compile Include="API\PartModuleAPI.cs" />
@@ -289,6 +291,7 @@
     <Compile Include="UI\Science\ExperimentPopup.cs" />
     <Compile Include="UI\Science\ScienceArchiveWindow.cs" />
     <Compile Include="Utility\Collections.cs" />
+    <Compile Include="Utility\DebugDrawer.cs" />
     <Compile Include="Utility\GotoVessel.cs" />
     <Compile Include="System\Loader.cs" />
     <Compile Include="System\Settings.cs" />

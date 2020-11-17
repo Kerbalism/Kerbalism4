@@ -18,6 +18,7 @@ namespace KERBALISM.VesselLogic
 			{
 				PartRadiationData radiationData = parts[i].radiationData;
 				radiationData.AddElapsedTime(elapsedSec);
+				radiationData.UpdateRenderers();
 
 				if (i == partToUpdate)
 				{

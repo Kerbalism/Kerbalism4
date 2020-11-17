@@ -103,6 +103,10 @@ namespace KERBALISM
 			PoisoningFactor = Lib.ConfigValue(cfg, "PoisoningFactor", 0.0);
 			PoisoningThreshold = Lib.ConfigValue(cfg, "PoisoningThreshold", 0.02);
 
+			// radiation
+			WallThicknessForOcclusion = Lib.ConfigValue(cfg, "WallThicknessForOcclusion", PartRadiationData.PART_WALL_THICKNESS_OCCLUSION);
+			WallThicknessForMassFraction = Lib.ConfigValue(cfg, "WallThicknessForMassFraction", PartRadiationData.PART_WALL_THICKNESS_MASSFRACTION);
+
 			// signal
 			UnlinkedControl = Lib.ConfigEnum(cfg, "UnlinkedControl", UnlinkedCtrl.none);
 			DataRateMinimumBitsPerSecond = Lib.ConfigValue(cfg, "DataRateMinimumBitsPerSecond", 1.0);
@@ -227,6 +231,10 @@ namespace KERBALISM
 		// poisoning
 		public static double PoisoningFactor;                   // poisoning modifier value for vessels below threshold
 		public static double PoisoningThreshold;                // level of waste atmosphere resource that determine co2 poisoning status
+
+		public static double WallThicknessForOcclusion;         // Default 0.004 - Constant wall thickness (m) of all parts  used for radiation occlusion.
+		public static double WallThicknessForMassFraction;      // Default 0.02 - Constant wall thickness (m) used to determine the part structural mass that will be considered for occlusion.
+																// Separate from the occlusion thickness to account for KSP unrealistic part densities, can be set lower on a SMURFF/RO game.
 
 		// signal
 		public static UnlinkedCtrl UnlinkedControl;             // available control for unlinked vessels: 'none', 'limited' or 'full'
