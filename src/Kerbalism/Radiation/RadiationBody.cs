@@ -57,23 +57,25 @@ namespace KERBALISM
 				// add a rather nominal surface radiation for suns that have no config
 				// for comparison: the stock kerbin sun has a surface radiation of 47 rad/h, which gives 0.01 rad/h near Kerbin
 				// (set to 0 if you really want none)
-				if (radiation_surface < 0)
-					radiation_surface = 10.0 * 3600.0;
+				if (radiation_surface < 0.0)
+					radiation_surface = 47.0 / 3600.0;
 			}
 
 			// calculate point emitter strength r0 at center of body
-			if (radiation_surface > 0)
+			if (radiation_surface > 0.0)
 				radiation_r0 = radiation_surface * 4 * Math.PI * body.Radius * body.Radius;
+			else
+				radiation_r0 = 0.0;
 		}
 
 		public string name;            // name of the body
-		public double radiation_inner; // rad/h inside inner belt
+		public double radiation_inner; // rad/s inside inner belt
 		public double radiation_inner_gradient; // how quickly the radiation rises as you go deeper into the belt
-		public double radiation_outer; // rad/h inside outer belt
+		public double radiation_outer; // rad/s inside outer belt
 		public double radiation_outer_gradient; // how quickly the radiation rises as you go deeper into the belt
-		public double radiation_pause; // rad/h inside magnetopause
-		public double radiation_surface; // rad/h of gamma radiation on the surface
-		public double radiation_r0 = 0.0; // rad/h of gamma radiation at the center of the body (calculated from radiation_surface)
+		public double radiation_pause; // rad/s inside magnetopause
+		public double radiation_surface; // rad/s of gamma radiation on the surface
+		public double radiation_r0; // rad/s of gamma radiation at the center of the body (calculated from radiation_surface)
 		public double solar_cycle;     // interval time of solar activity (11 years for sun)
 		public double solar_cycle_offset; // time to add to the universal time when calculating the cycle, used to have cycles that don't start at 0
 		public int reference;          // index of the body that determine x-axis of the gsm-space

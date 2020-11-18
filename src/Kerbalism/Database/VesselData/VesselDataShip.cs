@@ -34,6 +34,7 @@ namespace KERBALISM
 		public VesselDataShip()
 		{
 			resHandler = new VesselResHandler(null, VesselResHandler.VesselState.EditorStep);
+			ObjectsCache = new ObjectsCacheBase();
 		}
 
 		#region BASE PROPERTIES IMPLEMENTATION
@@ -135,7 +136,7 @@ namespace KERBALISM
 
 		public void Analyze(List<Part> parts, CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
 		{
-			PartCache.Update(this);
+			ObjectsCache.Update(this);
 			AnalyzeEnvironment(body, situation, sunlight);
 			AnalyzeCrew(parts);
 			AnalyzeComms();
@@ -204,7 +205,7 @@ namespace KERBALISM
 			gammaTransparency = Sim.GammaTransparency(body, 0.0);
 
 			// add gamma radiation emitted by body and its sun
-			var gamma_radiation = Radiation.DistanceRadiation(rb.radiation_r0, altitude) / 3600.0;
+			var gamma_radiation = Radiation.DistanceRadiation(rb.radiation_r0, altitude);
 
 			var b = body;
 			while (b != null && b.orbit != null && b != mainStarBody)
@@ -213,15 +214,15 @@ namespace KERBALISM
 				var dist = b.orbit.semiMajorAxis;
 				b = b.referenceBody;
 
-				gamma_radiation += Radiation.DistanceRadiation(Radiation.Info(b).radiation_r0, dist) / 3600.0;
+				gamma_radiation += Radiation.DistanceRadiation(Radiation.Info(b).radiation_r0, dist);
 			}
 
-			externRad = Settings.ExternRadiation / 3600.0;
+			externRad = Settings.ExternRadiation;
 			heliopauseRad = gamma_radiation + externRad + sun_rb.radiation_pause;
 			magnetopauseRad = gamma_radiation + heliopauseRad + rb.radiation_pause;
 			innerRad = gamma_radiation + magnetopauseRad + rb.radiation_inner;
 			outerRad = gamma_radiation + magnetopauseRad + rb.radiation_outer;
-			surfaceRad = magnetopauseRad * gammaTransparency + rb.radiation_surface / 3600.0;
+			surfaceRad = magnetopauseRad * gammaTransparency + rb.radiation_surface;
 			stormRad = heliopauseRad + PreferencesRadiation.Instance.StormRadiation * (MainStarSunlightFactor > 0.0 ? 1.0 : 0.0);
 		}
 
@@ -263,8 +264,8 @@ namespace KERBALISM
 				crewCapacity += p.CrewCapacity;
 			}
 
-			// if the user press ALT, the planner consider the vessel crewed at full capacity
-			if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt))
+			// if the user press SHIFT, the planner consider the vessel crewed at full capacity
+			if (Input.GetKey(KeyCode.LeftShift))
 				crewCount = crewCapacity;
 		}
 

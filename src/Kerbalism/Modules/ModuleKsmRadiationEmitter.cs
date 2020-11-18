@@ -11,9 +11,9 @@ namespace KERBALISM
 		private static StringBuilder sb = new StringBuilder();
 
 		[KSPField] public string title = string.Empty;        // GUI name of the status action in the PAW. Default to the target module name if a module is defined.
-		[KSPField] public double passiveRadiation = 0.0;      // (rad/s) always emitted radiation
+		[KSPField] public double passiveRadiation = 0.0;      // (rad/h) always emitted radiation
 		[KSPField] public bool highEnergy = false;            // if true, emitted radiation is high energy (higher shielding penetration)
-		[KSPField] public double targetModuleRadiation = 0.0; // (rad/s) radiation level that will be multiplied by the result of the targetModuleModifier expression evaluation
+		[KSPField] public double targetModuleRadiation = 0.0; // (rad/h) radiation level that will be multiplied by the result of the targetModuleModifier expression evaluation
 		[KSPField] public string targetModuleName;            // name of the partmodule to apply the targetModuleModifier expression to
 		[KSPField] public int targetModulePosition = 0;       // in case there is multiple times the same module on the part, position of that module (ex : the second module has position 1)
 
@@ -33,6 +33,10 @@ namespace KERBALISM
 		{
 			if (HighLogic.LoadedScene == GameScenes.LOADING)
 			{
+				// convert from rad/h to rad/s
+				passiveRadiation /= 3600.0;
+				targetModuleRadiation /= 3600.0;
+
 				if (title.Length == 0 && string.IsNullOrEmpty(targetModuleName))
 				{
 					title = Local.Emitter_Name;
@@ -92,7 +96,11 @@ namespace KERBALISM
 
 		public void FixedUpdate()
 		{
-			if (radiationExpression != null)
+			if (radiationExpression == null)
+			{
+				moduleData.RadiationRate = passiveRadiation;
+			}
+			else
 			{
 				moduleData.RadiationRate = targetModuleRadiation == 0.0 ? radiationExpression.Evaluate() : targetModuleRadiation * radiationExpression.Evaluate();
 				moduleData.RadiationRate += passiveRadiation;
@@ -112,14 +120,14 @@ namespace KERBALISM
 
 			if (passiveRadiation > 0.0)
 			{
-				sb.AppendInfo(Local.Emitter_Passive, Lib.HumanReadableRadiation(passiveRadiation));
+				sb.AppendInfo(Local.Emitter_Passive, Lib.HumanReadableRadiation(Radiation.DistanceRadiation(passiveRadiation, 1.0)));
 			}
 
 			if (!string.IsNullOrEmpty(targetModuleName))
 			{
 				if (targetModuleRadiation > 0.0)
 				{
-					sb.AppendInfo(Local.Emitter_Active, Lib.HumanReadableRadiation(passiveRadiation + targetModuleRadiation));
+					sb.AppendInfo(Local.Emitter_Active, Lib.HumanReadableRadiation(Radiation.DistanceRadiation(passiveRadiation + targetModuleRadiation, 1.0)));
 				}
 
 				sb.AppendInfo(Local.Emitter_Activation, targetModule == null ? targetModuleName : targetModule.GetModuleDisplayName());

@@ -688,8 +688,8 @@ namespace KERBALISM
 		public static string Emitter_Name = GetLoc("Emitter_Name"); // "Radiation emitter"
 		public static string Emitter_EmitHigh = GetLoc("Emitter_EmitHigh"); // "Emit high energy ionizing radiation"
 		public static string Emitter_EmitLow = GetLoc("Emitter_EmitLow"); // "Emit low energy ionizing radiation"
-		public static string Emitter_Passive = GetLoc("Emitter_Passive"); // "Passive radiation"
-		public static string Emitter_Active = GetLoc("Emitter_Active"); // "Max radiation"
+		public static string Emitter_Passive = GetLoc("Emitter_Passive"); // "Passive level at 1m"
+		public static string Emitter_Active = GetLoc("Emitter_Active"); // "Max level at 1m"
 		public static string Emitter_Activation = GetLoc("Emitter_Activation"); // "Activated by"
 
 		////////////////////////////////////////////////////////////////////

@@ -307,6 +307,7 @@ namespace KERBALISM
 			Vessel = vessel;
 			VesselId = Vessel.id;
 
+			ObjectsCache = new ObjectsCacheVessel();
 			resHandler = shipVd.ResHandler;
 			resHandler.ConvertShipHandlerToVesselHandler();
 			VesselParts = new PartDataCollectionVessel(this, (PartDataCollectionShip)shipVd.Parts);
@@ -328,6 +329,8 @@ namespace KERBALISM
 
 			Vessel = vessel;
 			VesselId = Vessel.id;
+
+			ObjectsCache = new ObjectsCacheVessel();
 
 			if (Vessel.loaded)
 			{
@@ -369,6 +372,8 @@ namespace KERBALISM
 			IsSimulated = false;
 
 			VesselId = protoVessel.vesselID;
+
+			ObjectsCache = new ObjectsCacheVessel();
 
 			if (vesselDataNode == null)
 			{
@@ -446,7 +451,7 @@ namespace KERBALISM
 			solarPanelsAverageExposure = Lib.ConfigValue(node, "solarPanelsAverageExposure", -1.0);
 			scienceTransmitted = Lib.ConfigValue(node, "scienceTransmitted", 0.0);
 
-			
+			ObjectsCache.Load(node);
 
 			stormData = new StormData(node.GetNode("StormData"));
 			computer = new Computer(node.GetNode("computer"));
@@ -479,6 +484,8 @@ namespace KERBALISM
 
 			node.AddValue("solarPanelsAverageExposure", solarPanelsAverageExposure);
 			node.AddValue("scienceTransmitted", scienceTransmitted);
+
+			ObjectsCache.Save(node);
 
 			stormData.Save(node.AddNode("StormData"));
 			computer.Save(node.AddNode("computer"));
@@ -593,7 +600,7 @@ namespace KERBALISM
 		{
 			secSinceLastEval += elapsedSeconds;
 
-			PartCache.Update(this);
+			ObjectsCache.Update(this);
 
 			// don't update things that don't change often more than every second of game time
 			if (forced || secSinceLastEval > 1.0)

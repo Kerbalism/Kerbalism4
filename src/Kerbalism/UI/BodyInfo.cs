@@ -126,7 +126,7 @@ namespace KERBALISM
 			// TODO cache this information somewhere
 
 			var rb = Radiation.Info(body);
-			double rad = Settings.ExternRadiation / 3600.0;
+			double rad = Settings.ExternRadiation;
 			var rbSun = Radiation.Info(Sim.GetParentStar(body));
 			rad += rbSun.radiation_pause;
 

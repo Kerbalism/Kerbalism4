@@ -80,7 +80,7 @@ namespace KERBALISM
 			{
 				case "temperature": return Math.Min(vd.EnvTemperature / 11000.0, 1.0);
 				case "radiation": return Math.Min(vd.EnvRadiation * 3600.0 / 11.0, 1.0);
-				case "habitat_radiation": return Math.Min(HabitatRadiation(vd) * 3600.0 / 11.0, 1.0);
+				case "habitat_radiation": return Math.Min(vd.Habitat.radiationRate * 3600.0 / 11.0, 1.0);
 				case "pressure": return Math.Min(v.mainBody.GetPressure(v.altitude) / Sim.PressureAtSeaLevel / 11.0, 1.0);
 				case "gravioli": return Math.Min(vd.EnvGravioli, 1.0);
 			}
@@ -94,7 +94,7 @@ namespace KERBALISM
 			{
 				case "temperature": return vd.EnvTemperature;
 				case "radiation": return vd.EnvRadiation;
-				case "habitat_radiation": return HabitatRadiation(vd);
+				case "habitat_radiation": return vd.Habitat.radiationRate;
 				case "pressure": return v.mainBody.GetPressure(v.altitude);
 				case "gravioli": return vd.EnvGravioli;
 			}
@@ -108,16 +108,11 @@ namespace KERBALISM
 			{
 				case "temperature": return Lib.HumanReadableTemp(vd.EnvTemperature);
 				case "radiation": return Lib.HumanReadableRadiation(vd.EnvRadiation);
-				case "habitat_radiation": return Lib.HumanReadableRadiation(HabitatRadiation(vd));
+				case "habitat_radiation": return Lib.HumanReadableRadiation(vd.Habitat.radiationRate);
 				case "pressure": return Lib.HumanReadablePressure(v.mainBody.GetPressure(v.altitude));
 				case "gravioli": return vd.EnvGravioli < 0.33 ? Local.Sensor_shorttextinfo1 : vd.EnvGravioli < 0.66 ? Local.Sensor_shorttextinfo2 : Local.Sensor_shorttextinfo3;//"nothing here""almost one""WOW!"
 			}
 			return string.Empty;
-		}
-
-		private static double HabitatRadiation(VesselData vd)
-		{
-			return vd.Habitat.radiationRate;
 		}
 
 		// get readings tooltip
@@ -144,7 +139,7 @@ namespace KERBALISM
 					(
 						"<align=left />",
 						String.Format("{0,-14}\t<b>{1}</b>\n", Local.Sensor_environment, Lib.HumanReadableRadiation(vd.EnvRadiation, false)),//"environment"
-						String.Format("{0,-14}\t<b>{1}</b>", Local.Sensor_habitats, Lib.HumanReadableRadiation(HabitatRadiation(vd), false))//"habitats"
+						String.Format("{0,-14}\t<b>{1}</b>", Local.Sensor_habitats, Lib.HumanReadableRadiation(vd.Habitat.radiationRate, false))//"habitats"
 					);
 
 				case "pressure":

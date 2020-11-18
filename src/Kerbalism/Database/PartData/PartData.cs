@@ -8,29 +8,22 @@ namespace KERBALISM
 	public class PartData
 	{
 		private static Dictionary<int, PartData> loadedPartDatas = new Dictionary<int, PartData>();
+		private static Dictionary<uint, PartData> flightPartDatas = new Dictionary<uint, PartData>();
 
-		// TODO : call this on GameEvents.onGameSceneLoadRequested
-		public static void ResetLoadedPartDataCache()
+		public static void ClearOnLoad()
 		{
 			loadedPartDatas.Clear();
+			flightPartDatas.Clear();
 		}
 
-		public static PartData GetLoadedPartData(Part part)
+		public static bool TryGetPartData(uint flightId, out PartData partData)
 		{
-			if (loadedPartDatas.TryGetValue(part.GetInstanceID(), out PartData partData))
-			{
-				return partData;
-			}
-			return null;
+			return flightPartDatas.TryGetValue(flightId, out partData);
 		}
 
-		public static PartData GetLoadedPartData(int partInstanceId)
+		public static bool TryGetLoadedPartData(Part part, out PartData partData)
 		{
-			if (loadedPartDatas.TryGetValue(partInstanceId, out PartData partData))
-			{
-				return partData;
-			}
-			return null;
+			return loadedPartDatas.TryGetValue(part.GetInstanceID(), out partData);
 		}
 
 		public VesselDataBase vesselData;
@@ -61,10 +54,13 @@ namespace KERBALISM
 			partInfo = part.partInfo;
 			PartPrefab = GetPartPrefab(part.partInfo);
 			LoadedPart = part;
-			loadedPartDatas[part.GetInstanceID()] = this;
 			virtualResources = new PartResourceDataCollection();
 			volumeAndSurface = PartVolumeAndSurface.GetDefinition(PartPrefab);
 			radiationData = new PartRadiationData(this);
+			loadedPartDatas[part.GetInstanceID()] = this;
+
+			if (flightId != 0)
+				flightPartDatas.Add(flightId, this);
 		}
 
 		public PartData(VesselDataBase vesselData, ProtoPartSnapshot protopart)
@@ -76,6 +72,9 @@ namespace KERBALISM
 			virtualResources = new PartResourceDataCollection();
 			volumeAndSurface = PartVolumeAndSurface.GetDefinition(PartPrefab);
 			radiationData = new PartRadiationData(this);
+
+			if (flightId != 0)
+				flightPartDatas.Add(flightId, this);
 		}
 
 		public void SetLoadedPartReference(Part part)
@@ -89,12 +88,16 @@ namespace KERBALISM
 			if (initialized)
 				return;
 
+			radiationData.PostInstantiateSetup();
+
 			initialized = true;
 		}
 
 		/// <summary> Must be called if the part is destroyed </summary>
 		public void PartWillDie()
 		{
+			flightPartDatas.Remove(flightId);
+
 			foreach (ModuleData moduleData in modules)
 			{
 				moduleData.PartWillDie();

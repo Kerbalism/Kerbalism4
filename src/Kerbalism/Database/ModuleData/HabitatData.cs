@@ -256,7 +256,9 @@ namespace KERBALISM
 			}
 		}
 
+		// IRadiationReceiver implementation
 		public PartRadiationData RadiationData => partData.radiationData;
+		public bool EnableInterface => true;
 
 		#endregion
 

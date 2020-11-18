@@ -32,7 +32,7 @@ namespace KERBALISM
 
 		public void UpdateRenderers()
 		{
-			if (partData.LoadedPart == null)
+			if (PartData.LoadedPart == null)
 			{
 				if (partRenderers != null)
 				{
@@ -49,7 +49,7 @@ namespace KERBALISM
 					// So, we rely on the stock FindModelRenderersCached() which get the model GO by its name (usually the first child
 					// of the part GO). Note that as usual there are a few special casesregarding the GO name, so better to let KSP
 					// handle this.
-					partRenderers = partData.LoadedPart.FindModelRenderersCached();
+					partRenderers = PartData.LoadedPart.FindModelRenderersCached();
 					for (int i = partRenderers.Count - 1; i >= 0; i--)
 					{
 						if (!(partRenderers[i] is MeshRenderer || partRenderers[i] is SkinnedMeshRenderer))
@@ -119,7 +119,7 @@ namespace KERBALISM
 						prd.partRenderers = null;
 					}
 
-					if (!renderer.enabled)
+					if (!renderer.enabled || !renderer.gameObject.activeInHierarchy)
 					{
 						continue;
 					}
@@ -253,7 +253,7 @@ namespace KERBALISM
 			{
 				if (prdByTransforms.TryGetValue(transform.GetInstanceID(), out partRadiationData))
 				{
-					if (partRadiationData.partData.LoadedPart.gameObject == null)
+					if (partRadiationData.PartData.LoadedPart.gameObject == null)
 					{
 						prdByTransforms.Remove(transform.GetInstanceID());
 						return false;
@@ -275,9 +275,15 @@ namespace KERBALISM
 					return false;
 				}
 
-				partRadiationData = PartData.GetLoadedPartData(hittedPart).radiationData;
-				prdByTransforms.Add(transform.GetInstanceID(), partRadiationData);
-				return true;
+				if (PartData.TryGetLoadedPartData(hittedPart, out PartData partData))
+				{
+					partRadiationData = partData.radiationData;
+					prdByTransforms.Add(transform.GetInstanceID(), partRadiationData);
+					return true;
+				}
+
+				partRadiationData = null;
+				return false;
 			}
 
 			/// <summary>
@@ -391,17 +397,17 @@ namespace KERBALISM
 			{
 				base.Raycast(nextTask);
 
-				Vector3 sunDirection = origin.partData.vesselData.MainStarDirection;
+				Vector3 sunDirection = origin.PartData.vesselData.MainStarDirection;
 
-				OcclusionRaycast(origin.partData.LoadedPart.WCoM, sunDirection);
+				OcclusionRaycast(origin.PartData.LoadedPart.WCoM, sunDirection);
 
 				Bounds originBounds = GetPartBounds(origin);
 				Direction direction = PrimaryDirection(sunDirection);
-				Section originSection = new Section(origin.partData.LoadedPart.WCoM, originBounds, direction);
+				Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
 
 				DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
-				DebugDrawer.Draw(new DebugDrawer.Point(origin.partData.LoadedPart.WCoM, Color.green, 50));
-				DebugDrawer.Draw(new DebugDrawer.Line(origin.partData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
+				DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
 
 				// Explaination :
 				// When high energy charged particules from CME events hit a solid surface, three things happen :
@@ -447,18 +453,18 @@ namespace KERBALISM
 
 					// add the bremsstrahlung created by the CME radiation hitting the part
 					// Assumption : the bremsstrahlung is emitted in the same direction as the original CME radiation, in a 20° cone
-					double sqrDistance = (prd.toHit.point - origin.partData.LoadedPart.WCoM).sqrMagnitude;
+					double sqrDistance = (prd.toHit.point - origin.PartData.LoadedPart.WCoM).sqrMagnitude;
 					bremsstrahlung += partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
 
 					DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
 					DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
 					DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
 
-					prd.lastRaycast = $"sun-{Time.frameCount}";
-					prd.rayPenetration = prd.hitPenetration;
-					prd.crossSectionFactor = sectionRatio;
-					prd.blockedRad = partBremsstrahlung;
-					prd.bremsstrahlung = partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
+					prd.lastRaycastDbg = $"sun-{Time.frameCount}";
+					prd.rayPenetrationDbg = prd.hitPenetration;
+					prd.crossSectionFactorDbg = sectionRatio;
+					prd.blockedRadDbg = partBremsstrahlung;
+					prd.bremsstrahlungDbg = partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
 
 					prd.ResetRaycastHit();
 				}
@@ -473,20 +479,20 @@ namespace KERBALISM
 
 		private class EmitterRaycastTask : RaycastTask
 		{
-			private IRadiationEmitter emitter;
+			private PartRadiationData emitter;
 
 			private double reductionFactor = 0.0;
-			private int emitterId;
+			private uint emitterId;
 
-			public EmitterRaycastTask(PartRadiationData origin, IRadiationEmitter emitter) : base(origin)
+			public EmitterRaycastTask(PartRadiationData origin, PartRadiationData emitter) : base(origin)
 			{
 				this.emitter = emitter;
-				emitterId = emitter.ModuleId;
+				emitterId = emitter.PartData.flightId;
 			}
 
 			public EmitterRaycastTask(PartRadiationData origin, ConfigNode.Value value) : base(origin)
 			{
-				emitterId = Lib.Parse.ToInt(value.name);
+				emitterId = Lib.Parse.ToUInt(value.name);
 				reductionFactor = Lib.Parse.ToDouble(value.value);
 			}
 
@@ -499,12 +505,12 @@ namespace KERBALISM
 			/// To avoid creating/destructing objects when synchronizing the EmitterRaycastTask list in PartRadiationData,
 			/// we just swap the emitter reference of the existing EmitterRaycastTask
 			/// </summary>
-			public void CheckEmitterHasChanged(IRadiationEmitter otherEmitter)
+			public void CheckEmitterHasChanged(PartRadiationData otherEmitter)
 			{
-				if (otherEmitter.ModuleId != emitterId)
+				if (otherEmitter.PartData.flightId != emitterId)
 				{
 					emitter = otherEmitter;
-					emitterId = otherEmitter.ModuleId;
+					emitterId = otherEmitter.PartData.flightId;
 					reductionFactor = 0.0;
 				}
 				else if (emitter == null)
@@ -513,43 +519,46 @@ namespace KERBALISM
 				}
 			}
 
-			public double Radiation
+			public double Radiation()
 			{
-				get
+				if (emitter == null)
 				{
-					if (emitter != null && emitter.IsActive)
-					{
-						return emitter.RadiationRate * reductionFactor;
-					}
-
 					return 0.0;
 				}
+
+				double radiation = 0.0;
+				foreach (IRadiationEmitter emitterModule in emitter.RadiationEmitters)
+				{
+					if (emitterModule.IsActive)
+						radiation += emitterModule.RadiationRate;
+				}
+				return radiation * reductionFactor;
 			}
 
 			public override void Raycast(RaycastTask nextTask)
 			{
 				base.Raycast(nextTask);
 
-				Vector3 rayDir = emitter.RadiationData.partData.LoadedPart.WCoM - origin.partData.LoadedPart.WCoM;
+				Vector3 rayDir = emitter.PartData.LoadedPart.WCoM - origin.PartData.LoadedPart.WCoM;
 				float distance = rayDir.magnitude;
 
 				// compute initial radiation strength according to the emitter distance
 				reductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
 				rayDir /= distance;
 
-				DebugDrawer.Draw(new DebugDrawer.Line(origin.partData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
 
-				OcclusionRaycast(origin.partData.LoadedPart.WCoM, rayDir);
+				OcclusionRaycast(origin.PartData.LoadedPart.WCoM, rayDir);
 
 				Bounds originBounds = GetPartBounds(origin);
 				Direction direction = PrimaryDirection(rayDir);
-				Section originSection = new Section(origin.partData.LoadedPart.WCoM, originBounds, direction);
+				Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
 
 				foreach (PartRadiationData prd in hittedParts)
 				{
 					// optimization to avoid keeping computing radiation levels that don't matter
 					// also make sure we ignore the origin and emitter parts
-					if (reductionFactor < minFactor || prd == origin || prd == emitter.RadiationData)
+					if (reductionFactor < minFactor || prd == origin || prd == emitter)
 					{
 						prd.ResetRaycastHit();
 						continue;
@@ -561,15 +570,15 @@ namespace KERBALISM
 					Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
 					double sectionRatio = originSection.OccluderFactor(occluderSection);
 
-					prd.blockedRad = reductionFactor * prd.OcclusionFactor(false) * sectionRatio;
-					reductionFactor -= prd.blockedRad;
+					prd.blockedRadDbg = reductionFactor * prd.OcclusionFactor(false) * sectionRatio;
+					reductionFactor -= prd.blockedRadDbg;
 					//reductionFactor -= reductionFactor * prd.OcclusionFactor(false);
 					prd.ResetRaycastHit();
 
-					prd.lastRaycast = $"emt-{Time.frameCount}";
-					prd.rayPenetration = prd.hitPenetration;
-					prd.crossSectionFactor = sectionRatio;
-					prd.bremsstrahlung = 0.0;
+					prd.lastRaycastDbg = $"emt-{Time.frameCount}";
+					prd.rayPenetrationDbg = prd.hitPenetration;
+					prd.crossSectionFactorDbg = sectionRatio;
+					prd.bremsstrahlungDbg = 0.0;
 				}
 
 				// factor in the origin part wall shielding

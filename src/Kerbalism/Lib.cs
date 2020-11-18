@@ -1079,9 +1079,43 @@ namespace KERBALISM
 			if (showSign)
 				sign = rate >= 0.0 ? "+" : "-";
 			else
-				sign = "";
+				sign = string.Empty;
 
 			rate = Math.Abs(rate);
+
+			if (Input.GetKey(KeyCode.LeftAlt))
+			{
+				int exponent = rate == 0.0 ? 0 : (int)Math.Floor(Math.Log10(rate));
+				switch (exponent)
+				{
+					case 11: return BuildString(sign, (rate * 1e-9).ToString("0.0"), "e+9", unit, Local.Generic_perSecond);//"/s"
+					case 10: return BuildString(sign, (rate * 1e-9).ToString("0.00"), "e+9", unit, Local.Generic_perSecond);//"/s"
+					case 9: return BuildString(sign, (rate * 1e-9).ToString("0.000"), "e+9", unit, Local.Generic_perSecond);//"/s"
+					case 8: return BuildString(sign, (rate * 1e-6).ToString("0.0"), "e+6", unit, Local.Generic_perSecond);//"/s"
+					case 7: return BuildString(sign, (rate * 1e-6).ToString("0.00"), "e+6", unit, Local.Generic_perSecond);//"/s"
+					case 6: return BuildString(sign, (rate * 1e-6).ToString("0.000"), "e+6", unit, Local.Generic_perSecond);//"/s"
+					case 5: return BuildString(sign, (rate * 1e-3).ToString("0.0"), "e+3", unit, Local.Generic_perSecond);//"/s"
+					case 4: return BuildString(sign, (rate * 1e-3).ToString("0.00"), "e+3", unit, Local.Generic_perSecond);//"/s"
+					case 3: return BuildString(sign, (rate * 1e-3).ToString("0.000"), "e+3", unit, Local.Generic_perSecond);//"/s"
+					case 2: return BuildString(sign, rate.ToString("0.0"), unit, Local.Generic_perSecond);//"/s"
+					case 1: return BuildString(sign, rate.ToString("0.00"), unit, Local.Generic_perSecond);//"/s"
+					case 0: return BuildString(sign, rate.ToString("0.000"), unit, Local.Generic_perSecond);//"/s"
+					case -1: return BuildString(sign, (rate * 1e3).ToString("0.0"), "e-3", unit, Local.Generic_perSecond);//"/s"
+					case -2: return BuildString(sign, (rate * 1e3).ToString("0.00"), "e-3", unit, Local.Generic_perSecond);//"/s"
+					case -3: return BuildString(sign, (rate * 1e3).ToString("0.000"), "e-3", unit, Local.Generic_perSecond);//"/s"
+					case -4: return BuildString(sign, (rate * 1e6).ToString("0.0"), "e-6", unit, Local.Generic_perSecond);//"/s"
+					case -5: return BuildString(sign, (rate * 1e6).ToString("0.00"), "e-6", unit, Local.Generic_perSecond);//"/s"
+					case -6: return BuildString(sign, (rate * 1e6).ToString("0.000"), "e-6", unit, Local.Generic_perSecond);//"/s"
+					case -7: return BuildString(sign, (rate * 1e9).ToString("0.0"), "e-9", unit, Local.Generic_perSecond);//"/s"
+					case -8: return BuildString(sign, (rate * 1e9).ToString("0.00"), "e-9", unit, Local.Generic_perSecond);//"/s"
+					case -9: return BuildString(sign, (rate * 1e9).ToString("0.000"), "e-9", unit, Local.Generic_perSecond);//"/s"
+					case -10: return BuildString(sign, (rate * 1e12).ToString("0.0"), "e-12", unit, Local.Generic_perSecond);//"/s"
+					case -11: return BuildString(sign, (rate * 1e12).ToString("0.00"), "e-12", unit, Local.Generic_perSecond);//"/s"
+					case -12: return BuildString(sign, (rate * 1e12).ToString("0.000"), "e-12", unit, Local.Generic_perSecond);//"/s"
+					default: return BuildString(sign, rate.ToString("0.000e+0"), " ", unit, Local.Generic_perSecond);//"/s"
+				}
+			}
+
 			if (rate >= 0.01)
 				return BuildString(sign, rate.ToString(format), unit, Local.Generic_perSecond);//"/s"
 
@@ -1236,7 +1270,7 @@ namespace KERBALISM
 		///<summary> Pretty-print magnetic strength </summary>
 		public static string HumanReadableField(double strength)
 		{
-			return BuildString(strength.ToString("F1"), " uT"); //< micro-tesla
+			return BuildString(strength.ToString("F1"), " μT"); //< micro-tesla
 		}
 
 		///<summary> Pretty-print radiation rate </summary>

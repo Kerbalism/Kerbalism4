@@ -194,6 +194,11 @@ namespace KERBALISM
 			return false;
 		}
 
+		public static bool TryGetModuleData(int flightId, out ModuleData moduledata)
+		{
+			return flightModuleDatas.TryGetValue(flightId, out moduledata);
+		}
+
 		public static bool TryGetModuleData<TModule, TData>(ProtoPartModuleSnapshot protoModule, out TData moduleData)
 			where TModule : KsmPartModule<TModule, TData>
 			where TData : ModuleData<TModule, TData>

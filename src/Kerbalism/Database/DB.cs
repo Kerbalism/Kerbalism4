@@ -72,8 +72,9 @@ namespace KERBALISM
 			// remove all vessels
 			vessels.Clear();
 
-			// clear the dictionary of moduledatas
+			// clear the dictionaries of moduledatas and partdatas
 			ModuleData.ClearOnLoad();
+			PartData.ClearOnLoad();
 
 			// flightstate will be null when first creating the game
 			if (HighLogic.CurrentGame.flightState != null)

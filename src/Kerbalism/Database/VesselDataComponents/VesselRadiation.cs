@@ -8,6 +8,7 @@ namespace KERBALISM.VesselLogic
 {
 	public class VesselRadiation
 	{
+		private const string NODENAME_UNLOADED_EMITTERS = "UNLOADED_EMITTERS";
 		Queue<PartRadiationData.RaycastTask> raycastTasks = new Queue<PartRadiationData.RaycastTask>();
 
 		int partToUpdate;

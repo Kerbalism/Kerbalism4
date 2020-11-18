@@ -356,7 +356,7 @@
   <!-- ////////// IMPORT DEFAULT MS BUILD PROCESS ////////// -->
   <!-- ///////////////////////////////////////////////////// -->
   <ItemGroup>
-    <Compile Include="Database\VesselDataComponents\VesselData.Cache.cs" />
+    <Compile Include="Database\VesselDataComponents\VesselData.ObjectsCache.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

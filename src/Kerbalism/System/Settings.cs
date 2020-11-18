@@ -154,9 +154,8 @@ namespace KERBALISM
 			StormFrequency = Lib.ConfigValue(cfg, "StormFrequency", 0.4f);
 			StormDurationHours = Lib.ConfigValue(cfg, "StormDurationHours", 2);
 			StormEjectionSpeed = Lib.ConfigValue(cfg, "StormEjectionSpeed", 0.33f);
-			ShieldingEfficiency = Lib.ConfigValue(cfg, "ShieldingEfficiency", 0.9f);
-			StormRadiation = Lib.ConfigValue(cfg, "StormRadiation", 5.0f);
-			ExternRadiation = Lib.ConfigValue(cfg, "ExternRadiation", 0.04f);
+			StormRadiation = Lib.ConfigValue(cfg, "StormRadiation", 5.0f) / 3600f;
+			ExternRadiation = Lib.ConfigValue(cfg, "ExternRadiation", 0.04f) / 3600f;
 			RadiationInSievert = Lib.ConfigValue(cfg, "RadiationInSievert", false);
 
 			EnableOrbitLineTweaks = Lib.ConfigValue(cfg, "EnableOrbitLineTweaks", true);

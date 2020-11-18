@@ -114,6 +114,10 @@ namespace KERBALISM.Planner
 			if (vesselData.crewCount != manifest.CrewCount)
 				updateRequested = true;
 
+			// LeftAlt trigger scientific notation mode, LeftShift trigger max crew mode
+			if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyUp(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyUp(KeyCode.LeftShift))
+				updateRequested = true;
+
 			if (!updateRequested)
 			{
 				return;

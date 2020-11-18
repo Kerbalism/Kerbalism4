@@ -91,10 +91,12 @@ OVERVIEW :
 
 		#region FIELDS
 
-		// total radiation dose received since launch
-		public double accumulatedRadiation;
+		
 
 		private bool raycastDone = true;
+
+		// total radiation dose received since launch
+		public double accumulatedRadiation;
 
 		private double elapsedSecSinceLastUpdate;
 
@@ -105,11 +107,7 @@ OVERVIEW :
 		private PartStructuralOcclusion structuralOcclusion;
 
 		// occluding stats for the part resources
-		private List<ResourceOcclusion> resourcesOcclusion = new List<ResourceOcclusion>();
-
-		private PartData partData;
-
-		private bool? isReceiver;
+		private List<ResourceOcclusion> resourcesOcclusion;
 
 		private SunRaycastTask sunRaycastTask;
 
@@ -120,43 +118,12 @@ OVERVIEW :
 		#region PROPERTIES
 
 		// rad/s received by that part
+		public PartData PartData { get; private set; }
 		public double RadiationRate { get; private set; }
-
-		public bool IsReceiver
-		{
-			get
-			{
-				if (isReceiver == null)
-				{
-					foreach (ModuleData md in partData.modules)
-					{
-						if (md is IRadiationReceiver)
-						{
-							if (radiationCoilArrays == null)
-								radiationCoilArrays = new List<CoilArrayShielding>();
-
-							if (sunRaycastTask == null)
-								sunRaycastTask = new SunRaycastTask(this);
-
-							if (emitterRaycastTasks == null)
-								emitterRaycastTasks = new List<EmitterRaycastTask>();
-
-							isReceiver = true;
-							break;
-						}
-					}
-
-					if (isReceiver == null)
-					{
-						isReceiver = false;
-					}
-				}
-
-				return (bool)isReceiver;
-			}
-		}
-
-		public bool IsOccluder { get; private set; }
+		public bool IsOccluder { get; private set; } = false;
+		public bool IsReceiver { get; private set; } = false;
+		public bool IsEmitter { get; private set; } = false;
+		public List<IRadiationEmitter> RadiationEmitters { get; private set; }
 
 		#endregion
 
@@ -164,13 +131,46 @@ OVERVIEW :
 
 		public PartRadiationData(PartData partData)
 		{
-			this.partData = partData;
-			IsOccluder = partData.volumeAndSurface != null;
+			PartData = partData;
+		}
+
+		public void PostInstantiateSetup()
+		{
+			IsOccluder = PartData.volumeAndSurface != null;
+
+			foreach (ModuleData md in PartData.modules)
+			{
+				if (md is IRadiationReceiver receiver && receiver.EnableInterface)
+				{
+					IsReceiver = true;
+				}
+				else if (md is IRadiationEmitter emitter && emitter.EnableInterface)
+				{
+					if (RadiationEmitters == null)
+						RadiationEmitters = new List<IRadiationEmitter>();
+
+					RadiationEmitters.Add(emitter);
+					IsEmitter = true;
+				}
+			}
+
+			if (IsReceiver)
+			{
+				if (radiationCoilArrays == null)
+					radiationCoilArrays = new List<CoilArrayShielding>();
+
+				if (sunRaycastTask == null)
+					sunRaycastTask = new SunRaycastTask(this);
+
+				if (emitterRaycastTasks == null)
+					emitterRaycastTasks = new List<EmitterRaycastTask>();
+			}
+
 			if (IsOccluder)
 			{
 				structuralOcclusion = new PartStructuralOcclusion();
+				resourcesOcclusion = new List<ResourceOcclusion>();
 			}
-
 		}
 
 		public static void Load(PartData partData, ConfigNode partDataNode)
@@ -257,17 +257,17 @@ OVERVIEW :
 
 		// debug receiver info
 		private bool debug = false;
-		private double radiationRate;
-		private double stormRadiationFactor;
-		private double stormRadiation;
-		private double emittersRadiation;
+		private double radiationRateDbg;
+		private double stormRadiationFactorDbg;
+		private double stormRadiationDbg;
+		private double emittersRadiationDbg;
 
 		// debug occluder info
-		private string lastRaycast;
-		private double rayPenetration;
-		private double blockedRad;
-		private double bremsstrahlung;
-		private double crossSectionFactor;
+		private string lastRaycastDbg;
+		private double rayPenetrationDbg;
+		private double blockedRadDbg;
+		private double bremsstrahlungDbg;
+		private double crossSectionFactorDbg;
 
 		public void Update()
 		{
@@ -283,15 +283,15 @@ OVERVIEW :
 				GetOccluderStats();
 			}
 
-			if (partData.vesselData.LoadedOrEditor)
+			if (PartData.vesselData.LoadedOrEditor)
 			{
 				if (IsReceiver)
 				{
 					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.PartRadiationData.Update.Arrays");
 					radiationCoilArrays.Clear();
-					foreach (RadiationCoilData array in partData.vesselData.PartCache.RadiationArrays)
+					foreach (RadiationCoilData array in PartData.vesselData.ObjectsCache.RadiationArrays)
 					{
-						double protection = array.loadedModule.GetPartProtectionFactor(partData.LoadedPart);
+						double protection = array.loadedModule.GetPartProtectionFactor(PartData.LoadedPart);
 						if (protection > 0.0)
 							radiationCoilArrays.Add(new CoilArrayShielding(array.effectData, protection));
 
@@ -310,42 +310,42 @@ OVERVIEW :
 
 			if (IsReceiver)
 			{
-				stormRadiation = 0.0;
-				emittersRadiation = 0.0;
+				stormRadiationDbg = 0.0;
+				emittersRadiationDbg = 0.0;
 
 				// add "ambiant" radiation (background, belts, bodies...)
-				RadiationRate = partData.vesselData.EnvRadiation * OcclusionFactor(false, true, false);
+				RadiationRate = PartData.vesselData.EnvRadiation * OcclusionFactor(false, true, false);
 
 				// synchronize emitters references and add their radiation
-				int vesselEmittersCount = partData.vesselData.PartCache.RadiationEmitters.Count;
+				int vesselEmittersCount = PartData.vesselData.ObjectsCache.RadiationEmitters.Count;
 				int tasksCount = emitterRaycastTasks.Count;
 
 				if (tasksCount > vesselEmittersCount)
 				{
-					emitterRaycastTasks.RemoveRange(vesselEmittersCount - 1, tasksCount - vesselEmittersCount);
+					emitterRaycastTasks.RemoveRange(vesselEmittersCount, tasksCount - vesselEmittersCount);
 				}
 
 				for (int i = 0; i < vesselEmittersCount; i++)
 				{
 					if (i + 1 > tasksCount)
 					{
-						emitterRaycastTasks.Add(new EmitterRaycastTask(this, partData.vesselData.PartCache.RadiationEmitters[i]));
+						emitterRaycastTasks.Add(new EmitterRaycastTask(this, PartData.vesselData.ObjectsCache.RadiationEmitters[i]));
 					}
 					else
 					{
-						emitterRaycastTasks[i].CheckEmitterHasChanged(partData.vesselData.PartCache.RadiationEmitters[i]);
+						emitterRaycastTasks[i].CheckEmitterHasChanged(PartData.vesselData.ObjectsCache.RadiationEmitters[i]);
 					}
 
-					RadiationRate += emitterRaycastTasks[i].Radiation;
-					emittersRadiation += emitterRaycastTasks[i].Radiation;
+					RadiationRate += emitterRaycastTasks[i].Radiation();
+					emittersRadiationDbg += emitterRaycastTasks[i].Radiation();
 				}
 
 				// add storm radiation, if there is a storm
-				stormRadiationFactor = sunRaycastTask.sunRadiationFactor;
-				if (partData.vesselData.EnvStorm)
+				stormRadiationFactorDbg = sunRaycastTask.sunRadiationFactor;
+				if (PartData.vesselData.EnvStorm)
 				{
-					RadiationRate += partData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
-					stormRadiation = partData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
+					RadiationRate += PartData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
+					stormRadiationDbg = PartData.vesselData.EnvStormRadiation * sunRaycastTask.sunRadiationFactor;
 				}
 
 				// substract magnetic shields effects
@@ -356,7 +356,7 @@ OVERVIEW :
 
 				// clamp to nominal
 				RadiationRate = Math.Max(RadiationRate, Radiation.Nominal);
-				radiationRate = RadiationRate;
+				radiationRateDbg = RadiationRate;
 
 				// accumulate total radiation received by this part
 				accumulatedRadiation += RadiationRate * elapsedSecSinceLastUpdate;
@@ -366,54 +366,54 @@ OVERVIEW :
 
 			UnityEngine.Profiling.Profiler.EndSample();
 
-			if (!debug && partData.vesselData.LoadedOrEditor)
+			if (!debug && PartData.vesselData.LoadedOrEditor)
 			{
 				debug = true;
 
-				if (partData.vesselData.LoadedOrEditor)
+				if (PartData.vesselData.LoadedOrEditor)
 				{
 					if (IsReceiver)
 					{
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(radiationRate), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(radiationRate)].guiName = "Radiation";
-						partData.LoadedPart.Fields[nameof(radiationRate)].guiFormat = "F10";
-						partData.LoadedPart.Fields[nameof(radiationRate)].guiUnits = " rad/s";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(radiationRateDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(radiationRateDbg)].guiName = "Radiation";
+						PartData.LoadedPart.Fields[nameof(radiationRateDbg)].guiFormat = "F10";
+						PartData.LoadedPart.Fields[nameof(radiationRateDbg)].guiUnits = " rad/s";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(emittersRadiation), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(emittersRadiation)].guiName = "Emitters";
-						partData.LoadedPart.Fields[nameof(emittersRadiation)].guiFormat = "F10";
-						partData.LoadedPart.Fields[nameof(emittersRadiation)].guiUnits = " rad/s";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(emittersRadiationDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(emittersRadiationDbg)].guiName = "Emitters";
+						PartData.LoadedPart.Fields[nameof(emittersRadiationDbg)].guiFormat = "F10";
+						PartData.LoadedPart.Fields[nameof(emittersRadiationDbg)].guiUnits = " rad/s";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(stormRadiation), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(stormRadiation)].guiName = "Storm";
-						partData.LoadedPart.Fields[nameof(stormRadiation)].guiFormat = "F10";
-						partData.LoadedPart.Fields[nameof(stormRadiation)].guiUnits = " rad/s";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(stormRadiationDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(stormRadiationDbg)].guiName = "Storm";
+						PartData.LoadedPart.Fields[nameof(stormRadiationDbg)].guiFormat = "F10";
+						PartData.LoadedPart.Fields[nameof(stormRadiationDbg)].guiUnits = " rad/s";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(stormRadiationFactor), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(stormRadiationFactor)].guiName = "Storm rad factor";
-						partData.LoadedPart.Fields[nameof(stormRadiationFactor)].guiFormat = "P6";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(stormRadiationFactorDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(stormRadiationFactorDbg)].guiName = "Storm rad factor";
+						PartData.LoadedPart.Fields[nameof(stormRadiationFactorDbg)].guiFormat = "P6";
 					}
 
 					if (IsOccluder)
 					{
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(lastRaycast), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(lastRaycastDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(rayPenetration), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(rayPenetration)].guiName = "rayPenetration";
-						partData.LoadedPart.Fields[nameof(rayPenetration)].guiFormat = "F3";
-						partData.LoadedPart.Fields[nameof(rayPenetration)].guiUnits = "m";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(rayPenetrationDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(rayPenetrationDbg)].guiName = "rayPenetration";
+						PartData.LoadedPart.Fields[nameof(rayPenetrationDbg)].guiFormat = "F3";
+						PartData.LoadedPart.Fields[nameof(rayPenetrationDbg)].guiUnits = "m";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(blockedRad), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(blockedRad)].guiName = "blockedRad";
-						partData.LoadedPart.Fields[nameof(blockedRad)].guiFormat = "P6";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(blockedRadDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(blockedRadDbg)].guiName = "blockedRad";
+						PartData.LoadedPart.Fields[nameof(blockedRadDbg)].guiFormat = "P6";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(bremsstrahlung), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(bremsstrahlung)].guiName = "bremsstrahlung";
-						partData.LoadedPart.Fields[nameof(bremsstrahlung)].guiFormat = "P6";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(bremsstrahlungDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(bremsstrahlungDbg)].guiName = "bremsstrahlung";
+						PartData.LoadedPart.Fields[nameof(bremsstrahlungDbg)].guiFormat = "P6";
 
-						partData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(crossSectionFactor), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
-						partData.LoadedPart.Fields[nameof(crossSectionFactor)].guiName = "crossSectionFactor";
-						partData.LoadedPart.Fields[nameof(crossSectionFactor)].guiFormat = "P6";
+						PartData.LoadedPart.Fields.Add(new BaseField(new UI_Label(), GetType().GetField(nameof(crossSectionFactorDbg), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance), this));
+						PartData.LoadedPart.Fields[nameof(crossSectionFactorDbg)].guiName = "crossSectionFactor";
+						PartData.LoadedPart.Fields[nameof(crossSectionFactorDbg)].guiFormat = "P6";
 					}
 
 
@@ -425,7 +425,7 @@ OVERVIEW :
 		// Since the part can be unloaded, this require either storing the protopart reference in PartData, or storing the mass independently (a bit silly)
 		public void GetOccluderStats()
 		{
-			structuralOcclusion.Update(partData.PartPrefab.mass, partData.volumeAndSurface.surface, partData.volumeAndSurface.volume);
+			structuralOcclusion.Update(PartData.PartPrefab.mass, PartData.volumeAndSurface.surface, PartData.volumeAndSurface.volume);
 		}
 
 		private void UpdateOcclusionStats()
@@ -433,9 +433,9 @@ OVERVIEW :
 			int listCapacity = resourcesOcclusion.Count;
 			int occluderIndex = -1;
 
-			for (int i = 0; i < partData.LoadedPart.Resources.Count; i++)
+			for (int i = 0; i < PartData.LoadedPart.Resources.Count; i++)
 			{
-				PartResource res = partData.LoadedPart.Resources[i];
+				PartResource res = PartData.LoadedPart.Resources[i];
 
 				if (res.info.density == 0.0)
 					continue;
@@ -447,7 +447,7 @@ OVERVIEW :
 					listCapacity++;
 				}
 
-				resourcesOcclusion[occluderIndex].UpdateOcclusion(res, partData.volumeAndSurface.surface, partData.volumeAndSurface.volume);
+				resourcesOcclusion[occluderIndex].UpdateOcclusion(res, PartData.volumeAndSurface.surface, PartData.volumeAndSurface.volume);
 			}
 
 			while (listCapacity > occluderIndex + 1)

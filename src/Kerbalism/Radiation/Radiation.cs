@@ -112,7 +112,7 @@ namespace KERBALISM
 		/// 3 mrad/h is used to never allow zero radiation,
 		/// and as a threshold for discarding low values
 		/// </summary>
-		public const double Nominal = 0.0003 / 3600.0; // < 
+		public const double Nominal = 0.0003 / 3600.0;
 
 		// habitat raytracing constants and cache
 		private static int partsLayerMask = (1 << LayerMask.NameToLayer("PhysicalObjects")) | LayerUtil.DefaultEquivalent;
@@ -562,7 +562,7 @@ namespace KERBALISM
 			}
 
 			// add extern radiation
-			radiation += Settings.ExternRadiation / 3600.0;
+			radiation += Settings.ExternRadiation;
 
 			// Lib.Log("Radiation subtotal on " + b + ": " + Lib.HumanReadableRadiation(radiation) + ", gamma " + gamma_transparency);
 
@@ -716,7 +716,7 @@ namespace KERBALISM
 			}
 
 			// add extern radiation
-			radiation += Settings.ExternRadiation / 3600.0;
+			radiation += Settings.ExternRadiation;
 
 #if DEBUG_RADIATION
 			if (v.loaded) Lib.Log("Radiation " + v + " extern: " + Lib.HumanReadableRadiation(radiation) + " gamma: " + Lib.HumanReadableRadiation(Settings.ExternRadiation));
