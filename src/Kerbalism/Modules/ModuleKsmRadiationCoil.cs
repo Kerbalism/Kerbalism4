@@ -412,7 +412,7 @@ namespace KERBALISM
 				capsuleAxisWorld /= coils.Count;
 
 				diameter = ((capsuleWorldCenter - masterTransform.position).magnitude + radiusOffset) * 2f;
-				radiusSqr = Mathf.Sqrt(diameter * 0.5f);
+				radiusSqr = diameter * diameter * 0.25f;
 				masterCoil.moduleData.UpdateMaxRadiation(radiationRemovedAtOptimalDiameter * (optimalDiameter / diameter));
 
 				capsuleWorldRotation = Quaternion.LookRotation(masterTransform.forward, capsuleAxisWorld);
@@ -430,12 +430,12 @@ namespace KERBALISM
 
 			public double GetPartProtectionFactor(Part part)
 			{
-				int pointCount = 1;
-				int protectedPointCount = 0;
+				double pointCount = 1.0;
+				double protectedPointCount = 0.0;
 
 				if (IsPointInCapsule(part.transform.position))
 				{
-					protectedPointCount++;
+					protectedPointCount += 1.0;
 				}
 
 				if (part.attachNodes.Count > 0)
@@ -444,16 +444,16 @@ namespace KERBALISM
 					{
 						if (node.nodeType == AttachNode.NodeType.Stack)
 						{
-							pointCount++;
+							pointCount += 1.0;
 							if (IsPointInCapsule(part.transform.TransformPoint(node.position)))
 							{
-								protectedPointCount++;
+								protectedPointCount += 1.0;
 							}
 						}
 					}
 				}
 
-				return (double)protectedPointCount / (double)pointCount;
+				return protectedPointCount / pointCount;
 			}
 
 			private bool IsPointInCapsule(Vector3 point)

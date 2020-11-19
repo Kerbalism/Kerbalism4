@@ -43,12 +43,12 @@ namespace KERBALISM
 			{
 				if (partRenderers == null)
 				{
-					// On instantiating a new vessel from the VAB, child parts will be parented (as in unity-parented)
-					// to their parent. This mean doing a FindComponentInChildren() on the root part will return the whole vessel.
+					// In the editor, and on instantiating a new vessel from the editor, child parts will be parented (as in unity-parented)
+					// to their KSP parent part. This mean doing a FindComponentInChildren() on the root part will return the whole vessel.
 					// Note this isn't the case on a loaded from save vessel : parts are top level (world) objects.
 					// So, we rely on the stock FindModelRenderersCached() which get the model GO by its name (usually the first child
-					// of the part GO). Note that as usual there are a few special casesregarding the GO name, so better to let KSP
-					// handle this.
+					// of the part GO). Note that as usual there are a few special cases regarding the GO name, so better to let KSP
+					// handle this trough its builtin FindModelRenderersCached() method.
 					partRenderers = PartData.LoadedPart.FindModelRenderersCached();
 					for (int i = partRenderers.Count - 1; i >= 0; i--)
 					{
@@ -141,7 +141,6 @@ namespace KERBALISM
 				return new Bounds(min + (size * 0.5f), size);
 			}
 
-			// TODO : call this on scene changes
 			public static void ClearLoadedPartsCache()
 			{
 				prdByTransforms.Clear();
@@ -496,9 +495,54 @@ namespace KERBALISM
 				reductionFactor = Lib.Parse.ToDouble(value.value);
 			}
 
-			public void SaveToNode(ConfigNode emittersNode)
+			public static void OnUnloadedPostInstantiate(List<EmitterRaycastTask> emitters)
 			{
-				emittersNode.AddValue(emitterId.ToString(), reductionFactor.ToString());
+				for (int i = emitters.Count - 1; i >= 0; i--)
+				{
+					if (PartData.TryGetPartData(emitters[i].emitterId, out PartData partData))
+					{
+						emitters[i].emitter = partData.radiationData;
+					}
+					else
+					{
+						emitters.RemoveAt(i);
+					}
+				}
+			}
+
+			public static void Save(VesselDataBase vd, List<EmitterRaycastTask> emitterTasks, ConfigNode radiationNode)
+			{
+				if (emitterTasks == null || emitterTasks.Count == 0)
+					return;
+
+				ConfigNode emittersNode = new ConfigNode(NODENAME_EMITTERS);
+				foreach (EmitterRaycastTask emitterTask in emitterTasks)
+				{
+					// save foreign emitters only if both vessels are landed
+					if (emitterTask.emitter.PartData.vesselData != vd && (!vd.EnvLanded || !emitterTask.emitter.PartData.vesselData.EnvLanded))
+						continue;
+
+					emittersNode.AddValue(emitterTask.emitterId.ToString(), emitterTask.reductionFactor);
+				}
+
+				if (emittersNode.CountValues > 0)
+				{
+					radiationNode.AddNode(emittersNode);
+				}
+			}
+
+			public static void Load(PartRadiationData partRadiationData, ConfigNode radiationNode)
+			{
+				ConfigNode emittersNode = radiationNode.GetNode(NODENAME_EMITTERS);
+				if (emittersNode != null)
+				{
+					partRadiationData.emitterRaycastTasks = new List<EmitterRaycastTask>();
+					foreach (ConfigNode.Value value in emittersNode.values)
+					{
+						EmitterRaycastTask emitter = new EmitterRaycastTask(partRadiationData, value);
+						partRadiationData.emitterRaycastTasks.Add(emitter);
+					}
+				}
 			}
 
 			/// <summary>

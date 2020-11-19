@@ -451,8 +451,6 @@ namespace KERBALISM
 			solarPanelsAverageExposure = Lib.ConfigValue(node, "solarPanelsAverageExposure", -1.0);
 			scienceTransmitted = Lib.ConfigValue(node, "scienceTransmitted", 0.0);
 
-			ObjectsCache.Load(node);
-
 			stormData = new StormData(node.GetNode("StormData"));
 			computer = new Computer(node.GetNode("computer"));
 
@@ -484,8 +482,6 @@ namespace KERBALISM
 
 			node.AddValue("solarPanelsAverageExposure", solarPanelsAverageExposure);
 			node.AddValue("scienceTransmitted", scienceTransmitted);
-
-			ObjectsCache.Save(node);
 
 			stormData.Save(node.AddNode("StormData"));
 			computer.Save(node.AddNode("computer"));
@@ -633,6 +629,8 @@ namespace KERBALISM
 					}
 					part.PostInstantiateSetup();
 				}
+
+				ObjectsCache.Update(this);
 			}
 		}
 

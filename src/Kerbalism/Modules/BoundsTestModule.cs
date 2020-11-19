@@ -7,6 +7,17 @@ using UnityEngine;
 
 namespace KERBALISM.Modules
 {
+	/*
+	 Possible implementation :
+	- On prefabs compilation :
+		- Find and store all the part colliders
+		- compute a "part state hash" using :
+			- each collider transform enabled state, and the transform localpos/localRot/lossyScale
+		- compute the part volume/surface
+	- On editor 
+
+	 */
+
 	public class BoundsTestModule : PartModule
 	{
 		private class InterBB
@@ -42,6 +53,19 @@ namespace KERBALISM.Modules
 		{
 			bounds = ColliderBounds(part.partTransform);
 			volume = PartVolumeAndSurface.BoundsVolume(bounds);
+
+			foreach (InterBB bb in intermediateBounds)
+			{
+				DebugDrawer.Draw(new DebugDrawer.Cube(bb.transform, bb.center, bb.size, Color.yellow));
+			}
+
+			foreach (Bounds bb in intermediateTBounds)
+			{
+				DebugDrawer.Draw(new DebugDrawer.Bounds(bb, Color.cyan));
+			}
+
+			DebugDrawer.Draw(new DebugDrawer.Bounds(part.GetPartRendererBound(), Color.red));
+			DebugDrawer.Draw(new DebugDrawer.Bounds(bounds, Color.green));
 		}
 
 		//public void OnRenderObject()
@@ -65,47 +89,62 @@ namespace KERBALISM.Modules
 			intermediateBounds.Clear();
 			intermediateTBounds.Clear();
 
+			List<Transform> modelTransforms = new List<Transform>();
+
+			for (int i = 0; i < partTransform.childCount; i++)
+			{
+				if (partTransform.GetChild(i).gameObject.name == "model")
+				{
+					modelTransforms.Add(partTransform.GetChild(i));
+				}
+			}
+
 			Bounds bounds = default;
 
-			foreach (MeshCollider meshCollider in partTransform.GetComponentsInChildren<MeshCollider>(false))
+			foreach (Transform modelTransform in modelTransforms)
 			{
-				if (meshCollider.gameObject.layer != 0)
-					continue;
-
-				bounds = MergeComponentBoundToWorldBound(bounds, partTransform, meshCollider, meshCollider.sharedMesh.bounds);
-			}
-
-			foreach (BoxCollider boxCollider in partTransform.GetComponentsInChildren<BoxCollider>(false))
-			{
-				if (boxCollider.gameObject.layer != 0)
-					continue;
-				Bounds boxBounds = new Bounds(boxCollider.center, boxCollider.size);
-				bounds = MergeComponentBoundToWorldBound(bounds, partTransform, boxCollider, boxBounds);
-			}
-
-			foreach (SphereCollider sphereCollider in partTransform.GetComponentsInChildren<SphereCollider>(false))
-			{
-				if (sphereCollider.gameObject.layer != 0)
-					continue;
-				Bounds sphereBounds = new Bounds(sphereCollider.center, new Vector3(sphereCollider.radius * 2f, sphereCollider.radius * 2f, sphereCollider.radius * 2f));
-				bounds = MergeComponentBoundToWorldBound(bounds, partTransform, sphereCollider, sphereBounds);
-			}
-
-			foreach (CapsuleCollider capsuleCollider in partTransform.GetComponentsInChildren<CapsuleCollider>(false))
-			{
-				if (capsuleCollider.gameObject.layer != 0)
-					continue;
-				Vector3 capsuleSize;
-				switch (capsuleCollider.direction)
+				foreach (MeshCollider meshCollider in modelTransform.GetComponentsInChildren<MeshCollider>(false))
 				{
-					case 0: capsuleSize = new Vector3(capsuleCollider.height, capsuleCollider.radius * 2f, capsuleCollider.radius * 2f); break;
-					case 1: capsuleSize = new Vector3(capsuleCollider.radius * 2f, capsuleCollider.height, capsuleCollider.radius * 2f); break;
-					case 2: capsuleSize = new Vector3(capsuleCollider.radius * 2f, capsuleCollider.radius * 2f, capsuleCollider.height); break;
-					default: capsuleSize = default; break;
+					if (meshCollider.gameObject.layer != 0)
+						continue;
+
+					bounds = MergeComponentBoundToWorldBound(bounds, partTransform, meshCollider, meshCollider.sharedMesh.bounds);
 				}
-				Bounds capsuleBounds = new Bounds(capsuleCollider.center, capsuleSize);
-				bounds = MergeComponentBoundToWorldBound(bounds, partTransform, capsuleCollider, capsuleBounds);
+
+				foreach (BoxCollider boxCollider in modelTransform.GetComponentsInChildren<BoxCollider>(false))
+				{
+					if (boxCollider.gameObject.layer != 0)
+						continue;
+					Bounds boxBounds = new Bounds(boxCollider.center, boxCollider.size);
+					bounds = MergeComponentBoundToWorldBound(bounds, partTransform, boxCollider, boxBounds);
+				}
+
+				foreach (SphereCollider sphereCollider in modelTransform.GetComponentsInChildren<SphereCollider>(false))
+				{
+					if (sphereCollider.gameObject.layer != 0)
+						continue;
+					Bounds sphereBounds = new Bounds(sphereCollider.center, new Vector3(sphereCollider.radius * 2f, sphereCollider.radius * 2f, sphereCollider.radius * 2f));
+					bounds = MergeComponentBoundToWorldBound(bounds, partTransform, sphereCollider, sphereBounds);
+				}
+
+				foreach (CapsuleCollider capsuleCollider in modelTransform.GetComponentsInChildren<CapsuleCollider>(false))
+				{
+					if (capsuleCollider.gameObject.layer != 0)
+						continue;
+					Vector3 capsuleSize;
+					switch (capsuleCollider.direction)
+					{
+						case 0: capsuleSize = new Vector3(capsuleCollider.height, capsuleCollider.radius * 2f, capsuleCollider.radius * 2f); break;
+						case 1: capsuleSize = new Vector3(capsuleCollider.radius * 2f, capsuleCollider.height, capsuleCollider.radius * 2f); break;
+						case 2: capsuleSize = new Vector3(capsuleCollider.radius * 2f, capsuleCollider.radius * 2f, capsuleCollider.height); break;
+						default: capsuleSize = default; break;
+					}
+					Bounds capsuleBounds = new Bounds(capsuleCollider.center, capsuleSize);
+					bounds = MergeComponentBoundToWorldBound(bounds, partTransform, capsuleCollider, capsuleBounds);
+				}
 			}
+
+
 
 			return bounds;
 		}

@@ -75,6 +75,8 @@ namespace KERBALISM
 			// clear the dictionaries of moduledatas and partdatas
 			ModuleData.ClearOnLoad();
 			PartData.ClearOnLoad();
+			// Clear the loaded parts transforms cache
+			PartRadiationData.RaycastTask.ClearLoadedPartsCache();
 
 			// flightstate will be null when first creating the game
 			if (HighLogic.CurrentGame.flightState != null)

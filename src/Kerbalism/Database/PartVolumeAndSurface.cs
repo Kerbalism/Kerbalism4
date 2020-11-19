@@ -601,6 +601,9 @@ namespace KERBALISM
 			foreach (MeshCollider meshCollider in meshColliders)
 			{
 				Mesh mesh = meshCollider.sharedMesh;
+				if (mesh == null)
+					continue;
+
 				Vector3 scaleVector = meshCollider.transform.lossyScale;
 				float scale = scaleVector.x * scaleVector.y * scaleVector.z;
 

@@ -25,7 +25,7 @@ namespace KERBALISM
 			readonly Vector3 pos;
 			readonly Color color;
 
-			public Point(Vector3 pos, Color color, int frames = 1) : base(frames)
+			public Point(Vector3 pos, Color color, int frames = 10) : base(frames)
 			{
 				this.pos = pos;
 				this.color = color;
@@ -43,14 +43,14 @@ namespace KERBALISM
 			readonly Vector3 end;
 			readonly Color color;
 
-			public Line(Vector3 start, Vector3 end, Color color, int frames = 1) : base(frames)
+			public Line(Vector3 start, Vector3 end, Color color, int frames = 10) : base(frames)
 			{
 				this.start = start;
 				this.end = end;
 				this.color = color;
 			}
 
-			public Line(Vector3 start, Vector3 direction, Color color, float length = 1f, int frames = 1) : base(frames)
+			public Line(Vector3 start, Vector3 direction, Color color, float length = 1f, int frames = 10) : base(frames)
 			{
 				this.start = start;
 				this.end = start + (direction * length);
@@ -72,7 +72,7 @@ namespace KERBALISM
 			readonly Vector3 arrowDirection;
 			readonly Color color;
 
-			public Arrow(Vector3 start, Vector3 end, Color color, float arrowLength = 0.25f, int frames = 1) : base(frames)
+			public Arrow(Vector3 start, Vector3 end, Color color, float arrowLength = 0.25f, int frames = 10) : base(frames)
 			{
 				this.start = start;
 				this.end = end;
@@ -80,7 +80,7 @@ namespace KERBALISM
 				arrowDirection = (end - start).normalized * arrowLength;
 			}
 
-			public Arrow(Vector3 start, Vector3 direction, Color color, float length = 1f, float arrowLength = 0.25f, int frames = 1) : base(frames)
+			public Arrow(Vector3 start, Vector3 direction, Color color, float length = 1f, float arrowLength = 0.25f, int frames = 10) : base(frames)
 			{
 				this.start = start;
 				this.end = start + (direction.normalized * length);
@@ -102,7 +102,7 @@ namespace KERBALISM
 			UnityEngine.Bounds bounds;
 			Color color;
 
-			public Bounds(UnityEngine.Bounds bounds, Color color, int frames = 1) : base(frames)
+			public Bounds(UnityEngine.Bounds bounds, Color color, int frames = 10) : base(frames)
 			{
 				this.bounds = bounds;
 				this.color = color;
@@ -118,7 +118,7 @@ namespace KERBALISM
 		{
 			UnityEngine.Transform transform;
 
-			public Transform(UnityEngine.Transform transform, int frames = 1) : base(frames)
+			public Transform(UnityEngine.Transform transform, int frames = 10) : base(frames)
 			{
 				this.transform = transform;
 			}
@@ -126,6 +126,27 @@ namespace KERBALISM
 			public override void Draw()
 			{
 				DrawTransform(transform);
+			}
+		}
+
+		public class Cube : ObjectDrawer
+		{
+			UnityEngine.Transform transform;
+			Vector3 center;
+			Vector3 size;
+			Color color;
+
+			public Cube(UnityEngine.Transform transform, Vector3 center, Vector3 size, Color color, int frames = 10) : base(frames)
+			{
+				this.transform = transform;
+				this.center = center;
+				this.size = size;
+				this.color = color;
+			}
+
+			public override void Draw()
+			{
+				DrawLocalCube(transform, size, color, center);
 			}
 		}
 
@@ -183,7 +204,15 @@ namespace KERBALISM
 			{
 				ObjectDrawer obj = drawObjects[i];
 				obj.frames--;
-				obj.Draw();
+				try
+				{
+					obj.Draw();
+				}
+				catch (Exception)
+				{
+					drawObjects.RemoveAt(i);
+				}
+				
 				if (obj.frames <= 0)
 				{
 					drawObjects.RemoveAt(i);
