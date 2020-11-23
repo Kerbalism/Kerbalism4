@@ -18,7 +18,6 @@ namespace KERBALISM
 
 		[KSPField] public string id = string.Empty;          // this is for identifying the module with B9PS
 
-
 		public abstract ModuleData ModuleData { get; set; }
 
 		public abstract Type ModuleDataType { get; }

@@ -63,7 +63,7 @@ namespace KERBALISM
 		/// <summary>Don't use this to create a virtual resource, use the VesselResHandler.CreateVirtualResource() method</summary>
 		public VesselVirtualResource(string name, bool isVisible = false, string title = null)
 		{
-			definition = VirtualResourceDefinition.GetOrCreateDefinition(name, isVisible, VirtualResourceDefinition.ResType.VesselResource, title);
+			definition = VirtualResourceDefinition.GetOrCreateDefinition(name, isVisible, VesselResHandler.ResourceType.VesselVirtual, title);
 			amount = 0.0;
 			capacity = double.MaxValue;
 			deferred = 0.0;
@@ -82,11 +82,6 @@ namespace KERBALISM
 			level = 0.0;
 			resourceBrokers = new List<ResourceBrokerRate>();
 			brokersResourceAmounts = new Dictionary<ResourceBroker, double>();
-		}
-
-		public override void Init()
-		{
-			return;
 		}
 
 		public override bool ExecuteAndSyncToParts(VesselDataBase vd, double elapsed_s)

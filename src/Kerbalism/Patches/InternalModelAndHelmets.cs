@@ -22,7 +22,7 @@ namespace KERBALISM
 			if (!__instance.part.TryGetFlightModuleDataOfType(out HabitatData habitatData))
 				return;
 
-			bool requireSuit = habitatData.RequireSuit;
+			bool requireSuit = habitatData.RequireHelmet;
 			foreach (InternalSeat internalSeat in __instance.seats)
 			{
 				if (internalSeat.kerbalRef == null)

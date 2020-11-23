@@ -86,7 +86,7 @@ namespace KERBALISM
 			{
 				this.coilData = coilData;
 				this.protectionFactor = protectionFactor;
-				coilDataId = coilData.flightId;
+				coilDataId = coilData.FlightId;
 			}
 
 			private CoilArrayShielding(ConfigNode.Value value)
@@ -100,7 +100,7 @@ namespace KERBALISM
 				if (coilData != this.coilData)
 				{
 					this.coilData = coilData;
-					coilDataId = coilData.flightId;
+					coilDataId = coilData.FlightId;
 				}
 
 				this.protectionFactor = protectionFactor;
@@ -381,7 +381,7 @@ namespace KERBALISM
 				// synchronize emitters references and add their radiation
 				if (PartData.vesselData.LoadedOrEditor)
 				{
-					int vesselEmittersCount = PartData.vesselData.ObjectsCache.AllRadiationEmittersCount;
+					int vesselEmittersCount = PartData.vesselData.Synchronizer.AllRadiationEmittersCount;
 					int tasksCount = emitterRaycastTasks.Count;
 
 					if (tasksCount > vesselEmittersCount)
@@ -393,11 +393,11 @@ namespace KERBALISM
 					{
 						if (i + 1 > tasksCount)
 						{
-							emitterRaycastTasks.Add(new EmitterRaycastTask(this, PartData.vesselData.ObjectsCache.RadiationEmitterAtIndex(i)));
+							emitterRaycastTasks.Add(new EmitterRaycastTask(this, PartData.vesselData.Synchronizer.RadiationEmitterAtIndex(i)));
 						}
 						else
 						{
-							emitterRaycastTasks[i].CheckEmitterHasChanged(PartData.vesselData.ObjectsCache.RadiationEmitterAtIndex(i));
+							emitterRaycastTasks[i].CheckEmitterHasChanged(PartData.vesselData.Synchronizer.RadiationEmitterAtIndex(i));
 						}
 
 						RadiationRate += emitterRaycastTasks[i].Radiation();
@@ -407,7 +407,7 @@ namespace KERBALISM
 					int coilsCount = coilArrays.Count;
 					int coilIndex = 0;
 
-					foreach (RadiationCoilData coilData in PartData.vesselData.ObjectsCache.AllRadiationCoilDatas)
+					foreach (RadiationCoilData coilData in PartData.vesselData.Synchronizer.AllRadiationCoilDatas)
 					{
 						double protectionFactor = coilData.loadedModule.GetPartProtectionFactor(PartData.LoadedPart);
 						if (protectionFactor > 0.0)
@@ -478,6 +478,26 @@ namespace KERBALISM
 			int listCapacity = resourcesOcclusion.Count;
 			int occluderIndex = -1;
 
+			if (PartData.LoadedPart == null)
+			{
+				for (int i = 0; i < PartData.LoadedPart.Resources.Count; i++)
+				{
+					PartResource res = PartData.LoadedPart.Resources[i];
+
+					if (res.info.density == 0.0)
+						continue;
+
+					occluderIndex++;
+					if (occluderIndex >= listCapacity)
+					{
+						resourcesOcclusion.Add(new ResourceOcclusion(res.info));
+						listCapacity++;
+					}
+
+					resourcesOcclusion[occluderIndex].UpdateOcclusion(res, PartData.volumeAndSurface.surface, PartData.volumeAndSurface.volume);
+				}
+			}
+
 			for (int i = 0; i < PartData.LoadedPart.Resources.Count; i++)
 			{
 				PartResource res = PartData.LoadedPart.Resources[i];
@@ -534,6 +554,9 @@ namespace KERBALISM
 
 		private void SetupDebugPAWInfo()
 		{
+			if (PartData.vesselData.VesselName == null)
+				return;
+
 			if (PartData.vesselData.LoadedOrEditor)
 			{
 				if (IsReceiver)

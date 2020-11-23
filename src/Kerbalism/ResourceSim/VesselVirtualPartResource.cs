@@ -32,7 +32,7 @@ namespace KERBALISM
 		public VirtualResourceDefinition Definition { get; private set; }
 
 		/// <summary> Don't use this directly, use the VesselResHandler.CreateVirtualPartResource() method </summary>
-		public VesselVirtualPartResource(VirtualResourceWrapper resourceWrapper, VirtualResourceDefinition definition)
+		public VesselVirtualPartResource(PartResourceWrapperCollection resourceWrapper, VirtualResourceDefinition definition)
 		{
 			this.Definition = definition;
 			this.resourceWrapper = resourceWrapper;
@@ -41,9 +41,9 @@ namespace KERBALISM
 		}
 
 		/// <summary> Don't use this directly, use the VesselResHandler.CreateVirtualPartResource() method </summary>
-		public VesselVirtualPartResource(VirtualResourceWrapper resourceWrapper, string name, bool isVisible = false, string title = null)
+		public VesselVirtualPartResource(PartResourceWrapperCollection resourceWrapper, string name, bool isVisible = false, string title = null)
 		{
-			Definition = VirtualResourceDefinition.GetOrCreateDefinition(name, isVisible, VirtualResourceDefinition.ResType.PartResource, title);
+			Definition = VirtualResourceDefinition.GetOrCreateDefinition(name, isVisible, VesselResHandler.ResourceType.PartVirtual, title);
 			this.resourceWrapper = resourceWrapper;
 			resourceBrokers = new List<ResourceBrokerRate>();
 			brokersResourceAmounts = new Dictionary<ResourceBroker, double>();

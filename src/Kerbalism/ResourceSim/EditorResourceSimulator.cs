@@ -24,7 +24,7 @@ namespace KERBALISM.Planner
 			handler = vd.ResHandler;
 
 			// reset and re-find all resources amounts and capacities
-			handler.ResourceUpdate(vd, null, VesselResHandler.VesselState.EditorInit, 1.0);
+			handler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Init);
 
 			// reach steady state, so all initial resources like WasteAtmosphere are produced
 			// it is assumed that one cycle is needed to produce things that don't need inputs
@@ -36,12 +36,12 @@ namespace KERBALISM.Planner
 				// do all produce/consume/recipe requests
 				RunSimulatorStep(parts);
 				// process them
-				handler.ResourceUpdate(vd, null, VesselResHandler.VesselState.EditorStep, 1.0);
+				handler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Next);
 			}
 
 			// set back all resources amounts to the stored amounts
 			// this is for visualisation purposes, so the displayed amounts match the current values and not the results of the simulation
-			handler.ResourceUpdate(vd, null, VesselResHandler.VesselState.EditorFinalize, 1.0);
+			handler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Finalize);
 		}
 
 		/// <summary>run a single timestamp of the simulator</summary>

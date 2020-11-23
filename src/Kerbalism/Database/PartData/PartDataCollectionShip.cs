@@ -36,7 +36,7 @@ namespace KERBALISM
 					for (int i = allParts.Count - 1; i >= 0; i--)
 					{
 						PartData partData = allParts[i];
-						// can't find the exact reproduction steps, but sometimes parts fail to be removed when they are destroyed
+						// TODO : can't find the exact reproduction steps, but sometimes parts fail to be removed when they are destroyed
 						// if that happen, due the unity null equality overload, checking if partData.LoadedPart is null will return true
 						// but the reference will still be accessible. I'm not sure GetInstanceId() is still working, so the actual removal may
 						// fail (hence why the try/catch), but at least the part won't risk being considered as being a ship part.
@@ -100,7 +100,7 @@ namespace KERBALISM
 				bool isPersistent = false;
 				ConfigNode partNode = new ConfigNode(partData.LoadedPart.craftID.ToString());
 
-				isPersistent |= PartResourceData.SavePartResources(partData, partNode);
+				isPersistent |= VirtualPartResource.SavePartResources(partData, partNode);
 				isPersistent |= PartRadiationData.Save(partData, partNode);
 
 				if (isPersistent)
@@ -129,7 +129,7 @@ namespace KERBALISM
 				if (!nodesByCraftID.TryGetValue(partData.LoadedPart.craftID, out ConfigNode partNode))
 					continue;
 
-				PartResourceData.LoadPartResources(partData, partNode);
+				VirtualPartResource.LoadPartResources(partData, partNode);
 				PartRadiationData.Load(partData, partNode);
 			}
 		}

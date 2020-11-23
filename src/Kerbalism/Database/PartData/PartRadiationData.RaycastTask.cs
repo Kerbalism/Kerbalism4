@@ -404,9 +404,9 @@ namespace KERBALISM
 				Direction direction = PrimaryDirection(sunDirection);
 				Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
 
-				DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
-				DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
-				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
+				//DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
+				//DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
+				//DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
 
 				// Explaination :
 				// When high energy charged particules from CME events hit a solid surface, three things happen :
@@ -455,9 +455,9 @@ namespace KERBALISM
 					double sqrDistance = (prd.toHit.point - origin.PartData.LoadedPart.WCoM).sqrMagnitude;
 					bremsstrahlung += partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
 
-					DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
-					DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
-					DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
+					//DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
+					//DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
+					//DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
 
 					prd.lastRaycastDbg = $"sun-{Time.frameCount}";
 					prd.rayPenetrationDbg = prd.hitPenetration;
@@ -590,7 +590,7 @@ namespace KERBALISM
 				reductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
 				rayDir /= distance;
 
-				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
+				// DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
 
 				OcclusionRaycast(origin.PartData.LoadedPart.WCoM, rayDir);
 

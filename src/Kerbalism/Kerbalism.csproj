@@ -163,8 +163,9 @@
     <Compile Include="Database\PartData\PartDataCollectionShip.cs" />
     <Compile Include="Database\PartData\PartRadiationData.cs" />
     <Compile Include="Database\PartData\PartRadiationData.Occlusion.cs" />
-    <Compile Include="Database\PartData\PartResourceData.cs" />
-    <Compile Include="Database\PartData\PartResourceDataCollection.cs" />
+    <Compile Include="ResourceSim\VirtualPartResource.cs" />
+    <Compile Include="Database\PartData\PartResourceCollection.cs" />
+    <Compile Include="Database\PartData\PartVirtualResourceCollection.cs" />
     <Compile Include="Database\PartVolumeAndSurface.cs" />
     <Compile Include="Database\VesselDataComponents\VesselData.Rescue.cs" />
     <Compile Include="Database\VesselDataComponents\VesselRadiation.cs" />
@@ -182,14 +183,16 @@
     <Compile Include="Modules\ModuleKsmRadiationEmitter.cs" />
     <Compile Include="Modules\ModuleKsmRadiationCoil.cs" />
     <Compile Include="Modules\BoundsTestModule.cs" />
+    <Compile Include="Modules\NullCheckTestModule.cs" />
     <Compile Include="Patches\InternalModelAndHelmets.cs" />
+    <Compile Include="Patches\KSPLifecycleHooks.cs" />
     <Compile Include="Patches\ModuleCommand.cs" />
     <Compile Include="API\PartModuleAPI.cs" />
     <Compile Include="Patches\PartLoader.cs" />
-    <Compile Include="Patches\ShipConstruct.cs" />
     <Compile Include="Database\PartData\PartRadiationData.RaycastTask.cs" />
+    <Compile Include="ResourceSim\VesselResHandler.cs" />
     <Compile Include="ResourceSim\VirtualResourceDefinition.cs" />
-    <Compile Include="ResourceSim\ResourceWrapper.cs" />
+    <Compile Include="ResourceSim\PartResourceWrapperCollection.cs" />
     <Compile Include="Modules\Base\IPlannerModule.cs" />
     <Compile Include="ResourceSim\VesselVirtualPartResource.cs" />
     <Compile Include="Science\ExperimentModuleDefinition.cs" />
@@ -250,7 +253,6 @@
     <Compile Include="ResourceSim\VesselVirtualResource.cs" />
     <Compile Include="ResourceSim\Recipe.cs" />
     <Compile Include="ResourceSim\VesselKSPResource.cs" />
-    <Compile Include="ResourceSim\VesselResHandler.cs" />
     <Compile Include="Database\ModuleData\DriveData.cs" />
     <Compile Include="Science\ExperimentRequirements.cs" />
     <Compile Include="Science\ExperimentInfo.cs" />
@@ -356,7 +358,7 @@
   <!-- ////////// IMPORT DEFAULT MS BUILD PROCESS ////////// -->
   <!-- ///////////////////////////////////////////////////// -->
   <ItemGroup>
-    <Compile Include="Database\VesselDataComponents\VesselData.ObjectsCache.cs" />
+    <Compile Include="Database\VesselDataComponents\VesselData.Synchronizer.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

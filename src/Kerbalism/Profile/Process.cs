@@ -144,7 +144,7 @@ namespace KERBALISM
 
 			if (UseCapacityResource)
 			{
-				VirtualResourceDefinition.GetOrCreateDefinition(CapacityResourceName, false, VirtualResourceDefinition.ResType.PartResource);
+				VirtualResourceDefinition.GetOrCreateDefinition(CapacityResourceName, false, VesselResHandler.ResourceType.PartVirtual);
 			}
 
 			LogProcessRates();

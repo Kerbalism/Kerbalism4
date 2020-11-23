@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace KERBALISM
 {
+
+
 	public abstract class ModuleData<TModule, TData> : ModuleData
 		where TModule : KsmPartModule<TModule, TData>
 		where TData : ModuleData<TModule, TData>
@@ -22,7 +24,7 @@ namespace KERBALISM
 
 		public VesselDataBase VesselData => partData?.vesselData;
 
-		public bool IsLoaded => loadedModule != null;
+		public bool IsLoaded => partData.IsLoaded;
 
 		public override void SetPartModuleReferences(PartModule prefab, KsmPartModule loadedModule)
 		{
@@ -40,23 +42,59 @@ namespace KERBALISM
 		public const string VALUENAME_FLIGHTID = "flightId";
 		public const string VALUENAME_SHIPID = "shipId";
 
+		/// <summary>
+		/// TODO : this currently is used inconsistently (ex : FixedUpdate is called but not VesselDataUpdate).
+		/// Also, OnFirstInstantate() isn't called if this is false, which seems like a bad idea (what if this is re-enabled later ?)
+		/// </summary>
 		public bool moduleIsEnabled;
 
-		public int flightId;
+		/// <summary>
+		/// Flight context id, saved in the protovessel. Internal field, use the ID property instead.
+		/// Garanteed to be unique and constant from the moment this module is first instantiated on a vessel
+		/// and the destruction/recovery of the part.
+		/// </summary>
+		private int flightId;
 
+		/// <summary>
+		/// Editor context id, saved in the shipconstruct. Internal field, use the ID property instead.
+		/// This is only used for persistence purposes and can't be relied upon outside of the save/load cycle.
+		/// NOTE : this could eventually be expanded to be editor-wide unique if needed
+		/// </summary>
 		public int shipId;
 
-		public int ID => flightId != 0 ? flightId : shipId;
+		/// <summary>
+		/// Persisted unique identifier for that module.
+		/// Note that while this is persisted, it will change every time a ShipConstruct is instantiated.
+		/// So it isn't possible to persist that id while in the editor, and then expect
+		/// to find the corresponding module after the vessel has been launched. The only exception is 
+		/// </summary>
+		public int FlightId => flightId;
 
+		/// <summary>
+		/// Reference to the partData.
+		/// Allow accessing references to the stock part-level objects : Part (loaded and prefab), ProtoPartSnapshot and the PartResource wrappers.
+		/// </summary>
 		public PartData partData;
 
+		/// <summary>
+		/// Reference to the ProtoPartModuleSnapshot for that module. Note that when the part is loaded, that reference may or may not exist
+		/// and you can't rely on it for anything. Always check partData.IsLoaded first, unless you are sure the vessel is unloaded.
+		/// </summary>
+		public ProtoPartModuleSnapshot protoModule;
+
+		/// <summary>
+		/// Non-generic, untyped reference to the loaded module. You usually want to use the generic typed loadedModule field instead.
+		/// </summary>
 		public abstract KsmPartModule LoadedModuleBase { get; }
 
+		/// <summary>
+		/// Non-generic, untyped reference to the module prefab. You usually want to use the generic typed modulePrefab field instead.
+		/// </summary>
 		public abstract KsmPartModule PrefabModuleBase { get; }
 
 		public abstract void SetPartModuleReferences(PartModule prefab, KsmPartModule loadedModule);
 
-		public virtual void VesselDataUpdate()
+		public void VesselDataUpdate()
 		{
 			if (!moduleIsEnabled)
 				return;
@@ -64,14 +102,14 @@ namespace KERBALISM
 			OnVesselDataUpdate();
 		}
 
-		public virtual void Load(ConfigNode node)
+		public void Load(ConfigNode node)
 		{
 			moduleIsEnabled = Lib.ConfigValue(node, "moduleIsEnabled", true);
 
 			OnLoad(node);
 		}
 
-		public virtual void Save(ConfigNode node)
+		public void Save(ConfigNode node)
 		{
 			node.AddValue("moduleIsEnabled", moduleIsEnabled);
 
@@ -79,18 +117,18 @@ namespace KERBALISM
 		}
 
 
-		public virtual void FirstInstantiate(KsmPartModule module)
+		public void FirstInstantiate(KsmPartModule module)
 		{
 			moduleIsEnabled = module.isEnabled;
 
-			OnFirstInstantiate(null, null);
+			OnFirstInstantiate();
 		}
 
-		public virtual void FirstInstantiate(ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule)
+		public void FirstInstantiate()
 		{
 			moduleIsEnabled = Lib.Proto.GetBool(protoModule, "isEnabled", true);
 
-			OnFirstInstantiate(protoModule, protoPart);
+			OnFirstInstantiate();
 		}
 
 		public void PartWillDie()
@@ -99,8 +137,26 @@ namespace KERBALISM
 			flightModuleDatas.Remove(flightId);
 		}
 
+		/// <summary>
+		/// Override this to implement unloaded/loaded/editor agnostic update code. This is called :<br/>
+		/// - After the core VesselData update <br/>
+		/// - On loaded vessels : every FixedUpdate <br/>
+		/// - On unloaded vessels : every VesselData update (less frequently than FixedUpdate) <br/>
+		/// - (TODO: CURRENTLY NOT IMPLEMENTED) Every FixedUpdate in the editor <br/>
+		/// This is intended to entirely replace the PartModule.FixedUpdate() method, ideally the PartModule shouldn't have one.
+		/// </summary>
+		/// <param name="elapsedSec"></param>
 		public virtual void OnFixedUpdate(double elapsedSec) { }
 
+		/// <summary>
+		/// Override this to implement "for every module" type code whose result will be further processed by VesselData. <br/>
+		/// Typically you will implement said processing in VesselDataBase.ModuleDataUpdate(); <br/>
+		/// This is called at every VesselData full update : <br/>
+		/// - On loaded vessels : at a variable interval (less frequently than FixedUpdate)<br/>
+		/// - On unloaded vessels : every VesselData update (less frequently than FixedUpdate)<br/>
+		/// - In the editor : on every planner simulation step <br/>
+		/// </summary>
+		/// <param name="elapsedSec">elapsed game time since last update</param>
 		public virtual void OnVesselDataUpdate() { }
 
 		public virtual void OnLoad(ConfigNode node) { }
@@ -108,7 +164,7 @@ namespace KERBALISM
 		public virtual void OnSave(ConfigNode node) { }
 
 		/// <summary>
-		/// This is called when the ModuleData is instantiated : <br/>
+		/// This is called every time the ModuleData is instantiated : <br/>
 		/// - After Load/OnLoad and after all the Part/Module references have been set <br/>
 		/// - After VesselData instantiation and loading, after the first VesselData evaluation <br/>
 		/// - On loaded parts, after the PartModule Awake() but before its OnStart() <br/>
@@ -117,15 +173,16 @@ namespace KERBALISM
 		public virtual void OnStart() { }
 
 		/// <summary>
-		/// Called when the PartData is instantiated for the first time. <br/>
+		/// Called only once for the life of the part, when the PartData is instantiated for the first time. <br/>
 		/// Override it to initialize the persisted fields according to the prefab configuration.<br/>
 		/// This will usually be called in the editor, but it can also happen in flight (ex : EVA kerbals, KIS added part...), <br/>
 		/// or even on an unloaded vessel (rescue missions, asteroids...)
 		/// </summary>
-		/// <param name="protoModule">Only available if the part was created unloaded (rescue, asteroids...)</param>
-		/// <param name="protoPart">Only available if the part was created unloaded (rescue, asteroids...)</param>
-		public virtual void OnFirstInstantiate(ProtoPartModuleSnapshot protoModule = null, ProtoPartSnapshot protoPart = null) { }
+		public virtual void OnFirstInstantiate() { }
 
+		/// <summary>
+		/// Called only once for the life of the part, when the part is about to be definitely removed.
+		/// </summary>
 		public virtual void OnPartWillDie() { }
 
 		/// <summary> for every ModuleData derived class name, the constructor delegate </summary>
@@ -337,9 +394,10 @@ namespace KERBALISM
 
 			moduleData.partData = partData;
 			moduleData.SetPartModuleReferences(modulePrefab, null);
+			moduleData.protoModule = protoModule;
 			partData.modules.Add(moduleData);
 
-			moduleData.FirstInstantiate(protoPart, protoModule);
+			moduleData.FirstInstantiate();
 
 			Lib.LogDebug($"Instantiated new {moduleData.GetType().Name} (unloaded), flightId={flightId} for PartData {partData.Title}");
 			return true;
@@ -367,6 +425,7 @@ namespace KERBALISM
 			moduleData.flightId = flightId;
 			moduleData.partData = partData;
 			moduleData.SetPartModuleReferences(modulePrefab, null);
+			moduleData.protoModule = protoModule;
 			partData.modules.Add(moduleData);
 			moduleData.Load(moduleDataNode);
 

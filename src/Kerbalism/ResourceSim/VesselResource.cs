@@ -76,10 +76,11 @@ namespace KERBALISM
 		/// <summary>Dictionary of all consumers and producers (key) and how much amount they did add/remove (value).</summary>
 		protected Dictionary<ResourceBroker, double> brokersResourceAmounts;
 
-		protected ResourceWrapper resourceWrapper;
+		public PartResourceWrapperCollection ResourceWrapper => resourceWrapper;
+		protected PartResourceWrapperCollection resourceWrapper;
 
 		/// <summary> Called at the VesselResHandler instantiation, after the ResourceWrapper amount and capacity has been evaluated </summary>
-		public virtual void Init()
+		protected virtual void Init()
 		{
 			deferred = 0.0;
 			deferredNonCriticalConsumers = 0.0;

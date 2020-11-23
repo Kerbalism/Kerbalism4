@@ -76,7 +76,7 @@ namespace KERBALISM
 		}
 
 		/// <summary>Execute all recipes and record deferred consumption/production for inputs/ouputs</summary>
-		public static void ExecuteRecipes(VesselResHandler resources, List<Recipe> recipes, Vessel v = null)
+		public static void ExecuteRecipes(VesselResHandler resources, List<Recipe> recipes)
 		{
 			bool executing = true;
 			while (executing)
@@ -87,7 +87,7 @@ namespace KERBALISM
 					Recipe recipe = recipes[i];
 					if (recipe.left > double.Epsilon)
 					{
-						executing |= recipe.ExecuteRecipeStep(resources, v);
+						executing |= recipe.ExecuteRecipeStep(resources);
 					}
 				}
 			}
@@ -98,7 +98,7 @@ namespace KERBALISM
 		/// This need to be called multiple times until left <= 0.0 for complete execution of the recipe.
 		/// return true if recipe execution is completed, false otherwise
 		/// </summary>
-		private bool ExecuteRecipeStep(VesselResHandler resources, Vessel v = null)
+		private bool ExecuteRecipeStep(VesselResHandler resources)
 		{
 			// determine worst input ratio
 			// - pure input recipes can just underflow

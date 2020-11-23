@@ -21,7 +21,7 @@ namespace KERBALISM
 
 		#region LIFECYCLE
 
-		public override void OnFirstInstantiate(ProtoPartModuleSnapshot protoModule, ProtoPartSnapshot protoPart)
+		public override void OnFirstInstantiate()
 		{
 			files = new Dictionary<SubjectData, File>();
 			samples = new Dictionary<SubjectData, Sample>();

@@ -20,13 +20,13 @@ namespace KERBALISM
 		/// <summary>habitat info</summary>
 		public HabitatVesselData Habitat => habitatData; HabitatVesselData habitatData;
 
-		
-
 		// the following is to provide Flee modifiers access, it isn't functionally needed otherwise
 		private PreferencesReliability PrefReliability => PreferencesReliability.Instance;
 		private PreferencesScience PrefScience => PreferencesScience.Instance;
 		private PreferencesComfort PrefComfort => PreferencesComfort.Instance;
 		private PreferencesRadiation PrefRadiation => PreferencesRadiation.Instance;
+
+		public override string ToString() => VesselName;
 
 		#endregion
 
@@ -221,7 +221,8 @@ namespace KERBALISM
 					VesselDataShip.Instance.Load(vesselDataNode, false);
 				}
 
-				VesselDataShip.Instance.ResHandler.PostInstantiateVirtualResourcesSync(VesselDataShip.Instance);
+				VesselDataShip.Instance.Synchronizer.Synchronize();
+				VesselDataShip.Instance.ResHandler.ForceHandlerSync();
 
 				// populate the dictionary of ModuleData nodes to load, to avoid doing a full loop
 				// on every node for each ModuleData

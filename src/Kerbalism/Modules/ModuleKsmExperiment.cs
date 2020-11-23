@@ -59,7 +59,7 @@ namespace KERBALISM
 			{
 				ExperimentData prefabData = new ExperimentData();
 				prefabData.SetPartModuleReferences(this, this);
-				prefabData.OnFirstInstantiate(null, null);
+				prefabData.OnFirstInstantiate();
 				moduleData = prefabData;
 			}
 

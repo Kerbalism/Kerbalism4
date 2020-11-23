@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace KERBALISM
 {
+	/*
 	public static class ResourceAPI
 	{
 		/// <summary>
@@ -67,4 +68,5 @@ namespace KERBALISM
 
 
 	}
+		*/
 }

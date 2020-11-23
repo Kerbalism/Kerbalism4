@@ -30,14 +30,14 @@ namespace KERBALISM
 				case HabitatData.PressureState.Pressurized:
 				case HabitatData.PressureState.Pressurizing:
 					if(!value)
-						data.updateHandler.DepressurizingStartEvt();
+						data.DepressurizingStartEvt();
 					break;
 				case HabitatData.PressureState.Breatheable:
 				case HabitatData.PressureState.Depressurized:
 				case HabitatData.PressureState.DepressurizingAboveThreshold:
 				case HabitatData.PressureState.DepressurizingBelowThreshold:
 					if(value)
-						data.updateHandler.PressurizingStartEvt();
+						data.PressurizingStartEvt();
 					break;
 			}
 		}

@@ -9,10 +9,12 @@ namespace KERBALISM
 {
     public partial class VesselDataBase
     {
-		public ObjectsCacheBase ObjectsCache { get; protected set; }
+		public SynchronizerBase Synchronizer { get; protected set; }
 
-        public class ObjectsCacheBase
+        public class SynchronizerBase
 		{
+			protected VesselDataBase vesselData;
+
 			protected List<PartRadiationData> radiationEmitters = new List<PartRadiationData>();
 
 			protected List<RadiationCoilData> radiationCoilDatas = new List<RadiationCoilData>();
@@ -31,24 +33,28 @@ namespace KERBALISM
 
 			public virtual RadiationCoilData CoilDataAtIndex(int index) => radiationCoilDatas[index];
 
-			public virtual void Update(VesselDataBase vd)
+			public SynchronizerBase(VesselDataBase vesselData)
 			{
-				if (!vd.LoadedOrEditor)
-					return;
+				this.vesselData = vesselData;
+			}
 
+			public virtual void Synchronize()
+			{
 				radiationCoilDatas.Clear();
 				radiationEmitters.Clear();
 
-				foreach (PartData partData in vd.Parts)
+				foreach (PartData partData in vesselData.Parts)
 				{
-					if (partData.radiationData.IsEmitter)
+					partData.resources.Synchronize();
+
+					if (vesselData.LoadedOrEditor && partData.radiationData.IsEmitter)
 					{
 						radiationEmitters.Add(partData.radiationData);
 					}
 
 					foreach (ModuleData moduleData in partData.modules)
 					{
-						if (moduleData is RadiationCoilData coilData && coilData.effectData != null)
+						if (vesselData.LoadedOrEditor && moduleData is RadiationCoilData coilData && coilData.effectData != null)
 						{
 							radiationCoilDatas.Add(coilData);
 						}
@@ -57,10 +63,12 @@ namespace KERBALISM
 			}
 		}
 
-		public class ObjectsCacheVessel : ObjectsCacheBase
+		public class SynchronizerVessel : SynchronizerBase
 		{
 			private List<PartRadiationData> foreignRadiationEmitters = new List<PartRadiationData>();
 			private List<RadiationCoilData> foreignRadiationCoilDatas = new List<RadiationCoilData>();
+
+			public SynchronizerVessel(VesselDataBase vesselData) : base(vesselData) { }
 
 			public override IEnumerable<PartRadiationData> AllRadiationEmitters
 			{
@@ -115,11 +123,11 @@ namespace KERBALISM
 				return foreignRadiationCoilDatas[index - radiationCoilDatas.Count];
 			}
 
-			public override void Update(VesselDataBase vd)
+			public override void Synchronize()
 			{
-				base.Update(vd);
+				base.Synchronize();
 
-				if (!vd.LoadedOrEditor)
+				if (!vesselData.LoadedOrEditor)
 					return;
 
 				foreignRadiationEmitters.Clear();
@@ -127,10 +135,10 @@ namespace KERBALISM
 
 				foreach (Vessel loadedVessel in FlightGlobals.VesselsLoaded)
 				{
-					if (DB.TryGetVesselData(loadedVessel, out VesselData loadedVesselData) && loadedVesselData != vd)
+					if (DB.TryGetVesselData(loadedVessel, out VesselData loadedVesselData) && loadedVesselData != vesselData)
 					{
 						double vesselSeparation = (loadedVessel.GetWorldPos3D() - FlightGlobals.ActiveVessel.GetWorldPos3D()).sqrMagnitude;
-						ObjectsCacheVessel foreignVesselObjects = (ObjectsCacheVessel)loadedVesselData.ObjectsCache;
+						SynchronizerVessel foreignVesselObjects = (SynchronizerVessel)loadedVesselData.Synchronizer;
 
 						// ignore emitters for vessels that are more than 500m away
 						if (vesselSeparation < 500.0 * 500.0)

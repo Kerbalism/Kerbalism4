@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace KERBALISM
 {
@@ -62,10 +61,17 @@ namespace KERBALISM
 
 	public class VesselResHandler
 	{
-		private static Dictionary<string, int> allResourcesIds = new Dictionary<string, int>();
-		private static HashSet<int> usedIds = new HashSet<int>();
+		private static Dictionary<string, int> allResourceIdsByName = new Dictionary<string, int>();
+		private static Dictionary<int, ResourceType> allResourceTypesById = new Dictionary<int, ResourceType>();
 		private static HashSet<string> allKSPResources = new HashSet<string>();
+		
 		private static bool isSetupDone = false;
+		private const string ECResName = "ElectricCharge";
+		private static int ECResId;
+
+		public enum EditorStep { None, Init, Next, Finalize }
+		public enum SimulationType { Planner, Vessel }
+		public enum ResourceType { KSP, PartVirtual, VesselVirtual }
 
 		public static void SetupDefinitions()
 		{
@@ -73,29 +79,32 @@ namespace KERBALISM
 			// PartResourceDefinitionList, but that id is obtained by calling GetHashCode() on the resource name,
 			// and there is no check for the actual uniqueness of it. If that happen, the Dictionary.Add() call
 			// will just throw an exception, there isn't any handling of it.
+
+			ECResId = PartResourceLibrary.Instance.GetDefinition(ECResName).id;
+
 			foreach (PartResourceDefinition resDefinition in PartResourceLibrary.Instance.resourceDefinitions)
 			{
-				if (!allResourcesIds.ContainsKey(resDefinition.name))
+				if (!allResourceIdsByName.ContainsKey(resDefinition.name))
 				{
-					allResourcesIds.Add(resDefinition.name, resDefinition.id);
+					allResourceIdsByName.Add(resDefinition.name, resDefinition.id);
+					allResourceTypesById.Add(resDefinition.id, ResourceType.KSP);
 					allKSPResources.Add(resDefinition.name);
-					usedIds.Add(resDefinition.id);
 				}
 			}
 
 			foreach (VirtualResourceDefinition vResDefinition in VirtualResourceDefinition.definitions.Values)
 			{
 				do vResDefinition.id = Lib.RandomInt();
-				while (usedIds.Contains(vResDefinition.id));
+				while (allResourceTypesById.ContainsKey(vResDefinition.id));
 
-				allResourcesIds.Add(vResDefinition.name, vResDefinition.id);
-				usedIds.Add(vResDefinition.id);
+				allResourceIdsByName.Add(vResDefinition.name, vResDefinition.id);
+				allResourceTypesById.Add(vResDefinition.id, vResDefinition.resType);
 			}
 
 			isSetupDone = true;
 		}
 
-		public static int GetVirtualResourceId(string resName)
+		public static int GetVirtualResourceId(string resName, ResourceType resType)
 		{
 			// make sure we don't affect an id before we have populated the KSP resources ids
 			if (!isSetupDone)
@@ -103,61 +112,30 @@ namespace KERBALISM
 
 			int id;
 			do id = Lib.RandomInt();
-			while (usedIds.Contains(id));
+			while (allResourceTypesById.ContainsKey(id));
 
-			allResourcesIds.Add(resName, id);
-			usedIds.Add(id);
+			allResourceIdsByName.Add(resName, id);
+			allResourceTypesById.Add(id, resType);
 
 			return id;
 		}
 
-		public enum VesselState { Loaded, Unloaded, EditorInit, EditorStep, EditorFinalize}
-		private VesselState currentState;
+
+		private SimulationType simulationType;
 
 		public VesselKSPResource ElectricCharge { get; protected set; }
 
-		public Dictionary<string, double> APIResources = new Dictionary<string, double>();
-
 		private List<Recipe> recipes = new List<Recipe>(4);
-		private Dictionary<string, VesselResource> resources = new Dictionary<string, VesselResource>(16);
-		private Dictionary<int, ResourceWrapper> resourceWrappers = new Dictionary<int, ResourceWrapper>(16);
+		private Dictionary<string, VesselResource> resources = new Dictionary<string, VesselResource>();
+		private Dictionary<int, PartResourceWrapperCollection> resourceWrappers = new Dictionary<int, PartResourceWrapperCollection>();
+		private VesselDataBase vesselData;
 
-		public VesselResHandler(object vesselOrProtoVessel, VesselState state)
+		public VesselResHandler(VesselDataBase vesselData, SimulationType simulationType)
 		{
-			currentState = state;
-
-			switch (state)
-			{
-				case VesselState.Loaded:
-					SyncPartResources(((Vessel)vesselOrProtoVessel).parts);
-					break;
-				case VesselState.Unloaded:
-					SyncPartResources(((ProtoVessel)vesselOrProtoVessel).protoPartSnapshots);
-					break;
-				case VesselState.EditorStep:
-				case VesselState.EditorInit:
-				case VesselState.EditorFinalize:
-					SyncEditorPartResources(EditorLogic.fetch?.ship.parts);
-					break;
-			}
-
-			if (!resources.TryGetValue("ElectricCharge", out VesselResource ecRes))
-			{
-				AddKSPResource("ElectricCharge");
-				ecRes = resources["ElectricCharge"];
-			}
-			ElectricCharge = (VesselKSPResource)ecRes;
-
-			foreach (VesselResource resource in resources.Values)
-			{
-				resource.Init();
-				APIResources.Add(resource.Name, resource.Amount);
-			}
-		}
-
-		public void PostInstantiateVirtualResourcesSync(VesselDataBase vd)
-		{
-			SyncVirtualResources(vd);
+			this.vesselData = vesselData;
+			this.simulationType = simulationType;
+			AddResourceToHandler(ECResName, ECResId);
+			ElectricCharge = (VesselKSPResource)resources[ECResName];
 		}
 
 		/// <summary>return the VesselResource for this resource or create a VesselVirtualResource if the resource doesn't exists</summary>
@@ -171,7 +149,7 @@ namespace KERBALISM
 			// if not found, and it's a KSP resource, create it
 			if (allKSPResources.Contains(resourceName))
 			{
-				AddKSPResource(resourceName);
+				AddResourceToHandler(resourceName, allResourceIdsByName[resourceName]);
 				resource = resources[resourceName];
 			}
 			// otherwise create a virtual resource
@@ -183,45 +161,36 @@ namespace KERBALISM
 			return resource;
 		}
 
-		private ResourceWrapper AddKSPResource(string resourceName)
+		private PartResourceWrapperCollection AddResourceToHandler(string resourceName, int resourceId)
 		{
-			ResourceWrapper wrapper;
-			switch (currentState)
-			{
-				case VesselState.Loaded:
-					wrapper = new LoadedResourceWrapper();
-					break;
-				case VesselState.Unloaded:
-					wrapper = new ProtoResourceWrapper();
-					break;
-				case VesselState.EditorStep:
-				case VesselState.EditorInit:
-				case VesselState.EditorFinalize:
-					wrapper = new EditorResourceWrapper();
-					break;
-				default:
-					wrapper = null;
-					break;
-			}
-
-			int id = allResourcesIds[resourceName];
-			resourceWrappers.Add(id, wrapper);
-			resources.Add(resourceName, new VesselKSPResource(resourceName, id, wrapper));
+			PartResourceWrapperCollection wrapper = CreateWrapper();
+			resourceWrappers.Add(resourceId, wrapper);
+			resources.Add(resourceName, new VesselKSPResource(resourceName, resourceId, wrapper));
 			return wrapper;
+		}
+
+		private PartResourceWrapperCollection CreateWrapper()
+		{
+			switch (simulationType)
+			{
+				case SimulationType.Planner: return new PlannerPartResourceWrapperCollection();
+				case SimulationType.Vessel: return new VesselPartResourceWrapperCollection();
+				default: return null;
+			}
 		}
 
 		private VesselResource AutoCreateVirtualResource(string name)
 		{
 			if (!VirtualResourceDefinition.definitions.TryGetValue(name, out VirtualResourceDefinition definition))
 			{
-				definition = VirtualResourceDefinition.GetOrCreateDefinition(name, false, VirtualResourceDefinition.ResType.VesselResource);
+				definition = VirtualResourceDefinition.GetOrCreateDefinition(name, false, ResourceType.VesselVirtual);
 			}
 
 			switch (definition.resType)
 			{
-				case VirtualResourceDefinition.ResType.PartResource:
+				case ResourceType.PartVirtual:
 					return GetOrCreateVirtualResource<VesselVirtualPartResource>(name);
-				case VirtualResourceDefinition.ResType.VesselResource:
+				case ResourceType.VesselVirtual:
 					return GetOrCreateVirtualResource<VesselVirtualResource>(name);
 			}
 			return null;
@@ -244,7 +213,7 @@ namespace KERBALISM
 		{
 			string id;
 			do id = Guid.NewGuid().ToString();
-			while (allResourcesIds.ContainsKey(id));
+			while (allResourceIdsByName.ContainsKey(id));
 
 			return GetOrCreateVirtualResource<T>(id);
 		}
@@ -274,13 +243,37 @@ namespace KERBALISM
 				}
 				else
 				{
-					VirtualResourceWrapper wrapper = new VirtualResourceWrapper();
+
+					PartResourceWrapperCollection wrapper = CreateWrapper();
 					VesselVirtualPartResource partResource = new VesselVirtualPartResource(wrapper, name);
 					resourceWrappers.Add(partResource.Definition.id, wrapper);
 					resources.Add(name, partResource);
 					return (T)(VesselResource)partResource;
 				}
 			}
+		}
+
+		public VirtualResourceDefinition AddVirtualPartResourceToHandler(string resName)
+		{
+			if (resources.TryGetValue(resName, out VesselResource resourceHandler))
+			{
+				if (resourceHandler is VesselVirtualPartResource virtualResourceHandler)
+				{
+					return virtualResourceHandler.Definition;
+				}
+				else
+				{
+					Lib.Log($"Error trying to add the VirtualPartResource {resName} to {vesselData}, a {resourceHandler.GetType()} with that name exists already", Lib.LogLevel.Error);
+					return null;
+				}
+			}
+
+			VirtualResourceDefinition definition = VirtualResourceDefinition.GetOrCreateDefinition(resName, false, ResourceType.PartVirtual);
+			PartResourceWrapperCollection wrapper = CreateWrapper();
+			resourceHandler = new VesselVirtualPartResource(wrapper, definition);
+			resourceWrappers.Add(definition.id, wrapper);
+			resources.Add(resName, resourceHandler);
+			return definition;
 		}
 
 		/// <summary> record deferred production of a resource (shortcut) </summary>
@@ -303,100 +296,30 @@ namespace KERBALISM
 			recipes.Add(recipe);
 		}
 
-		public void ResourceUpdate(VesselDataBase vd, object vesselOrProtoVessel, VesselState state, double elapsed_s)
+		public void ResourceUpdate(double elapsedSec, EditorStep editorStep = EditorStep.None)
 		{
-			Vessel vessel = null;
-			ProtoVessel protoVessel = null;
-			switch (state)
+			foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
 			{
-				case VesselState.Loaded:
-					vessel = (Vessel)vesselOrProtoVessel;
-					break;
-				case VesselState.Unloaded:
-					protoVessel = (ProtoVessel)vesselOrProtoVessel;
-					break;
-			}
-
-
-			// if the vessel state has changed between loaded and unloaded, rebuild the resource wrappers
-			if ((state == VesselState.Loaded || state == VesselState.Unloaded) && state != currentState)
-			{
-				Lib.LogDebug($"State changed for {(vessel != null ? vessel.vesselName : protoVessel?.vesselName)} from {currentState.ToString()} to {state.ToString()}, rebuilding resource wrappers");
-				currentState = state;
-				foreach (string resourceName in allKSPResources)
-				{
-					int resId = allResourcesIds[resourceName];
-					if (!resourceWrappers.TryGetValue(resId, out ResourceWrapper oldWrapper))
-						continue;
-
-					ResourceWrapper newWrapper;
-					switch (state)
-					{
-						case VesselState.Loaded:
-							newWrapper = new LoadedResourceWrapper(oldWrapper);
-							break;
-						case VesselState.Unloaded:
-							newWrapper = new ProtoResourceWrapper(oldWrapper);
-							break;
-						default:
-							newWrapper = null;
-							break;
-					}
-
-					resourceWrappers[resId] = newWrapper;
-					((VesselKSPResource)resources[resourceName]).SetWrapper(newWrapper);
-				}
-			}
-			// else just reset amount, capacity, and the part/protopart resource object references,
-			// excepted when this is an editor simulation step
-			else
-			{
-				foreach (ResourceWrapper resourceWrapper in resourceWrappers.Values)
-					resourceWrapper.ClearPartResources(state != VesselState.EditorStep);
+				resourceWrapper.ClearPartResources(editorStep != EditorStep.Next);
 			}
 
 			// note : editor handling here is quite a mess :
-			// - we reset "real" resource on finalize step because we want the craft amounts to be displayed, instead of the amounts resulting from the simulation
-			// - we don't synchronize "real" ressources on simulation steps so the sim can be accurate
-			// - but we do it for virtual resources because the thermal system rely on setting the per-part amount between each step
+			// - we reset resource on finalize step because we want the craft amounts to be displayed, instead of the amounts resulting from the simulation
+			// - we don't synchronize resources on simulation steps so the sim can be accurate
 			// To solve this, we should work on a copy of the part resources, some sort of "simulation snapshot".
 			// That would allow to remove all the special handling, and ensure that the editor sim is accurate.
-			switch (state)
+
+			switch (editorStep)
 			{
-				case VesselState.Loaded:
-					SyncVirtualResources(vd);
-					SyncPartResources(vessel.parts);
+				case EditorStep.None:
+				case EditorStep.Init:
+				case EditorStep.Finalize:
+					SyncPartResources();
 					break;
-				case VesselState.Unloaded:
-					SyncVirtualResources(vd);
-					SyncPartResources(protoVessel.protoPartSnapshots);
-					break;
-				case VesselState.EditorStep:
-					SyncVirtualResources(vd); 
-					break;
-				case VesselState.EditorInit:
-					SyncVirtualResources(vd);
-					SyncEditorPartResources(EditorLogic.fetch.ship.parts);
-					break;
-				case VesselState.EditorFinalize:
-					SyncVirtualResources(vd);
-					SyncEditorPartResources(EditorLogic.fetch.ship.parts);
-					return;
 			}
 
 			// execute all recorded recipes
-			switch (state)
-			{
-				case VesselState.Loaded:
-					Recipe.ExecuteRecipes(this, recipes, vessel);
-					break;
-				case VesselState.Unloaded:
-					Recipe.ExecuteRecipes(this, recipes, protoVessel.vesselRef);
-					break;
-				case VesselState.EditorStep:
-					Recipe.ExecuteRecipes(this, recipes, null);
-					break;
-			}
+			Recipe.ExecuteRecipes(this, recipes);
 
 			// forget the recipes
 			recipes.Clear();
@@ -410,137 +333,81 @@ namespace KERBALISM
 				if (!resource.NeedUpdate)
 					continue;
 
-				if (resource.ExecuteAndSyncToParts(vd, elapsed_s) && vessel != null && vessel.loaded)
-					CoherencyWarning(vessel, resource.Name);
-
-				APIResources[resource.Name] = resource.Amount;
+				if (resource.ExecuteAndSyncToParts(vesselData, elapsedSec) && vesselData.LoadedOrEditor)
+					CoherencyWarning(resource.Title);
 			}
 
 		}
 
-		public void ConvertShipHandlerToVesselHandler()
+		/// <summary>
+		/// Force synchronization of all resource handlers with the current effective amount/capacity of the vessel.
+		/// To be called after VesselData instantation. Can eventually be called if a resource was manually added
+		/// and you need to immediately get the VesselRessource reference for it.
+		/// </summary>
+		public void ForceHandlerSync()
 		{
-			foreach (string resourceName in allKSPResources)
+			foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
 			{
-				int resId = allResourcesIds[resourceName];
-				if (resourceWrappers.TryGetValue(resId, out ResourceWrapper oldWrapper))
+				resourceWrapper.ClearPartResources(true, false);
+			}
+
+			SyncPartResources();
+		}
+
+		public void ConvertShipHandlerToVesselHandler(VesselData vd)
+		{
+			vesselData = vd;
+			simulationType = SimulationType.Vessel;
+
+			foreach (string kspResourceName in allKSPResources)
+			{
+				if (resources.TryGetValue(kspResourceName, out VesselResource resource) && resource is VesselKSPResource kspResource)
 				{
-					ResourceWrapper newWrapper = new LoadedResourceWrapper(oldWrapper);
-					resourceWrappers[resId] = newWrapper;
-					((VesselKSPResource)resources[resourceName]).SetWrapper(newWrapper);
+					PartResourceWrapperCollection newWrapper = CreateWrapper();
+					newWrapper.SyncWithOtherWrapper(kspResource.ResourceWrapper);
+					kspResource.SetWrapper(newWrapper);
+					resourceWrappers[allResourceIdsByName[kspResourceName]] = newWrapper;
 				}
 			}
 		}
 
-
-		private void SyncEditorPartResources(List<Part> parts)
+		private void SyncPartResources()
 		{
-			if (parts == null)
-				return;
-
-			foreach (Part p in parts)
+			foreach (PartData part in vesselData.Parts)
 			{
-				// note : due to the list/dict hybrid implementation of PartResourceList,
-				// don't use foreach on it to avoid heap memory allocs
-				for (int i = 0; i < p.Resources.Count; i++)
+				foreach (PartResourceWrapper partResourceWrapper in part.resources)
 				{
-					PartResource r = p.Resources[i];
-#if DEBUG_RESOURCES
-					// Force view all resource in Debug Mode
-					r.isVisible = true;
-#endif
-
-					if (!r.flowState)
+					if (!partResourceWrapper.FlowState)
 						continue;
 
-					if (!resourceWrappers.TryGetValue(r.info.id, out ResourceWrapper wrapper))
-						wrapper = AddKSPResource(r.resourceName);
+					if (!resourceWrappers.TryGetValue(partResourceWrapper.ResId, out PartResourceWrapperCollection wrapper))
+						wrapper = AddResourceToHandler(partResourceWrapper.ResName, partResourceWrapper.ResId);
 
-					((EditorResourceWrapper)wrapper).AddPartresources(r);
+					wrapper.AddPartResourceWrapper(partResourceWrapper);
 				}
-			}
-		}
 
-		private void SyncPartResources(List<Part> parts)
-		{
-			foreach (Part p in parts)
-			{
-				// note : due to the list/dict hybrid implementation of PartResourceList,
-				// don't use foreach on it to avoid heap memory allocs
-				for (int i = 0; i < p.Resources.Count; i++)
+				foreach (VirtualPartResource virtualPartResource in part.virtualResources)
 				{
-					PartResource r = p.Resources[i];
-#if DEBUG_RESOURCES
-					// Force view all resource in Debug Mode
-					r.isVisible = true;
-#endif
-
-					if (!r.flowState)
+					if (!virtualPartResource.FlowState)
 						continue;
 
-					if (!resourceWrappers.TryGetValue(r.info.id, out ResourceWrapper wrapper))
-						wrapper = AddKSPResource(r.resourceName);
+					if (!resourceWrappers.TryGetValue(virtualPartResource.ResId, out PartResourceWrapperCollection wrapper))
+						wrapper = AddResourceToHandler(virtualPartResource.ResName, virtualPartResource.ResId);
 
-					((LoadedResourceWrapper)wrapper).AddPartresources(r);
+					wrapper.AddPartResourceWrapper(virtualPartResource);
 				}
 			}
 		}
 
-		// note : this can fail if called on a vessel with a resource that was removed (mod uninstalled),
-		// since the resource is serialized on the protovessel, but doesn't exist in the resource library
-		private void SyncPartResources(List<ProtoPartSnapshot> protoParts)
+		private void CoherencyWarning(string resourceName)
 		{
-			foreach (ProtoPartSnapshot p in protoParts)
-			{
-				foreach (ProtoPartResourceSnapshot r in p.resources)
-				{
-					if (!r.flowState)
-						continue;
-
-					if (!resourceWrappers.TryGetValue(r.definition.id, out ResourceWrapper wrapper))
-						wrapper = AddKSPResource(r.resourceName);
-
-					((ProtoResourceWrapper)wrapper).AddPartresources(r);
-				}
-			}
-		}
-
-		private void SyncVirtualResources(VesselDataBase vd)
-		{
-			foreach (PartData pd in vd.Parts)
-			{
-				foreach (PartResourceData prd in pd.virtualResources)
-				{
-					if (!prd.FlowState)
-						continue;
-
-					if (prd.resourceId == null || !resourceWrappers.TryGetValue((int)prd.resourceId, out ResourceWrapper wrapper))
-					{
-						VesselVirtualPartResource res = GetOrCreateVirtualResource<VesselVirtualPartResource>(prd.ResourceName);
-						prd.resourceId = res.Definition.id;
-						wrapper = resourceWrappers[res.Definition.id];
-					}
-
-					((VirtualResourceWrapper)wrapper).AddPartresources(prd);
-				}
-			}
-		}
-
-		private void CoherencyWarning(Vessel v, string resourceName)
-		{
-			if (v == null)
-				return;
-
 			Message.Post
 			(
 				Severity.warning,
-				Lib.BuildString
-				(
-				!v.isActiveVessel ? Lib.BuildString("On <b>", v.vesselName, "</b>\na ") : "A ",
-				"producer of <b>", resourceName, "</b> has\n",
-				"incoherent behavior at high warp speed.\n",
-				"<i>Unload the vessel before warping</i>"
-				)
+				Lib.BuildString("On <b>", vesselData.VesselName, "</b>\n",
+				"a producer of <b>", resourceName, "</b> has\n",
+				"incoherent behavior at high warp speeds.\n",
+				"<i>Please unload the vessel before warping</i>")
 			);
 			Lib.StopWarp(5);
 		}

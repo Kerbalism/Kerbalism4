@@ -106,7 +106,7 @@ namespace KERBALISM
 					case Module_type.CryoTank: ProcessCryoTank(v, vd, e.p, e.m, e.module_prefab, resources, elapsed_s); break;
 					case Module_type.FNGenerator: ProcessFNGenerator(v, e.p, e.m, e.module_prefab, ec, elapsed_s); break;
 					case Module_type.SolarPanelFixer: SolarPanelFixer.BackgroundUpdate(v, e.m, e.module_prefab as SolarPanelFixer, vd, ec, elapsed_s); break;
-					case Module_type.APIModule: ResourceAPI.BackgroundUpdate(v, e.p, e.m, e.part_prefab, e.module_prefab, resources, resourceChangeRequests, elapsed_s); break;
+					//case Module_type.APIModule: ResourceAPI.BackgroundUpdate(v, e.p, e.m, e.part_prefab, e.module_prefab, resources, resourceChangeRequests, elapsed_s); break;
 					case Module_type.IBackgroundModule: ((IBackgroundModule)e.module_prefab).BackgroundUpdate(vd, e.p, e.m, elapsed_s); break;
 				}
 			}
@@ -217,7 +217,7 @@ namespace KERBALISM
 						case Module_type.CryoTank: ProcessCryoTank(v, vd, pps, ppms, ppmsData.modulePrefab, resources, elapsed_s); break;
 						case Module_type.FNGenerator: ProcessFNGenerator(v, pps, ppms, ppmsData.modulePrefab, ec, elapsed_s); break;
 						case Module_type.SolarPanelFixer: SolarPanelFixer.BackgroundUpdate(v, ppms, ppmsData.modulePrefab as SolarPanelFixer, vd, ec, elapsed_s); break;
-						case Module_type.APIModule: ResourceAPI.BackgroundUpdate(v, pps, ppms, ppmsData.modulePrefab.part, ppmsData.modulePrefab, resources, resourceChangeRequests, elapsed_s); break;
+						//case Module_type.APIModule: ResourceAPI.BackgroundUpdate(v, pps, ppms, ppmsData.modulePrefab.part, ppmsData.modulePrefab, resources, resourceChangeRequests, elapsed_s); break;
 						case Module_type.IBackgroundModule: ((IBackgroundModule)ppmsData.modulePrefab).BackgroundUpdate(vd, pps, ppms, elapsed_s); break;
 					}
 				}

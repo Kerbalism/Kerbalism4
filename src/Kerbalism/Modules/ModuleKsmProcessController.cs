@@ -24,7 +24,7 @@ namespace KERBALISM
 			{
 				ProcessControllerData prefabData = new ProcessControllerData();
 				prefabData.SetPartModuleReferences(this, this);
-				prefabData.OnFirstInstantiate(null, null);
+				prefabData.OnFirstInstantiate();
 				moduleData = prefabData;
 			}
 		}

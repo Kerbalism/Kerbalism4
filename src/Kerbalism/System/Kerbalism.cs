@@ -353,14 +353,14 @@ namespace KERBALISM
 					Profile.Execute(v, vd, resources, elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
 
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.ResourceAPI");
-					// part module resource updates
-					ResourceAPI.ResourceUpdate(v, vd, resources, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
+					//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.ResourceAPI");
+					//// part module resource updates
+					//ResourceAPI.ResourceUpdate(v, vd, resources, elapsed_s);
+					//UnityEngine.Profiling.Profiler.EndSample();
 
 					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Resource");
 					// apply deferred requests
-					resources.ResourceUpdate(vd, v, VesselResHandler.VesselState.Loaded, elapsed_s);
+					resources.ResourceUpdate(elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
 
 					Supply.SendMessages(vd);
@@ -437,7 +437,7 @@ namespace KERBALISM
 
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Resource");
 				// apply deferred requests
-				resources.ResourceUpdate(last_vd, last_v.protoVessel, VesselResHandler.VesselState.Unloaded, last_time);
+				resources.ResourceUpdate(last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
 
 				Supply.SendMessages(last_vd);

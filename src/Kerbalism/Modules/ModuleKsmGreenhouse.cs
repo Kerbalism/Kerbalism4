@@ -17,7 +17,9 @@ namespace KERBALISM
 		public bool growthRunning;  // true/false, is the growth process running?
 		public bool setupRunning;  // true/false, is the setup process running?
 
-		public override void OnFirstInstantiate(ProtoPartModuleSnapshot protoModule, ProtoPartSnapshot protoPart)
+		private PartResourceWrapper substrateRes;
+
+		public override void OnFirstInstantiate()
 		{
 			growthProcessName = modulePrefab.growthProcessName;
 			growthProcessCapacity = modulePrefab.growthProcessCapacity;
@@ -30,6 +32,12 @@ namespace KERBALISM
 			substrateResourceName = modulePrefab.substrateResourceName;
 			growthRunning = modulePrefab.growthRunning;
 			setupRunning = modulePrefab.setupRunning;
+		}
+
+		public override void OnStart()
+		{
+			if (!partData.resources.TryGetResourceWrapper(substrateResourceName, out substrateRes))
+				substrateRes = partData.resources.AddResource(substrateResourceName, 0, modulePrefab.substrateCapacity);
 		}
 
 		public void SetupGrowthProcess(string growthProcessName, double growthProcessCapacity)
@@ -86,7 +94,7 @@ namespace KERBALISM
 			}
 		}
 
-		internal void UpdateSubstrateLevel(PartResourceWrapper substrateRes)
+		public override void OnFixedUpdate(double elapsedSec)
 		{
 			if (substrateRes != null && substrateRes.Capacity > 0)
 				growthRate = substrateRes.Amount / substrateRes.Capacity;
@@ -95,7 +103,7 @@ namespace KERBALISM
 		}
 	}
 
-	public class ModuleKsmGreenhouse : KsmPartModule<ModuleKsmGreenhouse, GreenhouseData>, IBackgroundModule, IModuleInfo, IB9Switchable
+	public class ModuleKsmGreenhouse : KsmPartModule<ModuleKsmGreenhouse, GreenhouseData>, IModuleInfo, IB9Switchable
 	{
 		[KSPField] public string growthProcessName = string.Empty; // process name of in-flight food production process
 		[KSPField] public double growthProcessCapacity = 1.0;
@@ -130,9 +138,6 @@ namespace KERBALISM
 		private Animator plantsAnimator;
 		private Renderer lampsRenderer;
 		private Color lampColor;
-
-		// cached values
-		private PartResourceWrapper substrateRes;
 
 		public void OnSwitchActivate()
 		{
@@ -224,10 +229,6 @@ namespace KERBALISM
 				}
 			}
 
-			if (!part.Resources.Contains(substrateResourceName))
-				Lib.AddResource(part, substrateResourceName, 0, substrateCapacity);
-			substrateRes = new LoadedPartResourceWrapper(part.Resources[substrateResourceName]);
-
 			Setup();
 
 			shutterAnimator.Still(growthRunning ? 0f : 1f);
@@ -244,30 +245,6 @@ namespace KERBALISM
 			}
 
 			plantsAnimator.Still((float)moduleData.growthRate);
-		}
-
-		public void FixedUpdate()
-		{
-			moduleData.UpdateSubstrateLevel(substrateRes);
-		}
-
-		public void BackgroundUpdate(VesselData vd, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, double elapsed_s)
-		{
-			if (!ModuleData.TryGetModuleData<ModuleKsmGreenhouse, GreenhouseData>(protoModule, out GreenhouseData greenhouseData))
-				return;
-
-			ProtoPartResourceWrapper substrateRes = null;
-
-			foreach (ProtoPartResourceSnapshot protoResource in protoPart.resources)
-			{
-				if (protoResource.resourceName == greenhouseData.substrateResourceName)
-				{
-					substrateRes = new ProtoPartResourceWrapper(protoResource);
-					break;
-				}
-			}
-
-			greenhouseData.UpdateSubstrateLevel(substrateRes);
 		}
 
 		/// <summary>  start the module. must be idempotent: expect to be called several times </summary>

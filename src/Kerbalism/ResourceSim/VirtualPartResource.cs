@@ -6,17 +6,20 @@ using System.Threading.Tasks;
 
 namespace KERBALISM
 {
-	public class PartResourceData
+	public class VirtualPartResource : PartResourceWrapper
 	{
-		public const string NODENAME_RESOURCES = "RESOURCES";
+		public const string NODENAME_VIRTUAL_RESOURCES = "VIRTUAL_RESOURCES";
 
-		public string ResourceName { get; private set; }
+		private VirtualResourceDefinition definition;
 
-		public int? resourceId = null;
+		public override string ResName => definition.name;
+
+		public override int ResId => definition.id;
+
 		public int ContainerIndex { get; private set; }
 
 		private double amount;
-		public double Amount
+		public override double Amount
 		{
 			get => amount;
 			set
@@ -26,7 +29,7 @@ namespace KERBALISM
 		}
 
 		private double capacity;
-		public double Capacity
+		public override double Capacity
 		{
 			get => capacity;
 			set
@@ -41,13 +44,13 @@ namespace KERBALISM
 			}
 		}
 
-		public bool FlowState { get; set; } = true;
+		public override bool FlowState { get; set; } = true;
 
-		public double Level => capacity > 0.0 ? amount / capacity : 0.0;
+		public override double Level => Capacity > 0.0 ? Amount / Capacity : 0.0;
 
-		public PartResourceData(string resourceName, int containerIndex, double amount = 0.0, double capacity = 0.0)
+		public VirtualPartResource(VirtualResourceDefinition definition, int containerIndex, double amount = 0.0, double capacity = 0.0)
 		{
-			ResourceName = resourceName;
+			this.definition = definition;
 			Capacity = capacity;
 			Amount = amount;
 			ContainerIndex = containerIndex;
@@ -55,7 +58,7 @@ namespace KERBALISM
 
 		public static void LoadPartResources(PartData pd, ConfigNode partDataNode)
 		{
-			ConfigNode resTopNode = partDataNode.GetNode(NODENAME_RESOURCES);
+			ConfigNode resTopNode = partDataNode.GetNode(NODENAME_VIRTUAL_RESOURCES);
 			if (resTopNode == null)
 				return;
 
@@ -73,11 +76,11 @@ namespace KERBALISM
 			if (pd.virtualResources.Count == 0)
 				return false;
 
-			ConfigNode resTopNode = partDataNode.AddNode(NODENAME_RESOURCES);
+			ConfigNode resTopNode = partDataNode.AddNode(NODENAME_VIRTUAL_RESOURCES);
 
-			foreach (PartResourceData res in pd.virtualResources)
+			foreach (VirtualPartResource res in pd.virtualResources)
 			{
-				ConfigNode resNode = resTopNode.AddNode(res.ResourceName);
+				ConfigNode resNode = resTopNode.AddNode(res.ResName);
 				resNode.AddValue("amount", res.amount);
 				resNode.AddValue("capacity", res.capacity);
 				resNode.AddValue("index", res.ContainerIndex);

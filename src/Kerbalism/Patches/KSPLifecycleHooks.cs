@@ -4,13 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using KERBALISM.Planner;
-using System.Reflection;
 
 namespace KERBALISM
 {
+	#region PART/PROTOPART
 
-	// This runs afer the LoadShip Postfix.
 	// The purpose of this patch is double :
 	// 1. In the editor, create the PartData and ModuleData for every KsmPartModule
 	//    This is in a Part.Start() Prefix because that will run after ShipConstruct.LoadShip()
@@ -53,7 +51,7 @@ namespace KERBALISM
 				{
 					if (__instance.Modules[i] is KsmPartModule ksmPM)
 					{
-						if (ksmPM.ModuleData == null) 
+						if (ksmPM.ModuleData == null)
 						{
 							ModuleData.New(ksmPM, i, partData, false);
 						}
@@ -78,7 +76,7 @@ namespace KERBALISM
 					partData = vd.VesselParts.Add(__instance);
 				}
 
-				partData.SetLoadedPartReference(__instance);
+				partData.SetPartReference(__instance);
 
 				for (int i = 0; i < __instance.Modules.Count; i++)
 				{
@@ -92,10 +90,35 @@ namespace KERBALISM
 		}
 	}
 
+	// Patching "public ProtoPartSnapshot(Part PartRef, ProtoVessel protoVessel, bool preCreate)" :
+	// This cover primarily the case of loaded vessels going unloaded (getting out of physics range)
+	// but will also be called in a few irrelevant cases, including on loaded vessels that will stay
+	// loaded afterwards. So don't assume any relation between that event and the loaded state.
+	// Note that there is another Ctor for ProtoPartSnapshot, for creating a PPS from a saved node.
+	// We (probably) don't need to take care of that one (and it will happen too soon anyway)
+	// since protopart/protomodule linking when loading a protovessel from save is already taken care of 
+	// by the corresponding VesselData ctor.
+	[HarmonyPatch(typeof(ProtoPartSnapshot))]
+	[HarmonyPatch(MethodType.Constructor)]
+	[HarmonyPatch(new Type[] { typeof(Part), typeof(ProtoVessel), typeof(bool)})]
+	class ProtoPartSnapshot_Ctor
+	{
+		static void Postfix(ProtoPartSnapshot __instance)
+		{
+			if (PartData.TryGetPartData(__instance.flightID, out PartData partData))
+			{
+				partData.SetProtoPartReference(__instance);
+			}
+		}
+	}
+
+	#endregion
+
+	#region SHIPCONSTRUCT
 
 	[HarmonyPatch(typeof(ShipConstruct))]
 	[HarmonyPatch("LoadShip")]
-	[HarmonyPatch(new Type[] { typeof(ConfigNode), typeof(uint), typeof(bool), typeof(string)}, new ArgumentType[] { ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Out })]
+	[HarmonyPatch(new Type[] { typeof(ConfigNode), typeof(uint), typeof(bool), typeof(string) }, new ArgumentType[] { ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Normal, ArgumentType.Out })]
 	class ShipConstruct_LoadShip
 	{
 		private static uint editorPreviousShipId;
@@ -283,4 +306,6 @@ namespace KERBALISM
 			VesselDataShip.Instance = null;
 		}
 	}
+
+	#endregion
 }

@@ -33,11 +33,13 @@ namespace KERBALISM
 
 		public VesselDataShip()
 		{
-			resHandler = new VesselResHandler(null, VesselResHandler.VesselState.EditorStep);
-			ObjectsCache = new ObjectsCacheBase();
+			resHandler = new VesselResHandler(this, VesselResHandler.SimulationType.Planner);
+			Synchronizer = new SynchronizerBase(this);
 		}
 
 		#region BASE PROPERTIES IMPLEMENTATION
+
+		public override string VesselName => EditorLogic.fetch?.ship == null ? "Unknown ShipConstruct" : $"{EditorLogic.fetch.ship.shipName} (Editor)";
 
 		public override PartDataCollectionBase Parts => ShipParts;
 
@@ -136,7 +138,7 @@ namespace KERBALISM
 
 		public void Analyze(List<Part> parts, CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
 		{
-			ObjectsCache.Update(this);
+			Synchronizer.Synchronize();
 			AnalyzeEnvironment(body, situation, sunlight);
 			AnalyzeCrew(parts);
 			AnalyzeComms();

@@ -2144,7 +2144,7 @@ namespace KERBALISM
 				if (protoPart.modules[i] != protoModule)
 					continue;
 
-				// if modules count match in the the prefab and in the protopart, and if module type name match, 
+				// if modules count match in the prefab and in the protopart, and if module type name match, 
 				// we can assume that the module at the same index is the right prefab. This can return a false
 				// positive if there was multiple consecutive modules of the same type and the config has changed
 				// by removing one of these modules.
@@ -2190,7 +2190,7 @@ namespace KERBALISM
 
 			if (prefab == null)
 			{
-				LogDebug($"PartModule prefab not found for {protoModule.moduleName} on {protoPart.partName}, has the part configuration changed ?");
+				Log($"PartModule prefab not found for {protoModule.moduleName} on {protoPart.partName}, has the part configuration changed ?", LogLevel.Warning);
 				return false;
 			}
 
@@ -2232,7 +2232,7 @@ namespace KERBALISM
 
 		#region RESOURCE
 
-		/// <summary> Returns the "real world" density of a resource (KSP "density" is in ton/unit and doesn't accounr for the volume property) </summary>
+		/// <summary> density in t/m3 of a resource (KSP "density" is in ton/unit and doesn't account for the resource volume property) </summary>
 		public static double RealDensity(this PartResourceDefinition res)
 		{
 			return res.density * 1000.0 / res.volume;
@@ -2427,29 +2427,6 @@ namespace KERBALISM
 				p.Resources[res_name].amount = 0.0;
 			else {
 				Lib.LogDebugStack("Resource " + res_name + " not in part " + p.name); }
-		}
-
-		/// <summary> Set the enabled/disabled state of a process
-		/// <para> Use the process_capacity parameter to set the pseudo resource amount for the process,
-		/// an amount of 0.0 disables the process, any non-zero value is a multiplier of the process.
-		/// </para> </summary>
-		public static void SetProcessEnabledDisabled(Part p, string res_name, bool enable, double process_capacity)
-		{
-			if (!p.Resources.Contains(res_name))
-			{
-				Lib.AddResource(p, res_name, 0.0, process_capacity);
-			}
-
-			if (enable)
-			{
-				SetResource(p, res_name, process_capacity, process_capacity);
-			}
-			else
-			{
-				// Never remove the resource capacity, otherwise checks against
-				// the pseudo resource might fail
-				SetResource(p, res_name, 0.0, process_capacity);
-			}
 		}
 
 		/// <summary> Returns the definition of a resource, or null if it doesn't exist </summary>
@@ -3095,41 +3072,68 @@ namespace KERBALISM
 		#region PROTO
 		public static class Proto
 		{
+			private static string sVal;
+
 			public static bool GetBool( ProtoPartModuleSnapshot m, string name, bool def_value = false )
 			{
-				bool v;
-				string s = m.moduleValues.GetValue( name );
-				return s != null && bool.TryParse( s, out v ) ? v : def_value;
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && bool.TryParse(sVal, out bool val))
+				{
+					sVal = null;
+					return val;
+				}
+				sVal = null;
+				return def_value;
 			}
 
 			public static uint GetUInt( ProtoPartModuleSnapshot m, string name, uint def_value = 0 )
 			{
-				uint v;
-				string s = m.moduleValues.GetValue( name );
-				return s != null && uint.TryParse( s, out v ) ? v : def_value;
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && uint.TryParse(sVal, out uint val))
+				{
+					sVal = null;
+					return val;
+				}
+				sVal = null;
+				return def_value;
 			}
 
 			public static int GetInt(ProtoPartModuleSnapshot m, string name, int def_value = 0)
 			{
-				int v;
-				string s = m.moduleValues.GetValue(name);
-				return s != null && int.TryParse(s, out v) ? v : def_value;
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && int.TryParse(sVal, out int val))
+				{
+					sVal = null;
+					return val;
+				}
+				sVal = null;
+				return def_value;
 			}
 
 			public static float GetFloat( ProtoPartModuleSnapshot m, string name, float def_value = 0.0f )
 			{
 				// note: we set NaN and infinity values to zero, to cover some weird inter-mod interactions
-				float v;
-				string s = m.moduleValues.GetValue( name );
-				return s != null && float.TryParse( s, out v ) && !float.IsNaN( v ) && !float.IsInfinity( v ) ? v : def_value;
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && float.TryParse(sVal, out float val) && !float.IsNaN(val) && !float.IsInfinity(val))
+				{
+					sVal = null;
+					return val;
+				}
+				sVal = null;
+				return def_value;
 			}
 
 			public static double GetDouble( ProtoPartModuleSnapshot m, string name, double def_value = 0.0 )
 			{
 				// note: we set NaN and infinity values to zero, to cover some weird inter-mod interactions
-				double v;
-				string s = m.moduleValues.GetValue( name );
-				return s != null && double.TryParse( s, out v ) && !double.IsNaN( v ) && !double.IsInfinity( v ) ? v : def_value;
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && double.TryParse(sVal, out double val) && !double.IsNaN(val) && !double.IsInfinity(val))
+				{
+					sVal = null;
+					return val;
+				}
+				sVal = null;
+				return def_value;
 			}
 
 			public static string GetString( ProtoPartModuleSnapshot m, string name, string def_value = "" )
@@ -3140,23 +3144,25 @@ namespace KERBALISM
 
 			public static T GetEnum<T>(ProtoPartModuleSnapshot m, string name, T def_value)
 			{
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.Lib.Proto.GetEnum");
-				string s = m.moduleValues.GetValue(name);
-				if (s != null && Enum.IsDefined(typeof(T), s))
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && Enum.IsDefined(typeof(T), sVal))
 				{
-					T forprofiling = (T)Enum.Parse(typeof(T), s);
-					UnityEngine.Profiling.Profiler.EndSample();
-					return forprofiling;
+					sVal = null;
+					return (T)Enum.Parse(typeof(T), sVal); ;
 				}
-				UnityEngine.Profiling.Profiler.EndSample();
+				sVal = null;
 				return def_value;
 			}
 
 			public static T GetEnum<T>(ProtoPartModuleSnapshot m, string name)
 			{
-				string s = m.moduleValues.GetValue(name);
-				if (s != null && Enum.IsDefined(typeof(T), s))
-					return (T)Enum.Parse(typeof(T), s);
+				sVal = m.moduleValues.GetValue(name);
+				if (sVal != null && Enum.IsDefined(typeof(T), sVal))
+				{
+					sVal = null;
+					return (T)Enum.Parse(typeof(T), sVal);
+				}
+				sVal = null;
 				return (T)Enum.GetValues(typeof(T)).GetValue(0);
 			}
 

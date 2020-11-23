@@ -7,12 +7,12 @@ namespace KERBALISM
 	{
 		public static Dictionary<string, VirtualResourceDefinition> definitions = new Dictionary<string, VirtualResourceDefinition>();
 
-		public enum ResType { PartResource, VesselResource }
+		public enum ConfigType { PartResource, VesselResource }
 
 		public string name;
 		public string title;
 		public bool isVisible;
-		public ResType resType;
+		public VesselResHandler.ResourceType resType;
 		public int id;
 
 		public VirtualResourceDefinition(ConfigNode node)
@@ -20,22 +20,27 @@ namespace KERBALISM
 			name = Lib.ConfigValue(node, "name", string.Empty);
 			title = Lib.ConfigValue(node, "title", name);
 			isVisible = Lib.ConfigValue(node, "isVisible", false);
-			resType = Lib.ConfigEnum(node, "type", ResType.VesselResource);
+			ConfigType configType = Lib.ConfigEnum(node, "type", ConfigType.VesselResource);
+			switch (configType)
+			{
+				case ConfigType.PartResource: resType = VesselResHandler.ResourceType.PartVirtual; break;
+				case ConfigType.VesselResource: resType = VesselResHandler.ResourceType.VesselVirtual; break;
+			}
 
 			// check that name is specified
 			if (name.Length == 0) throw new Exception("skipping unnamed rule");
 		}
 
-		private VirtualResourceDefinition(string name, bool isVisible, ResType resType, string title = null)
+		private VirtualResourceDefinition(string name, bool isVisible, VesselResHandler.ResourceType resType, string title = null)
 		{
 			this.name = name;
 			this.title = title == null ? name : title;
 			this.isVisible = isVisible;
 			this.resType = resType;
-			id = VesselResHandler.GetVirtualResourceId(name);
+			id = VesselResHandler.GetVirtualResourceId(name, resType);
 		}
 
-		public static VirtualResourceDefinition GetOrCreateDefinition(string name, bool isVisible, ResType resType, string title = null)
+		public static VirtualResourceDefinition GetOrCreateDefinition(string name, bool isVisible, VesselResHandler.ResourceType resType, string title = null)
 		{
 			if (definitions.TryGetValue(name, out VirtualResourceDefinition newRes))
 			{

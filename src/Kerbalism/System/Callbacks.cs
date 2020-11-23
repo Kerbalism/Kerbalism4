@@ -147,7 +147,7 @@ namespace KERBALISM
 			GameEvents.onGameSceneSwitchRequested.Add((_) => visible = false);
 			GameEvents.onGUIApplicationLauncherReady.Add(() => visible = true);
 
-			GameEvents.onPartDestroyed.Add(OnEditorPartDestroyed);
+			GameEvents.onPartDestroyed.Add(OnPartDestroyed);
 
 			GameEvents.onVesselRecoveryProcessingComplete.Add(OnVesselRecoveryProcessingComplete);
 
@@ -179,15 +179,6 @@ namespace KERBALISM
 		{
 			ModuleKsmExperiment.CheckEditorExperimentMultipleRun();
 			Planner.Planner.EditorShipModifiedEvent(data);
-		}
-
-		private void OnEditorPartDestroyed(Part part)
-		{
-			if (!Lib.IsEditor)
-				return;
-
-			Lib.LogDebug($"Removing destroyed part: {part.persistentId} ({part.partInfo.title})");
-			VesselDataShip.ShipParts.Remove(part);
 		}
 
 		private static bool crewAssignementRefreshWasJustFiredFromCrewChanged = false;
@@ -570,7 +561,7 @@ namespace KERBALISM
 					case HabitatData.PressureState.Pressurizing:
 					case HabitatData.PressureState.DepressurizingBelowThreshold:
 
-						PartResourceWrapper wasteRes = fromHabitatData.loadedModule.WasteRes;
+						PartResourceWrapper wasteRes = fromHabitatData.WasteRes;
 						wasteTransferred = fromHabitatData.crewCount > 0 ? wasteRes.Amount / fromHabitatData.crewCount : 0.0;
 						wasteRes.Amount = newCrewCount > 0 ? wasteRes.Amount - wasteTransferred : 0.0;
 						wasteRes.Capacity = newCrewCount * Settings.PressureSuitVolume;
@@ -654,6 +645,28 @@ namespace KERBALISM
 
 			// update vessel
 			OnVesselModified(p.vessel);
+		}
+
+		// Called when Part.OnDestroy() is called by unity, and nowhere else.
+		private void OnPartDestroyed(Part part)
+		{
+			Lib.LogDebug($"Destroying part {part.partInfo.title}");
+
+
+
+			if (Lib.IsEditor)
+			{
+				VesselDataShip.ShipParts.Remove(part);
+			}
+			else if (PartData.TryGetLoadedPartData(part, out PartData partData))
+			{
+				partData.OnDestroy();
+			}
+
+
+
+			
+			
 		}
 
 		#endregion

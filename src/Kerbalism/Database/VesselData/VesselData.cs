@@ -299,6 +299,7 @@ namespace KERBALISM
 			return true;
 		}
 
+		/// <summary> This ctor is used to convert a ship into a vessel</summary>
 		public VesselData(Vessel vessel, ConfigNode kerbalismDataNode, VesselDataShip shipVd)
 		{
 			existsInFlight = true;  // vessel exists
@@ -307,12 +308,12 @@ namespace KERBALISM
 			Vessel = vessel;
 			VesselId = Vessel.id;
 
-			ObjectsCache = new ObjectsCacheVessel();
+			Synchronizer = new SynchronizerVessel(this);
 			resHandler = shipVd.ResHandler;
-			resHandler.ConvertShipHandlerToVesselHandler();
+			resHandler.ConvertShipHandlerToVesselHandler(this);
 			VesselParts = new PartDataCollectionVessel(this, (PartDataCollectionShip)shipVd.Parts);
 
-			//Parts.Load(kerbalismDataNode); // don't load parts, they already have been loaded when the ship was instantiated
+			// note : we don't load parts, they already have been loaded when the ship was instantiated
 			Load(kerbalismDataNode, true);
 
 			SetPersistedFieldsDefaults(vessel.protoVessel);
@@ -330,11 +331,12 @@ namespace KERBALISM
 			Vessel = vessel;
 			VesselId = Vessel.id;
 
-			ObjectsCache = new ObjectsCacheVessel();
+			Synchronizer = new SynchronizerVessel(this);
+			resHandler = new VesselResHandler(this, VesselResHandler.SimulationType.Vessel);
 
 			if (Vessel.loaded)
 			{
-				resHandler = new VesselResHandler(Vessel, VesselResHandler.VesselState.Loaded);
+				
 				if (partDatas == null)
 					VesselParts = new PartDataCollectionVessel(this, Vessel);
 				else
@@ -342,7 +344,6 @@ namespace KERBALISM
 			}
 			else
 			{
-				resHandler = new VesselResHandler(Vessel.protoVessel, VesselResHandler.VesselState.Unloaded);
 				// vessels can be created unloaded, asteroids for example
 				if (partDatas == null)
 					VesselParts = new PartDataCollectionVessel(this, Vessel.protoVessel, null);
@@ -350,7 +351,10 @@ namespace KERBALISM
 					VesselParts = new PartDataCollectionVessel(this, partDatas);
 			}
 
-			resHandler.PostInstantiateVirtualResourcesSync(this);
+			Synchronizer.Synchronize();
+			resHandler.ForceHandlerSync();
+
+			//resHandler.PostInstantiateVirtualResourcesSync(this);
 			SetPersistedFieldsDefaults(vessel.protoVessel);
 			SetInstantiateDefaults(vessel.protoVessel);
 
@@ -373,11 +377,11 @@ namespace KERBALISM
 
 			VesselId = protoVessel.vesselID;
 
-			ObjectsCache = new ObjectsCacheVessel();
+			Synchronizer = new SynchronizerVessel(this);
+			resHandler = new VesselResHandler(this, VesselResHandler.SimulationType.Vessel);
 
 			if (vesselDataNode == null)
 			{
-				resHandler = new VesselResHandler(protoVessel, VesselResHandler.VesselState.Unloaded);
 				VesselParts = new PartDataCollectionVessel(this, protoVessel, null);
 				SetPersistedFieldsDefaults(protoVessel);
 				Lib.LogDebug("VesselData ctor (created from unsaved protovessel) : id '" + VesselId + "' (" + protoVessel.vesselName + "), part count : " + Parts.Count);
@@ -385,14 +389,12 @@ namespace KERBALISM
 			else
 			{
 				Lib.LogDebug("VesselData ctor (loading from database) : id '" + VesselId + "' (" + protoVessel.vesselName + ")...");
-				resHandler = new VesselResHandler(protoVessel, VesselResHandler.VesselState.Unloaded);
 				VesselParts = new PartDataCollectionVessel(this, protoVessel, vesselDataNode);
 				Parts.Load(vesselDataNode);
 				Load(vesselDataNode, false);
 				Lib.LogDebug("VesselData ctor (loaded from database) : id '" + VesselId + "' (" + protoVessel.vesselName + "), part count : " + Parts.Count);
 			}
 
-			resHandler.PostInstantiateVirtualResourcesSync(this);
 			SetInstantiateDefaults(protoVessel);
 
 			UnityEngine.Profiling.Profiler.EndSample();
@@ -588,15 +590,13 @@ namespace KERBALISM
 		#region EVALUATION
 
 		/// <summary>
-		/// Evaluate status and environment. Called from Kerbalism.FixedUpdate :
-		/// <para/> - for loaded vessels : every gametime second 
-		/// <para/> - for unloaded vessels : at the beginning of every background update
+		/// Called from Kerbalism.FixedUpdate
 		/// </summary>
 		public void Evaluate(bool forced, double elapsedSeconds)
 		{
 			secSinceLastEval += elapsedSeconds;
 
-			ObjectsCache.Update(this);
+			Synchronizer.Synchronize();
 
 			// don't update things that don't change often more than every second of game time
 			if (forced || secSinceLastEval > 1.0)
@@ -630,7 +630,7 @@ namespace KERBALISM
 					part.PostInstantiateSetup();
 				}
 
-				ObjectsCache.Update(this);
+				Synchronizer.Synchronize();
 			}
 		}
 
@@ -1019,9 +1019,10 @@ namespace KERBALISM
 				return;
 
 			resourceUpdateDelegates = null;
+			Synchronizer.Synchronize();
 			CommHandler.ResetPartTransmitters();
 			ResetReliabilityStatus();
-			StateUpdate(); // TODO : wthis isn't good, we need to decouple "pure update" code from the "vessel state analysis" code
+			StateUpdate();
 
 			Lib.LogDebug("VesselData updated on vessel modified event ({0})", Lib.LogLevel.Message, Vessel.vesselName);
 		}

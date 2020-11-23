@@ -135,7 +135,7 @@ namespace KERBALISM
 		{
 			// 9 slice sprites are self extending, they don't need to get scaled manually (I think...)
 			Texture2D tex = Lib.GetTexture(textureName, width, height);
-			return Sprite.Create(tex, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 100f, 0u, SpriteMeshType.Tight, new Vector4(borderSize, borderSize, borderSize, borderSize));
+			return Sprite.Create(tex, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 100f, 0u, SpriteMeshType.FullRect, new Vector4(borderSize, borderSize, borderSize, borderSize));
 		}
 
 		internal static Texture2D GetTexture(string name)

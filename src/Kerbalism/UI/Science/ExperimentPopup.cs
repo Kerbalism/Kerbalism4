@@ -56,7 +56,7 @@ namespace KERBALISM
 			this.data = data;
 			this.vd = (VesselData)data.VesselData;
 
-			popupId = data.flightId;
+			popupId = data.FlightId;
 
 			if (activePopups.Contains(popupId))
 				return;

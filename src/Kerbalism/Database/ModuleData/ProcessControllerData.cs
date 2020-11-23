@@ -12,9 +12,9 @@ namespace KERBALISM
 		public bool isBroken;   // true if process controller is broken
 		public Process Process { get; private set; } // the process associated with the process name, for convenience
 
-		private PartResourceData capacityResource;
+		private VirtualPartResource capacityResource;
 
-		public override void OnFirstInstantiate(ProtoPartModuleSnapshot protoModule, ProtoPartSnapshot protoPart)
+		public override void OnFirstInstantiate()
 		{
 			processName = modulePrefab.processName;
 			processCapacity = modulePrefab.capacity;

@@ -63,7 +63,7 @@ namespace KERBALISM
 				return drive;
 			
 			drive = new DriveData();
-			drive.OnFirstInstantiate(null, null);
+			drive.OnFirstInstantiate();
 			transmitBuffers.Add(id, drive);
 			return drive;
 		}

@@ -91,7 +91,7 @@ namespace KERBALISM
 			foreach (ProtoPartSnapshot protopart in protoVessel.protoPartSnapshots)
 			{
 				// In case a part was removed (a part mod uninstalled), the ProtoPartSnapshot will still be created by KSP
-				// (eve tough it will delete the vessel later). Created the partdata for it will fail hard, so detect that
+				// (even though it will delete the vessel later). Creating the partdata for it will fail hard, so detect that
 				// case by checking if the part prefab is null
 				if (protopart.partPrefab == null)
 				{
@@ -132,7 +132,7 @@ namespace KERBALISM
 				bool isPersistent = false;
 				ConfigNode partNode = new ConfigNode(partData.flightId.ToString());
 
-				isPersistent |= PartResourceData.SavePartResources(partData, partNode);
+				isPersistent |= VirtualPartResource.SavePartResources(partData, partNode);
 				isPersistent |= PartRadiationData.Save(partData, partNode);
 
 				if (isPersistent)
@@ -158,7 +158,7 @@ namespace KERBALISM
 					continue;
 				}
 
-				PartResourceData.LoadPartResources(partData, partNode);
+				VirtualPartResource.LoadPartResources(partData, partNode);
 				PartRadiationData.Load(partData, partNode);
 			}
 		}

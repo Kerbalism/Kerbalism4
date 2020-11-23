@@ -111,7 +111,7 @@ namespace KERBALISM
 
 		#region LIFECYCLE
 
-		public override void OnFirstInstantiate(ProtoPartModuleSnapshot protoModule = null, ProtoPartSnapshot protoPart = null)
+		public override void OnFirstInstantiate()
 		{
 			expState = RunningState.Stopped;
 			status = ExpStatus.Stopped;
