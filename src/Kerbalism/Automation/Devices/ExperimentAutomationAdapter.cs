@@ -6,18 +6,19 @@ using System.Text;
 
 namespace KERBALISM
 {
+	/*
 	public class ExperimentAutomationAdapter : AutomationAdapter
 	{
 		private readonly Device.DeviceIcon icon;
 		private StringBuilder sb;
 		private string scienceValue;
-		private ExperimentData data => moduleData as ExperimentData;
+		private ExperimentHandler data => moduleData as ExperimentHandler;
 
 		public override Device.DeviceIcon Icon => icon;
 
 		public override string Name => data.ExperimentID;
 
-		public ExperimentAutomationAdapter(KsmPartModule module, ModuleData moduleData) : base(module, moduleData)
+		public ExperimentAutomationAdapter(KsmPartModule module, ModuleHandler moduleData) : base(module, moduleData)
 		{
 			icon = new Device.DeviceIcon(data.ModuleDefinition.Info.SampleMass > 0.0 ? Textures.sample_scicolor : Textures.file_scicolor, "open experiment window", () => new ExperimentPopup(data));
 			sb = new StringBuilder();
@@ -38,12 +39,12 @@ namespace KERBALISM
 				sb.Append(": ");
 				sb.Append(scienceValue);
 
-				if (data.Status == ExperimentData.ExpStatus.Running)
+				if (data.Status == ExperimentHandler.ExpStatus.Running)
 				{
 					sb.Append(" ");
 					sb.Append(ModuleKsmExperiment.RunningCountdown(data.ModuleDefinition.Info, data.Subject, data.ModuleDefinition.DataRate));
 				}
-				else if (data.Subject != null && data.Status == ExperimentData.ExpStatus.Forced)
+				else if (data.Subject != null && data.Status == ExperimentHandler.ExpStatus.Forced)
 				{
 					sb.Append(" ");
 					sb.Append(data.Subject.PercentCollectedTotal.ToString("P0"));
@@ -73,7 +74,7 @@ namespace KERBALISM
 				sb.Append(" ");
 				sb.Append(ModuleKsmExperiment.StatusInfo(data.Status));
 
-				if (data.Status == ExperimentData.ExpStatus.Issue)
+				if (data.Status == ExperimentHandler.ExpStatus.Issue)
 				{
 					sb.Append("\n");
 					sb.Append(Local.Experiment_issue);//issue :
@@ -85,14 +86,14 @@ namespace KERBALISM
 				sb.Append(" ");
 				sb.Append(scienceValue);
 
-				if (data.Status == ExperimentData.ExpStatus.Running)
+				if (data.Status == ExperimentHandler.ExpStatus.Running)
 				{
 					sb.Append("\n");
 					sb.Append(Local.Experiment_completion);//completion :
 					sb.Append(" ");
 					sb.Append(ModuleKsmExperiment.RunningCountdown(data.ModuleDefinition.Info, data.Subject, data.ModuleDefinition.DataRate, false));
 				}
-				else if (data.Subject != null && data.Status == ExperimentData.ExpStatus.Forced)
+				else if (data.Subject != null && data.Status == ExperimentHandler.ExpStatus.Forced)
 				{
 					sb.Append("\n");
 					sb.Append(Local.Experiment_completion);//completion :
@@ -114,4 +115,5 @@ namespace KERBALISM
 			ModuleKsmExperiment.Toggle(data);
 		}
 	}
+	*/
 } // KERBALISM

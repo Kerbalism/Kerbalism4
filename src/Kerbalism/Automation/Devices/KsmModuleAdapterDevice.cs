@@ -8,7 +8,7 @@ namespace KERBALISM
 		private readonly string displayName;
 		private readonly string partName;
 		private readonly AutomationAdapter automationAdapter;
-		private readonly ModuleData moduleData;
+		private readonly ModuleHandler moduleData;
 
 		public KsmModuleAdapterDevice(KsmPartModule prefab, ProtoPartSnapshot protoPart, AutomationAdapter adapter, int adapterIndex)
 		{
@@ -27,7 +27,7 @@ namespace KERBALISM
 			id = ksmModule.part.flightID;
 			partName = ksmModule.part.partInfo.title;
 			automationAdapter = adapter;
-			moduleData = ksmModule.ModuleData;
+			moduleData = ksmModule.ModuleHandler;
 		}
 
 		public override string Name => automationAdapter.Name ?? name;

@@ -31,6 +31,8 @@ namespace KERBALISM
 		private AvailablePart partInfo;
 		public Part PartPrefab { get; private set; }
 
+		public bool Started { get; private set; } = false;
+
 		// the loaded part reference is acquired either :
 		// - from the "loaded" ctor when a saved vessel/ship is instantiated as a loaded ship, and when a part is created in flight (ex : KIS)
 		// - from the "loaded" ctor, through the Part.Start() harmony prefix when a part is created in the editors
@@ -51,7 +53,7 @@ namespace KERBALISM
 		public PartVolumeAndSurface.Definition volumeAndSurface;
 		public PartResourceCollection resources;
 		public PartVirtualResourceCollection virtualResources;
-		public List<ModuleData> modules = new List<ModuleData>();
+		public List<ModuleHandler> modules = new List<ModuleHandler>();
 
 		/// <summary> Localized part title </summary>
 		public string Title => partInfo.title;
@@ -59,7 +61,7 @@ namespace KERBALISM
 		/// <summary> part internal name as defined in configs </summary>
 		public string Name => partInfo.name;
 
-		public override string ToString() => Title;
+		public override string ToString() => Name;
 
 		public PartData(VesselDataBase vesselData, Part part)
 		{
@@ -105,52 +107,97 @@ namespace KERBALISM
 			loadedPartDatas[part.GetInstanceID()] = this;
 		}
 
-		public void SetProtoPartReference(ProtoPartSnapshot protoPart)
+		// TODO : Vessel.Load() patch !!!
+
+		/// <summary>
+		/// Called by the Vessel.Unload() patch for every part. Set the protopart reference and the protomodule reference, and instantiate unloaded-context handlers
+		/// </summary>
+		public void SetProtopartReferenceOnVesselUnload(ProtoPartSnapshot protoPart)
 		{
 			this.protoPart = protoPart;
 
 			foreach (ProtoPartModuleSnapshot protoModule in protoPart.modules)
 			{
-				if (ModuleData.IsKsmPartModule(protoModule))
-				{
-					int flightId = Lib.Proto.GetInt(protoModule, KsmPartModule.VALUENAME_FLIGHTID, 0);
+				if (!ModuleHandler.handlerTypesByModuleName.TryGetValue(protoModule.moduleName, out ModuleHandler.ModuleHandlerType handlerType))
+					continue;
 
-					if (flightId != 0 && ModuleData.TryGetModuleData(flightId, out ModuleData moduleData))
+				if (handlerType.isPersistent)
+				{
+					int flightId = Lib.Proto.GetInt(protoModule, ModuleHandler.VALUENAME_FLIGHTID, 0);
+					if (flightId != 0 && ModuleHandler.TryGetPersistentFlightHandler(flightId, out ModuleHandler moduleData))
 					{
 						moduleData.protoModule = protoModule;
+						continue;
 					}
+				}
+
+				if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
+				{
+					ModuleHandler.NewFlightFromProto(handlerType, protoPart, protoModule, this);
 				}
 			}
 		}
 
 		/// <summary>
 		/// Must be called when loadedPart.OnDestroy() is called by unity. Handled through GameEvents.onPartDestroyed.
+		/// Note that in the case of a vessel being unloaded, this is called before SetProtopartReferenceOnVesselUnload()
 		/// </summary>
-		public void OnDestroy()
+		public void OnLoadedDestroy()
 		{
 			IsLoaded = false;
 			loadedPartDatas.Remove(loadedPart.GetInstanceID());
+
+			foreach (PartModule module in loadedPart.Modules)
+			{
+				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(module.GetInstanceID());
+			}
+
 			loadedPart = null;
+
+			for (int i = 0; i < modules.Count; i++)
+			{
+				// If the handler doesn't have the unloaded activation context, remove it
+				// For non-persistent handlers we have no way to find the corresponding protomodule if the vessel goes from loaded to unloaded.
+				// So also remove any non-persistent handlers. In case the handler has both the loaded and unloaded context, it will be recreated
+				// in the SetProtopartReferenceOnVesselUnload() call.
+				if ((modules[i].Activation & ModuleHandler.ActivationContext.Unloaded) == 0 || !(modules[i] is IPersistentModuleHandler))
+				{
+					modules.RemoveAt(i);
+				}
+			}
 		}
 
-		public void PostInstantiateSetup()
+		public void Start()
 		{
-			if (initialized)
+			if (Started)
 				return;
 
-			radiationData.PostInstantiateSetup();
+			Started = true;
 
-			initialized = true;
+			foreach (ModuleHandler handler in modules)
+			{
+				handler.Start();
+			}
 		}
+
+		//public void PostInstantiateSetup()
+		//{
+		//	if (initialized)
+		//		return;
+
+		//	radiationData.PostInstantiateSetup();
+
+		//	initialized = true;
+		//}
 
 		/// <summary> Must be called if the part is destroyed </summary>
 		public void PartWillDie()
 		{
 			flightPartDatas.Remove(flightId);
 
-			foreach (ModuleData moduleData in modules)
+			foreach (ModuleHandler moduleData in modules)
 			{
-				moduleData.PartWillDie();
+				moduleData.FlightPartWillDie();
 			}
 
 			if (LoadedPart != null)

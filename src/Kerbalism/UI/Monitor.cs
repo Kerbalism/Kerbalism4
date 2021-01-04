@@ -484,21 +484,19 @@ namespace KERBALISM
 			}
 		}
 
-		void Problem_storm(Vessel v, ref List<Texture2D> icons, ref List<string> tooltips)
+		void Problem_storm(VesselData vd, ref List<Texture2D> icons, ref List<string> tooltips)
 		{
-			if (Storm.Incoming(v))
+			if (Storm.Incoming(vd))
 			{
 				icons.Add(Textures.storm_yellow);
-				v.TryGetVesselDataTemp(out VesselData vd);
-				var bd = Sim.IsStar(v.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(v.mainBody).name);
+				var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
 				var tti = bd.storm_time - Planetarium.GetUniversalTime();
 				tooltips.Add(Lib.BuildString(Lib.Color(Local.Monitor_ejectionincoming, Lib.Kolor.Orange), "\n<i>", Local.Monitor_TimetoimpactCoronalmass, Lib.HumanReadableDuration(tti), "</i>"));//"Coronal mass ejection incoming"Time to impact:
 			}
-			if (Storm.InProgress(v))
+			if (Storm.InProgress(vd))
 			{
 				icons.Add(Textures.storm_red);
-				v.TryGetVesselDataTemp(out VesselData vd);
-				var bd = Sim.IsStar(v.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(v.mainBody).name);
+				var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
 				var remainingDuration = bd.storm_time + bd.displayed_duration - Planetarium.GetUniversalTime();
 				tooltips.Add(Lib.BuildString(Lib.Color(Local.Monitor_Solarstorminprogress, Lib.Kolor.Red), "\n<i>", Local.Monitor_SolarstormRemaining, Lib.HumanReadableDuration(remainingDuration), "</i>"));//"Solar storm in progress"Remaining duration:
 			}
@@ -512,7 +510,7 @@ namespace KERBALISM
 
 			// detect problems
 			Problem_sunlight(vd, ref problem_icons, ref problem_tooltips);
-			if (Features.Radiation) Problem_storm(v, ref problem_icons, ref problem_tooltips);
+			if (Features.Radiation) Problem_storm(vd, ref problem_icons, ref problem_tooltips);
 			if (crew.Count > 0 && Profile.rules.Count > 0) Problem_kerbals(crew, ref problem_icons, ref problem_tooltips);
 			if (crew.Count > 0 && Features.Radiation) Problem_radiation(vd, ref problem_icons, ref problem_tooltips);
 			if (Features.LifeSupport) Problem_poisoning(vd, ref problem_icons, ref problem_tooltips);

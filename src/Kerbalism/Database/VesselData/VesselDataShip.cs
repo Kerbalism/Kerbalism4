@@ -37,6 +37,28 @@ namespace KERBALISM
 			Synchronizer = new SynchronizerBase(this);
 		}
 
+		public void Start()
+		{
+			Synchronizer.Synchronize();
+
+			foreach (PartData part in ShipParts)
+			{
+				foreach (ModuleHandler handler in part.modules)
+				{
+					handler.FirstSetup();
+				}
+			}
+
+			// From now on, we assume that nobody will be altering part resources. Synchronize the resource sim state.
+			resHandler.ForceHandlerSync();
+
+			// Call OnStart() on every PartData, and every enabled ModuleHandler/KsmPartModule
+			foreach (PartData part in Parts)
+			{
+				part.Start();
+			}
+		}
+
 		#region BASE PROPERTIES IMPLEMENTATION
 
 		public override string VesselName => EditorLogic.fetch?.ship == null ? "Unknown ShipConstruct" : $"{EditorLogic.fetch.ship.shipName} (Editor)";

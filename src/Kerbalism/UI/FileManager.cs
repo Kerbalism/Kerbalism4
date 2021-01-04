@@ -47,7 +47,7 @@ namespace KERBALISM
 			bool unlimitedData = false;
 			bool unlimitedSamples = false;
 
-			foreach (DriveData drive in vd.Parts.AllModulesOfType<DriveData>())
+			foreach (DriveHandler drive in vd.Parts.AllModulesOfType<DriveHandler>())
 			{
 				if (!drive.isPrivate)
 				{
@@ -72,7 +72,7 @@ namespace KERBALISM
 				if (!unlimitedData) title += Local.FILEMANAGER_DataAvailable.Format(Lib.HumanReadablePerc((totalDataCapacity - usedDataCapacity) / totalDataCapacity));//Lib.BuildString(" (", Lib.HumanReadablePerc((totalDataCapacity - usedDataCapacity) / totalDataCapacity), " available)");
 				p.AddSection(title);
 
-				foreach (var drive in vd.Parts.AllModulesOfType<DriveData>())
+				foreach (var drive in vd.Parts.AllModulesOfType<DriveHandler>())
 				{
 					foreach (File file in drive.files.Values)
 					{
@@ -89,7 +89,7 @@ namespace KERBALISM
 				if (totalSlots > 0 && !unlimitedSamples) title += ", " + Lib.HumanReadableSampleSize(totalSlots) + " "+ Local.FILEMANAGER_SAMPLESAvailable;//available
 				p.AddSection(title);
 
-				foreach (var drive in vd.Parts.AllModulesOfType<DriveData>())
+				foreach (var drive in vd.Parts.AllModulesOfType<DriveHandler>())
 				{
 					foreach (Sample sample in drive.samples.Values)
 					{
@@ -101,7 +101,7 @@ namespace KERBALISM
 			}
 		}
 
-		static void Render_file(VesselData vd, Panel p, uint partId, File file, DriveData drive, bool short_strings, Vessel v)
+		static void Render_file(VesselData vd, Panel p, uint partId, File file, DriveHandler drive, bool short_strings, Vessel v)
 		{
 			// render experiment name
 			string exp_label = Lib.BuildString
@@ -160,7 +160,7 @@ namespace KERBALISM
 			);
 		}
 
-		static void Render_sample(Panel p, uint partId, Sample sample, DriveData drive, bool short_strings)
+		static void Render_sample(Panel p, uint partId, Sample sample, DriveHandler drive, bool short_strings)
 		{
 			// render experiment name
 			string exp_label = Lib.BuildString

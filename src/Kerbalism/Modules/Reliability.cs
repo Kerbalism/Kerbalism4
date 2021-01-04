@@ -602,7 +602,7 @@ namespace KERBALISM
 				// we need to reconfigure the module here, because if all modules of a type
 				// share the broken state, and these modules are part of a configure setup,
 				// then repairing will enable all of them, messing up with the configuration
-				part.FindModulesImplementing<Configure>().ForEach(k => k.DoConfigure());
+				//part.FindModulesImplementing<Configure>().ForEach(k => k.DoConfigure());
 
 				// type-specific hacks
 				Apply(false);

@@ -73,7 +73,7 @@ namespace KERBALISM
 			vessels.Clear();
 
 			// clear the dictionaries of moduledatas and partdatas
-			ModuleData.ClearOnLoad();
+			ModuleHandler.ClearOnLoad();
 			PartData.ClearOnLoad();
 			// Clear the loaded parts transforms cache
 			PartRadiationData.RaycastTask.ClearLoadedPartsCache();
@@ -82,8 +82,7 @@ namespace KERBALISM
 			if (HighLogic.CurrentGame.flightState != null)
 			{
 				ConfigNode vesselsNode = node.GetNode(NODENAME_VESSELS);
-				if (vesselsNode == null)
-					vesselsNode = new ConfigNode();
+
 				// HighLogic.CurrentGame.flightState.protoVessels is what is used by KSP to persist vessels
 				// It is always available and synchronized in OnLoad, no matter the scene, excepted on
 				// the first OnLoad in a new game.
@@ -92,7 +91,11 @@ namespace KERBALISM
 					if (!VesselData.VesselNeedVesselData(pv))
 						continue;
 
-					VesselData vd = new VesselData(pv, vesselsNode.GetNode(pv.vesselID.ToString()));
+					ConfigNode vesselDataNode = vesselsNode?.GetNode(pv.vesselID.ToString());
+					if (vesselDataNode == null)
+						continue;
+
+					VesselData vd = new VesselData(pv, vesselDataNode, Lib.IsEditor);
 					vessels.Add(pv.vesselID, vd);
 					Lib.LogDebug("VesselData loaded for vessel " + pv.vesselName);
 				}
@@ -146,7 +149,7 @@ namespace KERBALISM
 			ConfigNode vesselsNode = node.AddNode(NODENAME_VESSELS);
 			foreach (ProtoVessel pv in HighLogic.CurrentGame.flightState.protoVessels)
 			{
-                if (pv.TryGetVesselDataNoError(out VesselData vd))
+                if (pv.TryGetVesselData(out VesselData vd) && vd.IsPersisted)
 				{
 					ConfigNode vesselNode = vesselsNode.AddNode(pv.vesselID.ToString());
 					vd.Save(vesselNode);
@@ -185,6 +188,8 @@ namespace KERBALISM
 			Lib.LogDebug("Creating VesselData from ShipConstruct for launched vessel " + v.vesselName);
 			VesselData vd = new VesselData(v, shipNode, shipVd);
 			vessels.Add(v.id, vd);
+			Kerbalism.Fetch.lastLaunchedVessel = v;
+
 			return vd;
 		}
 
@@ -236,7 +241,7 @@ namespace KERBALISM
 			return vesselData;
 		}
 
-		public static bool TryGetVesselDataNoError(this ProtoVessel protoVessel, out VesselData vesselData)
+		public static bool TryGetVesselData(this ProtoVessel protoVessel, out VesselData vesselData)
 		{
 			return vessels.TryGetValue(protoVessel.vesselID, out vesselData);
 		}

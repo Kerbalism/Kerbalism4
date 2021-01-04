@@ -276,7 +276,7 @@ namespace KERBALISM
 			if (!Features.Radiation || !v.TryGetVesselDataTemp(out VesselData vd))
 				return false;
 
-			return vd.IsSimulated && Storm.Incoming(v);
+			return vd.IsSimulated && Storm.Incoming(vd);
 		}
 
 		// return true if a solar storm is in progress at the vessel position
@@ -652,7 +652,7 @@ namespace KERBALISM
 			public void Add(Action<Guid, string, int> receiver) { if (!receivers.Contains(receiver)) receivers.Add(receiver); }
 			public void Remove(Action<Guid, string, int> receiver) { if (receivers.Contains(receiver)) receivers.Remove(receiver); }
 
-			public void Notify(Guid vesselId, string experiment_id, ExperimentData.ExpStatus status)
+			public void Notify(Guid vesselId, string experiment_id, ExperimentHandler.ExpStatus status)
 			{
 				foreach (Action<Guid, string, int> receiver in receivers)
 				{
@@ -677,9 +677,9 @@ namespace KERBALISM
 			if (!vessel.TryGetVesselDataTemp(out VesselData vd))
 				return false;
 
-			foreach (ExperimentData expData in vd.Parts.AllModulesOfType<ExperimentData>())
+			foreach (ExperimentHandler expData in vd.Parts.AllModulesOfType<ExperimentHandler>())
 			{
-				if (expData.moduleIsEnabled && expData.ExperimentID == experiment_id && expData.IsExperimentRunning)
+				if (expData.handlerIsEnabled && expData.ExperimentID == experiment_id && expData.IsExperimentRunning)
 				{
 					return true;
 				}

@@ -6,6 +6,8 @@ using KSP.Localization;
 
 namespace KERBALISM
 {
+	/*
+
 	public sealed class LaboratoryDevice : LoadedDevice<Laboratory>
 	{
 		public LaboratoryDevice(Laboratory module) : base(module) { }
@@ -42,6 +44,6 @@ namespace KERBALISM
 		}
 	}
 
-
+	*/
 } // KERBALISM
 

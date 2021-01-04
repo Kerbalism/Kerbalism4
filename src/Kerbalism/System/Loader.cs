@@ -75,17 +75,38 @@ namespace KERBALISM
 			}
 		}
 
-		// Called by ModuleManager, after it has patched the game database, but before the part compilation.
+		// Called by ModuleManager, after it has patched the game database, but before parts compilation.
 		public void ModuleManagerPostLoad()
 		{
+			// get time base configuration
 			Settings.ParseTime();
+
+			// parse the calendar according to orbital paraemters (Kopernicus support)
 			string calendarInfo = Lib.SetupCalendar();
 			Lib.Log($"Parsing calendar : {calendarInfo}");
 			Lib.Log($"{Lib.HoursInDayExact.ToString()} exact hours per day, {Lib.DaysInYearExact.ToString()} exact days per year");
 			Lib.Log($"{Lib.HoursInDayFloored.ToString()} floored hours per day, {Lib.DaysInYearFloored.ToString()} floored days per year");
+
+			Assembly executingAssembly = Assembly.GetExecutingAssembly();
+			// Compile module definitions activators 
+			KsmModuleDefinitionLibrary.Init(executingAssembly);
+
+			// Parse settings
 			Settings.Parse();
+
+			// Check required mod dependencies and mod incompatibilities.
 			Settings.CheckMods();
+
+			// Parse profile (supply, rules, processes...)
 			Profile.Parse();
+
+			// Parse module definitions
+			KsmModuleDefinitionLibrary.Parse();
+
+			// Compile ModuleHandler activators
+			ModuleHandler.RegisterPartModuleHandlerTypes();
+
+			// Show error popup
 			ErrorManager.CheckErrors(true);
 			mmPostLoadDone = true;
 		}

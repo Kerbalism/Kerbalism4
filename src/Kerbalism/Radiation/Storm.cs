@@ -234,18 +234,16 @@ namespace KERBALISM
         }
 
         /// <summary>return true if a storm is incoming</summary>
-        public static bool Incoming(Vessel v)
+        public static bool Incoming(VesselData vd)
         {
-			v.TryGetVesselDataTemp(out VesselData vd);
-			var bd = Sim.IsStar(v.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(v.mainBody).name);
+			var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
             return bd.storm_state == 1 && bd.display_warning;
         }
 
         /// <summary>return true if a storm is in progress</summary>
-        public static bool InProgress(Vessel v)
+        public static bool InProgress(VesselData vd)
         {
-			v.TryGetVesselDataTemp(out VesselData vd);
-			var bd = Sim.IsStar(v.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(v.mainBody).name);
+			var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
             return bd.storm_state == 2;
         }
 

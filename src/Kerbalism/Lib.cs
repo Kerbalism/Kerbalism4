@@ -409,7 +409,7 @@ namespace KERBALISM
 		// store the random number generator
 		static System.Random rng = new System.Random();
 
-		///<summary>return random integer</summary>
+		///<summary>return random [MinValue,MaxValue] integer</summary>
 		public static int RandomInt()
 		{
 			return rng.Next(int.MinValue, int.MaxValue);
@@ -486,6 +486,26 @@ namespace KERBALISM
 
 			//return the hash
 			return h;
+		}
+
+		//
+		public static int GetStableHashCode(this string str)
+		{
+			unchecked
+			{
+				int hash1 = 5381;
+				int hash2 = hash1;
+
+				for (int i = 0; i < str.Length && str[i] != '\0'; i += 2)
+				{
+					hash1 = ((hash1 << 5) + hash1) ^ str[i];
+					if (i == str.Length - 1 || str[i + 1] == '\0')
+						break;
+					hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
+				}
+
+				return hash1 + (hash2 * 1566083941);
+			}
 		}
 		#endregion
 
@@ -1664,6 +1684,8 @@ namespace KERBALISM
 			return pv.vesselType == VesselType.EVA ? 1 : pv.GetVesselCrew().Count();
 		}
 
+		
+
 		///<summary>return crew capacity of a vessel</summary>
 		public static int CrewCapacity(Vessel v)
 		{
@@ -1816,8 +1838,8 @@ namespace KERBALISM
 				return part.protoModuleCrew.Count;
 
 			// in the editor we need something more involved
-			// Int64 part_id = 4294967296L + part.GetInstanceID();
-			VesselCrewManifest manifest = CrewAssignmentDialog.Instance.GetManifest();
+
+			VesselCrewManifest manifest = CrewAssignmentDialog.Instance?.GetManifest();
 			PartCrewManifest part_manifest = manifest?.PartManifests.Find(k => k.PartID == part.craftID);
 			if (part_manifest != null)
 			{
@@ -1881,7 +1903,7 @@ namespace KERBALISM
 					canTransfer = true
 				};
 
-				Callbacks.disableCrewTransferFailMessage = true; // avoid getting spammed for each transfer failure
+				GameEventsHabitat.disableCrewTransferFailMessage = true; // avoid getting spammed for each transfer failure
 				GameEvents.onCrewTransferSelected.Fire(transferData);
 				if (!transferData.canTransfer)
 				{
@@ -2488,7 +2510,7 @@ namespace KERBALISM
 			// our own science system
 			else
 			{
-				foreach (var drive in DriveData.GetDrives(v, true))
+				foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
 					if (drive.files.Count > 0) return true;
 				return false;
 			}
@@ -2535,7 +2557,7 @@ namespace KERBALISM
 			else
 			{
 				// select a file at random and remove it
-				foreach (var drive in DriveData.GetDrives(v, true))
+				foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
 				{
 					if (drive.files.Count > 0) //< it should always be the case
 					{
@@ -2765,6 +2787,14 @@ namespace KERBALISM
 			}
 
 			return true;
+		}
+
+		/// <summary>
+		/// Given a gamedatabase PART{} node, return the game valid name of the part, by doing Replace('_', '.')
+		/// </summary>
+		public static string ConfigPartInternalName(ConfigNode partConfig)
+		{
+			return partConfig.GetValue("name")?.Replace('_', '.');
 		}
 
 		///<summary>parse a serialized (config) value. Supports all value types including enums and common KSP/Unity types (vector, quaternion, color, matrix4x4...)</summary>

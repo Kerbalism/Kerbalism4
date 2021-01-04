@@ -169,10 +169,6 @@ namespace KERBALISM
 		/// <summary> All ExperimentInfos </summary>
 		public static IEnumerable<ExperimentInfo> ExperimentInfos => experiments.Values;
 
-		/// <summary> All ExperimentModuleDefinitions, accessible by module definition name </summary>
-		private static readonly Dictionary<string, ExperimentModuleDefinition>
-			experimentModuleDefinitions = new Dictionary<string, ExperimentModuleDefinition>();
-
 		/// <summary>
 		/// For every ExperimentInfo, for every VesselSituation id, the corresponding SubjectData.
 		/// used to get the subject, or to test if a situation is available for a given experiment
@@ -244,15 +240,8 @@ namespace KERBALISM
 				{
 					Lib.LogDebug($"Adding {experimentId} to science DB");
 					experiments.Add(experimentId, expInfo);
-
-					foreach(var moduleDefinition in expInfo.ExperimentModuleDefinitions)
-					{
-						if (experimentModuleDefinitions.ContainsKey(moduleDefinition.Name))
-							Lib.Log($"KERBALISM_EXPERIMENT '{expInfo.ExperimentId}': duplicate MODULE_DEFINITION name '{moduleDefinition.Name}'", Lib.LogLevel.Error);
-						else
-							experimentModuleDefinitions.Add(moduleDefinition.Name, moduleDefinition);
-					}
 				}
+
 				if (!subjectByExpThenSituationId.ContainsKey(expInfo))
 					subjectByExpThenSituationId.Add(expInfo, new Dictionary<int, SubjectData>());
 
@@ -551,19 +540,6 @@ namespace KERBALISM
 				return null;
 
 			return expInfo;
-		}
-
-		public static ExperimentModuleDefinition GetExperimentModuleDefinition(string name)
-		{
-			if (!string.IsNullOrEmpty(name) && experimentModuleDefinitions.TryGetValue(name, out ExperimentModuleDefinition moduleDefinition))
-				return moduleDefinition;
-
-			return null;
-		}
-
-		public static IEnumerable<ExperimentModuleDefinition> ExperimentModuleDefinitions()
-		{
-			return experimentModuleDefinitions.Values;
 		}
 
 		/// <summary> return the subject information for the given experiment and situation, or null if the situation isn't available. </summary>

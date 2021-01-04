@@ -11,8 +11,6 @@ namespace KERBALISM
 		public enum WarningMode { Disabled, OnEmpty, OnFull}
 
 		public string resource;         // name of resource
-		public double podCapacity;      // how much resource capacity to add to manned parts, per-kerbal
-		public bool podFill;            // if true, amount is set to capacity, zero otherwise
 		public double evaCapacity;      // how much resource capacity to add on eva
 		public double grantedOnRescue;  // how much resource to gift to rescue missions
 
@@ -50,8 +48,6 @@ namespace KERBALISM
 			if (Lib.GetDefinition(resource) == null)
 				throw new Exception("resource " + resource + " doesn't exist");
 
-			podCapacity = Lib.ConfigValue(node, "podCapacity", 0.0);
-			podFill = Lib.ConfigValue(node, "podFill", true);
 			evaCapacity = Lib.ConfigValue(node, "evaCapacity", 0.0);
 			grantedOnRescue = Lib.ConfigValue(node, "grantedOnRescue", 0.0);
 
@@ -207,36 +203,6 @@ namespace KERBALISM
 			}
 		}
 
-		public void SetupPod(AvailablePart p)
-		{
-			// do nothing if no resource on pod
-			if (podCapacity == 0.0) return;
-
-			// get prefab
-			Part prefab = p.partPrefab;
-
-			// avoid problems with some parts that don't have a resource container (like flags)
-			if (prefab.Resources == null) return;
-
-			// do nothing for EVA kerbals, that have now CrewCapacity
-			if (prefab.FindModuleImplementing<KerbalEVA>() != null) return;
-
-			// do nothing if not manned
-			if (prefab.CrewCapacity == 0) return;
-
-			// do nothing if this isn't a command pod
-			if (prefab.FindModuleImplementing<ModuleCommand>() == null) return;
-
-			// calculate quantity
-			double quantity = podCapacity * (double)prefab.CrewCapacity;
-
-			// add the resource
-			Lib.AddResource(prefab, resource, podFill ? quantity : 0.0, quantity);
-
-			// add resource cost
-			p.cost += (float)(Lib.GetDefinition(resource).unitCost * (podFill ? quantity : 0.0));
-		}
-
 
 		public void SetupEva(Part p)
 		{
@@ -246,30 +212,6 @@ namespace KERBALISM
 			// create new resource capacity in the eva kerbal
 			Lib.AddResource(p, resource, 0.0, evaCapacity);
 		}
-
-
-		public void SetupRescue(VesselData vd)
-		{
-			// do nothing if no resource on rescue
-			if (grantedOnRescue == 0.0) return;
-
-			// if the vessel has no capacity
-			if (vd.ResHandler.GetResource(resource).Capacity <= 0.0)
-			{
-				// find the first useful part
-				Part p = vd.Vessel.parts.Find(k => k.CrewCapacity > 0 || k.FindModuleImplementing<KerbalEVA>() != null);
-
-				// add capacity
-				Lib.AddResource(p, resource, 0.0, grantedOnRescue);
-			}
-
-			// add resource to the vessel
-			vd.ResHandler.Produce(resource, grantedOnRescue, ResourceBroker.Generic);
-		}
-
-
-
-
 	}
 
 

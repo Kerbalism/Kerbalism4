@@ -22,6 +22,7 @@ namespace KERBALISM
 		private double lastFixedUpdateTimeStamp = -1.0;
 		private int lastLoadedPartsCount = 0;
 
+		/// <summary> list of all parts attached to the current ship</summary>
 		protected override List<PartData> Parts
 		{
 			get

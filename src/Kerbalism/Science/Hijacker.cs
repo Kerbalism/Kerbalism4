@@ -59,7 +59,7 @@ namespace KERBALISM
 				else
 				{
 					meta.vessel.TryGetVesselDataTemp(out VesselData vd);
-					DriveData drive = DriveData.SampleDrive(vd, data.dataAmount, meta.subjectData);
+					DriveHandler drive = DriveHandler.SampleDrive(vd, data.dataAmount, meta.subjectData);
 					if (drive != null)
 						recorded = drive.RecordSample(meta.subjectData, data.dataAmount, meta.subjectData.ExpInfo.MassPerMB * data.dataAmount, true);
 				}
@@ -102,7 +102,7 @@ namespace KERBALISM
 			double remaining = data.dataAmount;
 
 			meta.vessel.TryGetVesselDataTemp(out VesselData vd);
-			foreach (var drive in DriveData.GetDrives(vd, false))
+			foreach (var drive in DriveHandler.GetDrives(vd, false))
 			{
 				var size = Math.Min(remaining, drive.FileCapacityAvailable());
 				if(size > 0)
@@ -210,7 +210,7 @@ namespace KERBALISM
 			else
 			{
 				meta.vessel.TryGetVesselDataTemp(out VesselData vd);
-				DriveData drive = DriveData.SampleDrive(vd, data.dataAmount, meta.subjectData);
+				DriveHandler drive = DriveHandler.SampleDrive(vd, data.dataAmount, meta.subjectData);
 				if (drive != null)
 					recorded = drive.RecordSample(meta.subjectData, data.dataAmount, meta.subjectData.ExpInfo.MassPerMB * data.dataAmount, true);
 			}
@@ -220,7 +220,7 @@ namespace KERBALISM
 				// flag for sending if specified
 				if (!meta.is_sample && send)
 				{
-					foreach(var d in DriveData.GetDrives(meta.vessel))
+					foreach(var d in DriveHandler.GetDrives(meta.vessel.GetVesselData()))
 						d.Send(data.subjectID, true);
 				}
 

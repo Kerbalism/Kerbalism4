@@ -58,23 +58,53 @@ namespace KERBALISM
 		private void OnRescueVesselLoaded()
 		{
 			// give the vessel some propellant usable on eva
-			string monoprop_name = Lib.EvaPropellantName();
-			double monoprop_amount = Lib.EvaPropellantCapacity();
-			foreach (var part in Vessel.parts)
+			string evaFuelName = Lib.EvaPropellantName();
+			double evaFuelPerCrew = Lib.EvaPropellantCapacity();
+
+			foreach (PartData part in Parts)
 			{
-				if (part.CrewCapacity > 0 || part.FindModuleImplementing<KerbalEVA>() != null)
+				int partCrewCount = part.LoadedPart.protoModuleCrew.Count;
+				if (partCrewCount > 0)
 				{
-					if (Lib.Capacity(part, monoprop_name) <= double.Epsilon)
+					PartResourceWrapper evaFuel = part.resources.Find(p => p.ResName == evaFuelName);
+					double fuelAmount = evaFuelPerCrew * partCrewCount;
+					if (evaFuel == null)
 					{
-						Lib.AddResource(part, monoprop_name, 0.0, monoprop_amount);
+						part.resources.AddResource(evaFuelName, fuelAmount, fuelAmount);
 					}
-					break;
+					else if (evaFuel.Amount < fuelAmount)
+					{
+						if (evaFuel.Capacity < fuelAmount)
+						{
+							evaFuel.Capacity = fuelAmount;
+						}
+						evaFuel.Amount = fuelAmount;
+					}
+
+					foreach (Supply supply in Profile.supplies)
+					{
+						if (supply.grantedOnRescue == 0.0)
+							continue;
+
+						PartResourceWrapper supplyResource = part.resources.Find(p => p.ResName == supply.resource);
+						double resourceAmount = supply.grantedOnRescue * partCrewCount;
+						if (supplyResource == null)
+						{
+							part.resources.AddResource(evaFuelName, resourceAmount, resourceAmount);
+						}
+						else if (supplyResource.Amount < resourceAmount)
+						{
+							if (supplyResource.Capacity < resourceAmount)
+							{
+								supplyResource.Capacity = resourceAmount;
+							}
+							supplyResource.Amount = resourceAmount;
+						}
+					}
 				}
 			}
-			ResHandler.Produce(monoprop_name, monoprop_amount, ResourceBroker.Generic);
 
-			// give the vessel some supplies
-			Profile.SetupRescue(this);
+			resHandler.ForceHandlerSync();
 		}
 	}
 }

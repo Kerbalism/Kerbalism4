@@ -8,7 +8,7 @@ using UnityEngine.Events;
 using static KERBALISM.ExperimentRequirements;
 using static KERBALISM.ModuleKsmExperiment;
 using KERBALISM.KsmGui;
-using static KERBALISM.ExperimentData;
+using static KERBALISM.ExperimentHandler;
 using KSP.Localization;
 
 namespace KERBALISM
@@ -17,7 +17,7 @@ namespace KERBALISM
 	public class ExperimentPopup
 	{
 		// args
-		ExperimentData data;
+		ExperimentHandler data;
 
 		VesselData vd;
 
@@ -51,7 +51,7 @@ namespace KERBALISM
 		private static List<long> activePopups = new List<long>();
 		private long popupId;
 
-		public ExperimentPopup(ExperimentData data)
+		public ExperimentPopup(ExperimentHandler data)
 		{
 			this.data = data;
 			this.vd = (VesselData)data.VesselData;
@@ -70,7 +70,7 @@ namespace KERBALISM
 			window.SetUpdateAction(() => canInteract = vd.Connection.linked || vd.CrewCount > 0);
 
 			// top header
-			KsmGuiHeader topHeader = new KsmGuiHeader(window, data.ModuleDefinition.Info.Title, default, 120);
+			KsmGuiHeader topHeader = new KsmGuiHeader(window, data.definition.ExpInfo.Title, default, 120);
 			topHeader.TextObject.SetTooltipText(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(data.VesselData.VesselName), "\n", Local.SCIENCEARCHIVE_onpart, " : ", Lib.Bold(data.partData.Title)));
 			rndVisibilityButton = new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderRnD, ToggleArchivePanel, Local.SCIENCEARCHIVE_showarchive);//"show science archive"
 			rndVisibilityButton.MoveAsFirstChild();
@@ -88,7 +88,7 @@ namespace KERBALISM
 
 			// right panel : experiment info
 			expInfoHeader = new KsmGuiHeader(leftPanel, Local.SCIENCEARCHIVE_EXPERIMENTINFO);//"EXPERIMENT INFO"
-			expInfoBox = new KsmGuiTextBox(leftPanel, data.ModuleDefinition.ModuleInfo());
+			expInfoBox = new KsmGuiTextBox(leftPanel, data.definition.ModuleDescription(data.modulePrefab));
 			expInfoBox.SetLayoutElement(false, true, 160);
 
 			// right panel
@@ -113,7 +113,7 @@ namespace KERBALISM
 			startStopButton.SetUpdateAction(UpdateStartStopButton);
 
 			// right panel : experiment requirements
-			if (data.ModuleDefinition.Requirements.Requires.Length > 0)
+			if (data.definition.Requirements.Requires.Length > 0)
 			{
 				new KsmGuiHeader(rightPanel, Local.SCIENCEARCHIVE_REQUIREMENTS);//"REQUIREMENTS"
 				requirementsBox = new KsmGuiTextBox(rightPanel, "_");
@@ -139,7 +139,7 @@ namespace KERBALISM
 			if (data.Status == ExpStatus.Running)
 			{
 				sb.Append(", ");
-				sb.Append(RunningCountdown(data.ModuleDefinition.Info, data.Subject, data.ModuleDefinition.DataRate, true));
+				sb.Append(RunningCountdown(data.definition.ExpInfo, data.Subject, data.definition.DataRate, true));
 			}
 			else if (data.Status == ExpStatus.Forced && data.Subject != null)
 			{
@@ -149,12 +149,12 @@ namespace KERBALISM
 				sb.Append(Local.SCIENCEARCHIVE_collected);//collected
 			}
 
-			if (data.ModuleDefinition.Info.IsSample && !data.ModuleDefinition.SampleCollecting)
+			if (data.definition.ExpInfo.IsSample && !data.definition.SampleCollecting)
 			{
 				sb.Append("\n");
 				sb.Append(Local.SCIENCEARCHIVE_samples);//samples
 				sb.Append(" :<pos=20em>");
-				sb.Append(Lib.Color((data.remainingSampleMass / data.ModuleDefinition.Info.SampleMass).ToString("F1"), Lib.Kolor.Yellow, true));
+				sb.Append(Lib.Color((data.remainingSampleMass / data.definition.ExpInfo.SampleMass).ToString("F1"), Lib.Kolor.Yellow, true));
 				sb.Append(" (");
 				sb.Append(Lib.Color(Lib.HumanReadableMass(data.remainingSampleMass), Lib.Kolor.Yellow, true));
 				sb.Append(")");
@@ -163,7 +163,7 @@ namespace KERBALISM
 			sb.Append("\n");
 			sb.Append(Local.SCIENCEARCHIVE_situation);//situation
 			sb.Append(" :<pos=20em>");
-			sb.Append(Lib.Color(vd.VesselSituations.GetExperimentSituation(data.ModuleDefinition.Info).GetTitleForExperiment(data.ModuleDefinition.Info), Lib.Kolor.Yellow, true));
+			sb.Append(Lib.Color(vd.VesselSituations.GetExperimentSituation(data.definition.ExpInfo).GetTitleForExperiment(data.definition.ExpInfo), Lib.Kolor.Yellow, true));
 
 			if (data.Subject == null)
 			{
@@ -230,7 +230,7 @@ namespace KERBALISM
 			sb.Length = 0;
 
 			RequireResult[] reqs;
-			data.ModuleDefinition.Requirements.TestRequirements(vd, out reqs, true);
+			data.definition.Requirements.TestRequirements(vd, out reqs, true);
 
 			bool first = true;
 			foreach (RequireResult req in reqs)
@@ -295,7 +295,7 @@ namespace KERBALISM
 				if (rndArchiveHeader == null)
 				{
 					rndArchiveHeader = new KsmGuiHeader(window, Local.SCIENCEARCHIVE_title);//"SCIENCE ARCHIVE"
-					rndArchiveView = new ExperimentSubjectList(window, data.ModuleDefinition.Info);
+					rndArchiveView = new ExperimentSubjectList(window, data.definition.ExpInfo);
 					rndArchiveView.SetLayoutElement(true, false, 320, -1, -1, 250);
 				}
 				rndArchiveHeader.Enabled = true;

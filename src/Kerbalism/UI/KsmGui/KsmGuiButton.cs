@@ -42,6 +42,11 @@ namespace KERBALISM.KsmGui
 			ImageComponent.fillCenter = true;
 
 			ButtonComponent = TopObject.AddComponent<Button>();
+
+			// TODO : change to colortint by default and get ride of the hardcoded sprite swaps
+			// and remember that ColorBlock.colorMultiplier must be 1 !!!!!!!
+			// this is why it wasn't working !!!!
+
 			ButtonComponent.transition = Selectable.Transition.SpriteSwap;
 			ButtonComponent.spriteState = KsmGuiStyle.buttonSpriteSwap;
 			ButtonComponent.navigation = new Navigation() { mode = Navigation.Mode.None }; // fix the transitions getting stuck

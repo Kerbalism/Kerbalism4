@@ -4,45 +4,57 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace KERBALISM.Modules.Base
+namespace KERBALISM
 {
-	// Base classes that derive from KsmPartModule and ModuleData.
+	// Base classes that derive from KsmPartModule and ModuleHandler.
 	// Have to be abstract so the activator doesn't get confused.
 	// Could exclude generics as an alternative, but this isn't meant to be instantiated anyway.
-	public abstract class ModuleAnimal<TModule, TData> : KsmPartModule<TModule, TData>
-	where TModule : ModuleAnimal<TModule, TData>
-	where TData : AnimalData<TModule, TData>
+	public abstract class ModuleKsmAnimal<TModule, THandler, TDefinition> : KsmPartModule<TModule, THandler, TDefinition>
+	where TModule : ModuleKsmAnimal<TModule, THandler, TDefinition>
+	where THandler : AnimalHandler<TModule, THandler, TDefinition>
+		where TDefinition : AnimalDefinition
 	{
-		public override void OnStart(StartState state) => Lib.Log($"This animal has {moduleData.legCount} legs");
+		public override void OnStart(StartState state) => Lib.Log($"This animal has {moduleHandler.legCount} legs");
 	}
 
-	public abstract class AnimalData<TModule, TData> : ModuleData<TModule, TData>
-	where TModule : ModuleAnimal<TModule, TData>
-	where TData : AnimalData<TModule, TData>
+	public abstract class AnimalHandler<TModule, THandler, TDefinition> : KsmModuleHandler<TModule, THandler, TDefinition>
+	where TModule : ModuleKsmAnimal<TModule, THandler, TDefinition>
+	where THandler : AnimalHandler<TModule, THandler, TDefinition>
+		where TDefinition : AnimalDefinition
 	{
 		public int legCount;
 	}
 
-	// Non-generic version of the base classes, necessary so KSP can instantiate it as partmodules (poor KSP...)
-	public class ModuleAnimal : ModuleAnimal<ModuleAnimal, AnimalData> { }
-	public class AnimalData : AnimalData<ModuleAnimal, AnimalData> { }
+	public class AnimalDefinition : KsmModuleDefinition
+	{
+		public override void OnLoad(ConfigNode definitionNode)
+		{
+			//throw new NotImplementedException();
+		}
+	}
+
+	// Non-generic, non abstract versions of the base classes, necessary so :
+	// - KSP can instantiate it as partmodules (it can't instantiate generic types)
+	// - Our activator search find them (it can't find abstract types)
+	public class ModuleKsmAnimal : ModuleKsmAnimal<ModuleKsmAnimal, AnimalHandler, AnimalDefinition> { }
+	public class AnimalHandler : AnimalHandler<ModuleKsmAnimal, AnimalHandler, AnimalDefinition> { }
 
 	// derivative classes
-	public class ModuleCat : ModuleAnimal<ModuleCat, CatData>
+	public class ModuleKsmCat : ModuleKsmAnimal<ModuleKsmCat, CatHandler, AnimalDefinition>
 	{
 		public override void OnStart(StartState state)
 		{
-			moduleData.legCount = 4;
-			moduleData.isHungry = true;
+			moduleHandler.legCount = 4;
+			moduleHandler.isHungry = true;
 
 			base.OnStart(state);
 
-			if (moduleData.isHungry)
+			if (moduleHandler.isHungry)
 				Lib.Log($"But this is in fact a Cat ! And he's hungry !");
 		}
 	}
 
-	public class CatData : AnimalData<ModuleCat, CatData>
+	public class CatHandler : AnimalHandler<ModuleKsmCat, CatHandler, AnimalDefinition>
 	{
 		public bool isHungry;
 	}

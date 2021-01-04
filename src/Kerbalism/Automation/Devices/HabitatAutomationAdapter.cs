@@ -8,9 +8,9 @@ namespace KERBALISM
 {
 	public class HabitatAutomationAdapter : AutomationAdapter
 	{
-		public HabitatAutomationAdapter(KsmPartModule module, ModuleData moduleData) : base(module, moduleData) { }
+		public HabitatAutomationAdapter(KsmPartModule module, ModuleHandler moduleData) : base(module, moduleData) { }
 
-		private HabitatData data => moduleData as HabitatData;
+		private HabitatHandler data => moduleData as HabitatHandler;
 
 		public override string Status => ModuleKsmHabitat.PressureStateString(data);
 
@@ -27,15 +27,15 @@ namespace KERBALISM
 		{
 			switch (data.pressureState)
 			{
-				case HabitatData.PressureState.Pressurized:
-				case HabitatData.PressureState.Pressurizing:
+				case HabitatHandler.PressureState.Pressurized:
+				case HabitatHandler.PressureState.Pressurizing:
 					if(!value)
 						data.DepressurizingStartEvt();
 					break;
-				case HabitatData.PressureState.Breatheable:
-				case HabitatData.PressureState.Depressurized:
-				case HabitatData.PressureState.DepressurizingAboveThreshold:
-				case HabitatData.PressureState.DepressurizingBelowThreshold:
+				case HabitatHandler.PressureState.Breatheable:
+				case HabitatHandler.PressureState.Depressurized:
+				case HabitatHandler.PressureState.DepressurizingAboveThreshold:
+				case HabitatHandler.PressureState.DepressurizingBelowThreshold:
 					if(value)
 						data.PressurizingStartEvt();
 					break;

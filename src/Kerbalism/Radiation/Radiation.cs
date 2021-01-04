@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Threading;
 using UnityEngine;
 using KSP.Localization;
-using static KERBALISM.HabitatData;
+using static KERBALISM.HabitatHandler;
 
 namespace KERBALISM
 {
@@ -614,7 +614,7 @@ namespace KERBALISM
 		#region VESSEL RELATED METHODS
 
 		/// <summary> return the total environent radiation at position specified </summary>
-		public static double Compute(Vessel v, Vector3d position, double gammaTransparency, double sunlight, out bool blackout,
+		public static double Compute(VesselData vd, Vector3d position, double gammaTransparency, double sunlight, out bool blackout,
 									 out bool magnetosphere, out bool innerBelt, out bool outerBelt, out bool interstellar)
 		{
 			// prepare out parameters
@@ -633,11 +633,9 @@ namespace KERBALISM
 			double D;
 			double r;
 
-			v.TryGetVesselDataTemp(out VesselData vd);
-
 			// accumulate radiation
 			double radiation = 0.0;
-			CelestialBody body = v.mainBody;
+			CelestialBody body = vd.Vessel.mainBody;
 			while (body != null)
 			{
 				// Compute radiation values from overlapping 3d fields (belts + magnetospheres)
@@ -693,12 +691,12 @@ namespace KERBALISM
 					}
 				}
 
-				if (rb.radiation_surface > 0 && body != v.mainBody)
+				if (rb.radiation_surface > 0 && body != vd.Vessel.mainBody)
 				{
 					Vector3d direction;
 					double distance;
 					
-					if (Sim.IsBodyVisible(v, position, body, vd.VisibleBodies, out direction, out distance))
+					if (Sim.IsBodyVisible(vd.Vessel, position, body, vd.VisibleBodies, out direction, out distance))
 					{
 						var r0 = RadiationR0(rb);
 						var r1 = DistanceRadiation(r0, distance);
@@ -729,11 +727,11 @@ namespace KERBALISM
 			if (v.loaded) Lib.Log("Radiation " + v + " after gamma: " + Lib.HumanReadableRadiation(radiation) + " transparency: " + gamma_transparency);
 #endif
 			// add surface radiation of the body itself
-			if (Sim.IsStar(v.mainBody) && v.altitude < v.mainBody.Radius) // ???!!???
+			if (Sim.IsStar(vd.Vessel.mainBody) && vd.Vessel.altitude < vd.Vessel.mainBody.Radius) // ???!!???
 			{
-				if (v.altitude > v.mainBody.Radius) // ??!??!???
+				if (vd.Vessel.altitude > vd.Vessel.mainBody.Radius) // ??!??!???
 				{
-					radiation += DistanceRadiation(RadiationR0(Info(v.mainBody)), v.altitude);
+					radiation += DistanceRadiation(RadiationR0(Info(vd.Vessel.mainBody)), vd.Vessel.altitude);
 
 				}
 			}

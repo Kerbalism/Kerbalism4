@@ -58,8 +58,7 @@ namespace KERBALISM
 
 		public double ScienceCap => stockDef.scienceCap * HighLogic.CurrentGame.Parameters.Career.ScienceGainMultiplier;
 
-		/// <summary> List of all module definitions, and the parts on which they are used. Warning : can be very long</summary>
-		public string ModuleDefinitionsInfo { get; private set; }
+
 
 		/// <summary> If true, subject completion will enable the stock resource map for the corresponding body</summary>
 		public bool UnlockResourceSurvey { get; private set; }
@@ -75,8 +74,8 @@ namespace KERBALISM
 		/// <summary> List of experiments that will be collected automatically alongside this one</summary>
 		public List<ExperimentInfo> IncludedExperiments { get; private set; } = new List<ExperimentInfo>();
 
-		/// <summary> List of experiments that will be collected automatically alongside this one</summary>
-		public List<ExperimentModuleDefinition> ExperimentModuleDefinitions { get; private set; } = new List<ExperimentModuleDefinition>();
+		/// <summary> List of all different modules for which that experiment is available </summary>
+		public ScienceModulesUIInfo ModulesUIInfo { get; private set; }
 
 		private string[] includedExperimentsId;
 
@@ -87,6 +86,7 @@ namespace KERBALISM
 
 			this.stockDef = stockDef;
 			ExperimentId = stockDef.id;
+			ModulesUIInfo = new ScienceModulesUIInfo(this);
 
 			// We have some custom handling for breaking ground ROC experiments.
 			// ROC experiment id are always formatted with the ROC name after '_'.
@@ -275,15 +275,6 @@ namespace KERBALISM
 			VirtualBiomeMask = virtualBiomeMask;
 			stockDef.situationMask = stockSituationMask;
 			stockDef.biomeMask = stockBiomeMask;
-
-			foreach(var moduleDefinition in kerbalismExperimentNode.GetNodes("MODULE_DEFINITION"))
-				ExperimentModuleDefinitions.Add(new ExperimentModuleDefinition(this, moduleDefinition));
-
-			if(ExperimentModuleDefinitions.Count == 0)
-			{
-				Lib.Log($"Experiment definition `{ExperimentId}` has no MODULE_DEFINITION, generating default entry");
-				ExperimentModuleDefinitions.Add(new ExperimentModuleDefinition(this));
-			}
 		}
 
 		public void ParseIncludedExperiments()
@@ -369,41 +360,6 @@ namespace KERBALISM
 
 			return result;
 		}
-
-		public void CompileModuleDefinitionsInfo()
-		{
-			ExpInfoSB.Clear();
-			if (!string.IsNullOrEmpty(Description))
-			{
-				ExpInfoSB.AppendKSPLine(Lib.Italic(Description));
-				ExpInfoSB.AppendKSPNewLine();
-			}
-			
-			for (int i = 0; i < ExperimentModuleDefinitions.Count; i++)
-			{
-				ExperimentModuleDefinition definition = ExperimentModuleDefinitions[i];
-
-				if (i == 0)
-				{
-					ExpInfoSB.Append(definition.ModuleInfo(false, false));
-				}
-				else
-				{
-					ExpInfoSB.AppendKSPNewLine();
-					ExpInfoSB.AppendKSPLine(Lib.Color("Variant :", Lib.Kolor.Yellow, true));
-					ExpInfoSB.Append(definition.ModuleInfo(false, true));
-				}
-
-				if (!string.IsNullOrEmpty(definition.AvailableOnPartsList))
-				{
-					ExpInfoSB.AppendKSPNewLine();
-					ExpInfoSB.AppendKSPLine(definition.AvailableOnPartsList);
-				}
-			}
-
-			ModuleDefinitionsInfo = ExpInfoSB.ToString();
-		}
-
 
 		public class BodyConditions
 		{

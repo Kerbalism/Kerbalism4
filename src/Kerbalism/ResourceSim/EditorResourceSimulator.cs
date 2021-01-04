@@ -99,7 +99,7 @@ namespace KERBALISM.Planner
 						case "ModuleLight"                 : ProcessLight(m as ModuleLight); continue;
 						case "ModuleColoredLensLight"      : ProcessLight(m as ModuleLight); continue;
 						case "ModuleMultiPointSurfaceLight": ProcessLight(m as ModuleLight); continue;
-						case "KerbalismScansat"            : ProcessScanner(m as KerbalismScansat); continue;
+						//case "KerbalismScansat"            : ProcessScanner(m as KerbalismScansat); continue;
 						case "ModuleRadioisotopeGenerator" : ProcessRTG(p, m); continue;
 						case "ModuleCryoTank"              : ProcessCryotank(p, m); continue;
 						case "ModuleEngines"               : ProcessEngines(m as ModuleEngines); continue;
@@ -275,10 +275,10 @@ namespace KERBALISM.Planner
 		}
 
 
-		private static void ProcessScanner(KerbalismScansat m)
-		{
-			handler.ElectricCharge.Consume(m.ec_rate, ResourceBroker.Scanner);
-		}
+		//private static void ProcessScanner(KerbalismScansat m)
+		//{
+		//	handler.ElectricCharge.Consume(m.ec_rate, ResourceBroker.Scanner);
+		//}
 
 		private static void ProcessRTG(Part p, PartModule m)
 		{

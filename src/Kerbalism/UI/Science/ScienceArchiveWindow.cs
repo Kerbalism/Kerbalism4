@@ -117,7 +117,7 @@ namespace KERBALISM
 			new KsmGuiHeader(expInfoColumn, Local.SCIENCEARCHIVE_EXPERIMENTINFO);//"EXPERIMENT INFO"
 			KsmGuiVerticalScrollView expInfoScrollView = new KsmGuiVerticalScrollView(expInfoColumn);
 			expInfoScrollView.SetLayoutElement(false, true, 200);
-			expInfoText = new KsmGuiText(expInfoScrollView, currentExperiment.expInfo.ModuleDefinitionsInfo);
+			expInfoText = new KsmGuiText(expInfoScrollView, currentExperiment.expInfo.ModulesUIInfo.Info);
 			expInfoText.SetLayoutElement(true, true);
 
 			foreach (ExperimentInfo experimentInfo in ScienceDB.ExperimentInfos)
@@ -126,7 +126,7 @@ namespace KERBALISM
 
 			window.SetUpdateAction(Update, 20);
 
-			Callbacks.onConfigure.Add(OnConfigure);
+			//Callbacks.onConfigure.Add(OnConfigure);
 
 			//window.RebuildLayout();
 			window.Close();
@@ -176,7 +176,7 @@ namespace KERBALISM
 			expInfoAndSubjects.experimentSubjectList.KnownSubjectsToggle.SetOnState(currentExperiment.experimentSubjectList.KnownSubjectsToggle.IsOn, true);
 			currentExperiment = expInfoAndSubjects;
 			expInfoAndSubjects.experimentSubjectList.Enabled = true;
-			expInfoText.Text = expInfoAndSubjects.expInfo.ModuleDefinitionsInfo;
+			expInfoText.Text = expInfoAndSubjects.expInfo.ModulesUIInfo.Info;
 			window.RebuildLayout();
 		}
 
@@ -225,14 +225,14 @@ namespace KERBALISM
 		}
 
 
-		private void OnConfigure(Part part, Configure configureModule)
-		{
-			if (window.Enabled && vesselFilter.Enabled && vesselFilter.IsOn)
-			{
-				UpdateVesselFilter();
-				UpdateVisibleExperiments();
-			}
-		}
+		//private void OnConfigure(Part part, Configure configureModule)
+		//{
+		//	if (window.Enabled && vesselFilter.Enabled && vesselFilter.IsOn)
+		//	{
+		//		UpdateVesselFilter();
+		//		UpdateVisibleExperiments();
+		//	}
+		//}
 
 		private static void UpdateVesselFilter()
 		{
@@ -248,7 +248,7 @@ namespace KERBALISM
 
 					if (partModule is ModuleKsmExperiment experiment)
 					{
-						vesselExpInfos.Add(experiment.moduleData.ModuleDefinition.Info);
+						vesselExpInfos.Add(experiment.Definition.ExpInfo);
 					}
 					else if (partModule is ModuleScienceExperiment stockExperiment)
 					{
@@ -303,13 +303,10 @@ namespace KERBALISM
 
 			foreach (ExperimentInfo expInfo in ScienceDB.ExperimentInfos)
 			{
-				foreach (ExperimentModuleDefinition definition in expInfo.ExperimentModuleDefinitions)
+				if (expInfo.ModulesUIInfo.IsResearched())
 				{
-					if (definition.IsResearched())
-					{
-						researchedExpInfos.Add(expInfo);
-						break;
-					}
+					researchedExpInfos.Add(expInfo);
+					break;
 				}
 			}
 		}

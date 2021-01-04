@@ -21,7 +21,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				if (parsers.TryGetValue(typeOfValue, out object parser))
+				if (parsers.TryGetValue(typeOfValue, out ValueParser parser))
 				{
 					serializedValue = ((ValueParser<T>)parser).Serialize(value);
 					return true;
@@ -52,7 +52,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				if (parsers.TryGetValue(typeOfValue, out object parser))
+				if (parsers.TryGetValue(typeOfValue, out ValueParser parser))
 				{
 					if (((ValueParser<T>)parser).Deserialize(serializedValue, out value))
 					{
@@ -72,7 +72,7 @@ namespace KERBALISM
 			if (enumType.IsAssignableFrom(type))
 				return (ValueParser<T>)parsers[typeof(Enum)];
 
-			if (!parsers.TryGetValue(type, out object parser))
+			if (!parsers.TryGetValue(type, out ValueParser parser))
 				return null;
 
 			return (ValueParser<T>)parser;
@@ -88,7 +88,27 @@ namespace KERBALISM
 			return parsers.ContainsKey(type);
 		}
 
-		private static Dictionary<Type, object> parsers = new Dictionary<Type, object>()
+		public static bool TryDeserialize(string strValue, Type type, out object result)
+		{
+			if (parsers.TryGetValue(type, out ValueParser parser) && parser.DeserializeToObject(strValue, out result))
+			{
+				return true;
+			}
+
+			result = default;
+			return false;
+		}
+
+		public static string Serialize(object value)
+		{
+			if (parsers.TryGetValue(value.GetType(), out ValueParser parser))
+			{
+				return parser.SerializeFromObject(value);
+			}
+			return null;
+		}
+
+		private static Dictionary<Type, ValueParser> parsers = new Dictionary<Type, ValueParser>()
 		{
 			{ typeof(Enum), new EnumParser() },
 			{ typeof(string), new StringParser() },
@@ -118,13 +138,35 @@ namespace KERBALISM
 			{ typeof(Color32), new Color32Parser() },
 		};
 
-		public class ValueParser<T>
+		public abstract class ValueParser
+		{
+			public abstract bool DeserializeToObject(string strValue, out object value);
+			public abstract string SerializeFromObject(object value);
+		}
+
+		public class ValueParser<T> : ValueParser
 		{
 			protected Type typeOfValue;
 
 			public ValueParser()
 			{
 				typeOfValue = typeof(T);
+			}
+
+			public override bool DeserializeToObject(string strValue, out object value)
+			{
+				if (Deserialize(strValue, out T typedValue))
+				{
+					value = typedValue;
+					return true;
+				}
+				value = default(T);
+				return false;
+			}
+
+			public override string SerializeFromObject(object value)
+			{
+				return Serialize((T)value);
 			}
 
 			public virtual string Serialize(T value) => value.ToString();
@@ -142,6 +184,8 @@ namespace KERBALISM
 					return false;
 				}
 			}
+
+
 		}
 
 		#region system types parsers

@@ -182,28 +182,11 @@ namespace KERBALISM
 			}
 		}
 
-		public static void SetupPod(AvailablePart ap)
-		{
-			// add supply resources to pods
-			foreach (Supply supply in supplies)
-			{
-				supply.SetupPod(ap);
-			}
-		}
-
 		public static void SetupEva(Part p)
 		{
 			foreach (Supply supply in supplies)
 			{
 				supply.SetupEva(p);
-			}
-		}
-
-		public static void SetupRescue(VesselData vd)
-		{
-			foreach (Supply supply in supplies)
-			{
-				supply.SetupRescue(vd);
 			}
 		}
 	}

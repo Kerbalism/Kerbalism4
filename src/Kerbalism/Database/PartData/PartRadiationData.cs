@@ -76,13 +76,13 @@ namespace KERBALISM
 
 		private class CoilArrayShielding
 		{
-			private RadiationCoilData coilData;
+			private RadiationCoilHandler coilData;
 			private int coilDataId;
 			private double protectionFactor;
 
 			public double RadiationRemoved => coilData.effectData.RadiationRemoved * protectionFactor;
 
-			public CoilArrayShielding(RadiationCoilData coilData, double protectionFactor)
+			public CoilArrayShielding(RadiationCoilHandler coilData, double protectionFactor)
 			{
 				this.coilData = coilData;
 				this.protectionFactor = protectionFactor;
@@ -95,7 +95,7 @@ namespace KERBALISM
 				protectionFactor = Lib.Parse.ToDouble(value.value, 0.0);
 			}
 
-			public void CheckChangedAndUpdate(RadiationCoilData coilData, double protectionFactor)
+			public void CheckChangedAndUpdate(RadiationCoilHandler coilData, double protectionFactor)
 			{
 				if (coilData != this.coilData)
 				{
@@ -110,7 +110,7 @@ namespace KERBALISM
 			{
 				for (int i = coilArrays.Count - 1; i >= 0; i--)
 				{
-					if (ModuleData.TryGetModuleData<ModuleKsmRadiationCoil, RadiationCoilData>(coilArrays[i].coilDataId, out RadiationCoilData coilData))
+					if (ModuleHandler.TryGetPersistentFlightHandler<ModuleKsmRadiationCoil, RadiationCoilHandler, RadiationCoilDefinition>(coilArrays[i].coilDataId, out RadiationCoilHandler coilData))
 					{
 						coilArrays[i].coilData = coilData;
 					}
@@ -231,7 +231,7 @@ namespace KERBALISM
 		{
 			IsOccluder = PartData.volumeAndSurface != null;
 
-			foreach (ModuleData md in PartData.modules)
+			foreach (ModuleHandler md in PartData.modules)
 			{
 				if (md is IRadiationReceiver receiver && receiver.EnableInterface)
 				{
@@ -407,7 +407,7 @@ namespace KERBALISM
 					int coilsCount = coilArrays.Count;
 					int coilIndex = 0;
 
-					foreach (RadiationCoilData coilData in PartData.vesselData.Synchronizer.AllRadiationCoilDatas)
+					foreach (RadiationCoilHandler coilData in PartData.vesselData.Synchronizer.AllRadiationCoilDatas)
 					{
 						double protectionFactor = coilData.loadedModule.GetPartProtectionFactor(PartData.LoadedPart);
 						if (protectionFactor > 0.0)

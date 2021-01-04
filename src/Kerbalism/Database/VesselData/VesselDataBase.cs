@@ -176,7 +176,7 @@ namespace KERBALISM
 			OnSave(vesselNode);
 			VesselProcesses.Save(vesselNode);
 			Parts.Save(vesselNode);
-			ModuleData.SaveModuleDatas(Parts, vesselNode);
+			ModuleHandler.SavePersistentHandlers(Parts, vesselNode);
 			node.AddNode(vesselNode);
 		}
 
@@ -195,6 +195,8 @@ namespace KERBALISM
 		private static Dictionary<int, ConfigNode> moduleDataNodes = new Dictionary<int, ConfigNode>();
 		public static void LoadShipConstruct(ShipConstruct ship, ConfigNode vesselDataNode, bool isNewShip)
 		{
+			ModuleHandler.ActivationContext context = Lib.IsEditor ? ModuleHandler.ActivationContext.Editor : ModuleHandler.ActivationContext.Loaded;
+
 			Lib.LogDebug($"Loading VesselDataShip for shipconstruct {ship.shipName}");
 			moduleDataNodes.Clear();
 
@@ -221,14 +223,14 @@ namespace KERBALISM
 					VesselDataShip.Instance.Load(vesselDataNode, false);
 				}
 
-				VesselDataShip.Instance.Synchronizer.Synchronize();
-				VesselDataShip.Instance.ResHandler.ForceHandlerSync();
+				//VesselDataShip.Instance.Synchronizer.Synchronize();
+				//VesselDataShip.Instance.ResHandler.ForceHandlerSync();
 
 				// populate the dictionary of ModuleData nodes to load, to avoid doing a full loop
 				// on every node for each ModuleData
 				foreach (ConfigNode moduleNode in vesselDataNode.GetNode(NODENAME_MODULE).GetNodes())
 				{
-					int shipId = Lib.ConfigValue(moduleNode, ModuleData.VALUENAME_SHIPID, 0);
+					int shipId = Lib.ConfigValue(moduleNode, ModuleHandler.VALUENAME_SHIPID, 0);
 					if (shipId != 0)
 						moduleDataNodes.Add(shipId, moduleNode);
 				}
@@ -244,24 +246,49 @@ namespace KERBALISM
 			}
 
 			// instantiate all ModuleData for the ship, loading ModuleData if available.
+			// Note that we always prevent flightId affection even when this is called to create a new vessel.
+			// FlightId affectation will be done when the VesselDataShip is converted to a VesselData through
+			// the ShipConstruction.AssembleForLaunch() patch.
+			// We can't do it here because we need to check the uniqueness of newly created flightIds, which isn't possible
+			// at this point because the existing vessels aren't loaded yet when LoadShipConstruct() is called.
 			foreach (PartData partData in thisShipParts)
 			{
 				for (int i = 0; i < partData.LoadedPart.Modules.Count; i++)
 				{
-					if (partData.LoadedPart.Modules[i] is KsmPartModule ksmPM)
+					if (ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(partData.LoadedPart.Modules[i].GetInstanceID(), out int shipId)
+						&& moduleDataNodes.TryGetValue(shipId, out ConfigNode handlerNode))
 					{
-						if ( moduleDataNodes.TryGetValue(ksmPM.dataShipId, out ConfigNode moduleNode))
-						{
-							ModuleData.NewFromNode(ksmPM, i, partData, moduleNode);
-						}
-						else
-						{
-							ModuleData.New(ksmPM, i, partData, false);
-						}
+						ModuleHandler.NewLoadedFromNode(partData.LoadedPart.Modules[i], i, partData, handlerNode, context);
+					}
+					else
+					{
+						ModuleHandler.NewEditorLoaded(partData.LoadedPart.Modules[i], i, partData, context, false);
 					}
 				}
-				partData.PostInstantiateSetup();
 			}
+
+			// Firstsetup / start everything, but only in the editor. Flight vessel will be started by the VesselData ctor
+			if (Lib.IsEditor)
+			{
+				if (isNewShip)
+				{
+					VesselDataShip.Instance.Start(); 
+				}
+				else
+				{
+					foreach (PartData partData in thisShipParts)
+					{
+						foreach (ModuleHandler handler in partData.modules)
+						{
+							handler.FirstSetup();
+						}
+
+						partData.Start();
+					}
+				}
+			}
+
+
 		}
 
 		#endregion
@@ -280,7 +307,7 @@ namespace KERBALISM
 
 			foreach (PartData partData in Parts)
 			{
-				foreach (ModuleData moduleData in partData.modules)
+				foreach (ModuleHandler moduleData in partData.modules)
 				{
 					moduleData.VesselDataUpdate();
 				}

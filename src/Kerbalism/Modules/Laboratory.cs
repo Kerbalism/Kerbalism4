@@ -4,9 +4,12 @@ using UnityEngine;
 using KSP.Localization;
 using KERBALISM.Planner;
 
+// DISABLED FOR NOW - NEED TO BE REFACTORED AS A KSMPARTMODULE
+
+/*
+
 namespace KERBALISM
 {
-
 	public class Laboratory : PartModule, IModuleInfo, ISpecifics, IContractObjectiveModule, IPlannerModule
 	{
 		// config
@@ -238,7 +241,7 @@ namespace KERBALISM
 		// get next sample to analyze, return null if there isn't a sample
 		private static SubjectData NextSample(Vessel v)
 		{
-			foreach (var drive in DriveData.GetDrives(v, true))
+			foreach (var drive in DriveHandler.GetDrives(v, true))
 			{
 				// for each sample
 				foreach (Sample sample in drive.samples.Values)
@@ -256,8 +259,8 @@ namespace KERBALISM
 		private static Status Analyze(VesselData vd, Vessel v, SubjectData subject, double amount)
 		{
 			Sample sample = null;
-			DriveData sampleDrive = null;
-			foreach (var d in DriveData.GetDrives(v, true))
+			DriveHandler sampleDrive = null;
+			foreach (var d in DriveHandler.GetDrives(v, true))
 			{
 				if (d.samples.ContainsKey(subject) && d.samples[subject].analyze)
 				{
@@ -274,7 +277,7 @@ namespace KERBALISM
 				amount = Math.Min(amount, sample.size);
 			}
 
-			DriveData fileDrive = DriveData.FileDrive(vd, amount);
+			DriveHandler fileDrive = DriveHandler.FileDrive(vd, amount);
 
 			if (fileDrive == null)
 				return Status.NO_STORAGE;
@@ -320,7 +323,7 @@ namespace KERBALISM
 
 		private static void RestoreSampleMass(VesselData vd, SubjectData subject, double restoredAmount)
 		{
-			foreach (ExperimentData experimentData in vd.Parts.AllModulesOfType<ExperimentData>(p => p.ExperimentID == subject.ExpInfo.ExperimentId))
+			foreach (ExperimentHandler experimentData in vd.Parts.AllModulesOfType<ExperimentHandler>(p => p.ExperimentID == subject.ExpInfo.ExperimentId))
 			{
 				if (experimentData.ModuleDefinition.SampleCollecting)
 					continue;
@@ -370,4 +373,4 @@ namespace KERBALISM
 
 } // KERBALISM
 
-
+*/

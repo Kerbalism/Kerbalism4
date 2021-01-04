@@ -51,7 +51,7 @@ namespace KERBALISM
 		public static bool IsSaveGameInitDone { get; set; } = false;
 
 		// used to setup KSP callbacks
-		public static Callbacks Callbacks { get; private set; }
+		public static Events.GameEventsHandler GameEvents { get; private set; }
 
 		// the rendering script attached to map camera
 		static MapCameraScript map_camera_script;
@@ -84,6 +84,10 @@ namespace KERBALISM
 
 		public static bool SerenityEnabled { get; private set; }
 
+		public static bool UIVisible => KERBALISM.Events.GameEventsUI.UIVisible;
+
+		public Vessel lastLaunchedVessel;
+
 		#endregion
 
 		#region initialization & save/load
@@ -93,18 +97,13 @@ namespace KERBALISM
 		{
 			// enable global access
 			Fetch = this;
-
+			VesselsReady = false;
 			SerenityEnabled = Expansions.ExpansionsLoader.IsExpansionInstalled("Serenity");
 		}
 
 		private void OnDestroy()
 		{
 			Fetch = null;
-		}
-
-		private void Start()
-		{
-			Lib.LogDebug("Kerbalism.Start() called");
 		}
 
 		public override void OnLoad(ConfigNode node)
@@ -114,7 +113,6 @@ namespace KERBALISM
 			{
 				try
 				{
-					ModuleData.Init(Assembly.GetExecutingAssembly());
 					PartModuleAPI.Init();
 					Sim.Init();         // find suns (Kopernicus support)
 					Radiation.Init();   // create the radiation fields
@@ -132,13 +130,13 @@ namespace KERBALISM
 					KsmGui.KsmGuiMasterController.Init(); // setup the new gui framework
 
 					// part prefabs post-comilation hacks. Require ScienceDB.Init() to have run first 
-					PartPrefabsPostLoadCompilation.Compile();
+					KerbalismLateLoading.DoLoading();
 
 					// Create KsmGui windows
 					new ScienceArchiveWindow();
 
 					// GameEvents callbacks
-					Callbacks = new Callbacks();
+					GameEvents = new Events.GameEventsHandler();
 
 					SubStepSim.Init();
 				}
@@ -237,22 +235,64 @@ namespace KERBALISM
 
 		#endregion
 
+		public static bool VesselsReady { get; private set; }
+
+		private void Start()
+		{
+			if (Lib.IsEditor)
+				return;
+
+			Lib.LogDebug("Creating vessels...");
+
+			foreach (Vessel vessel in FlightGlobals.Vessels)
+			{
+				// In case of a vessel launch, that launched vessel is instantiated by the AssembleForLaunch() patch
+				// and the dedicated VesselData ctor, with some special handling. This always happen before Kerbalism.Start()
+				// To be able to skip that vessel (which will always be created when Kerbalism.Start() is called), we have put
+				// a reference to it in the "lastLaunchedVessel" field. That field must be cleared afterwards.
+				if (ReferenceEquals(vessel, lastLaunchedVessel))
+					continue;
+
+				if (!vessel.TryGetVesselData(out VesselData vd))
+				{
+					Lib.LogDebug($"Creating VesselData for unsaved vessel {vessel.vesselName}");
+					vd = new VesselData(vessel.protoVessel, null, false);
+					DB.AddNewVesselData(vd);
+				}
+
+				vd.SceneLoadVesselSetup(vessel);
+			}
+
+			// all vessels have now been properly instantiatied, meaning the global dictionary of FlightIds is populated
+			// We are now sure that the FlightIDs we affect to the newly launched vessel (if any) will be unique.
+			if (!ReferenceEquals(lastLaunchedVessel, null) && lastLaunchedVessel.TryGetVesselData(out VesselData launchedVD))
+			{
+				Lib.LogDebug($"Assigning FlightIds for launched vessel {launchedVD}");
+				((PartDataCollectionVessel)launchedVD.Parts).AssignFlightIdsOnVesselLaunch();
+			}
+
+			lastLaunchedVessel = null;
+			VesselsReady = true;
+
+			foreach (VesselData vd in DB.VesselDatas)
+			{
+				if (vd.IsSimulated)
+				{
+					vd.Start();
+				}
+			}
+		}
+
+
+
 		#region fixedupdate
 
 		static System.Diagnostics.Stopwatch fuWatch = new System.Diagnostics.Stopwatch();
-		public bool firstFU = true; 
 		void FixedUpdate()
 		{
+
 			MiniProfiler.lastKerbalismFuTicks = fuWatch.ElapsedTicks;
 			fuWatch.Restart();
-			if (firstFU)
-			{
-				Lib.LogDebug("First FixedUpdate !");
-				firstFU = false;
-			}
-
-			SubStepSim.OnFixedUpdate();
-			Sim.OnFixedUpdate();
 
 			// remove control locks in any case
 			Misc.ClearLocks();
@@ -260,6 +300,9 @@ namespace KERBALISM
 			// do nothing if paused (note : this is true in the editor)
 			if (Lib.IsPaused())
 				return;
+
+			// synchronize the bodies positions for the substep sim
+			Sim.OnFixedUpdate();
 
 			// convert elapsed time to double only once
 			double fixedDeltaTime = TimeWarp.fixedDeltaTime;
@@ -279,46 +322,35 @@ namespace KERBALISM
 			Vessel last_v = null;
 			VesselData last_vd = null;
 
+			// synchronize the threaded environment simulation
+			SubStepSim.OnFixedUpdate();
+
 			// credit science at regular interval
 			ScienceDB.CreditScienceBuffers(elapsed_s);
-
-			foreach (VesselData vd in DB.VesselDatas)
-			{
-				vd.EarlyUpdate();
-			}
 
 			// for each vessel
 			foreach (Vessel v in FlightGlobals.Vessels)
 			{
 				// get vessel data
-				if (!v.TryGetVesselData(out VesselData vd))
+				if (v.TryGetVesselData(out VesselData vd))
 				{
+					// do nothing else for non-simulated vessels
+					if (!vd.SimulatedCheck(v))
+						continue;
+				}
+				else
+				{
+					// ignore vessels for which we never create a VesselData (flags)
 					if (!VesselData.VesselNeedVesselData(v.protoVessel))
 						continue;
 
 					Lib.LogDebug($"Creating VesselData for new vessel {v.vesselName}");
 					vd = new VesselData(v);
 					DB.AddNewVesselData(vd);
+
+					if (!vd.IsSimulated)
+						continue;
 				}
-
-				// update the vessel data validity
-				vd.OnFixedUpdate(v);
-
-				// set locks for active vessel
-				if (v.isActiveVessel)
-				{
-					Misc.SetLocks(v);
-				}
-
-				// maintain eva dead animation and helmet state
-				if (v.loaded && v.isEVA)
-				{
-					EVA.Update(v);
-				}
-
-				// do nothing else for invalid vessels
-				if (!vd.IsSimulated)
-					continue;
 
 				// if loaded
 				if (v.loaded)
@@ -328,7 +360,7 @@ namespace KERBALISM
 
 					//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.VesselDataEval");
 					// update the vessel info
-					vd.Evaluate(false, elapsed_s);
+					vd.Evaluate(elapsed_s);
 					//UnityEngine.Profiling.Profiler.EndSample();
 
 					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Radiation");
@@ -405,7 +437,7 @@ namespace KERBALISM
 
 				//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.VesselDataEval");
 				// update the vessel info (high timewarp speeds reevaluation)
-				last_vd.Evaluate(false, last_time);
+				last_vd.Evaluate(last_time);
 				//UnityEngine.Profiling.Profiler.EndSample();
 
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Radiation");
@@ -423,11 +455,6 @@ namespace KERBALISM
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Profile");
 				// execute rules and processes
 				Profile.Execute(last_v, last_vd, resources, last_time);
-				UnityEngine.Profiling.Profiler.EndSample();
-
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Background");
-				// simulate modules in background
-				Background.Update(last_v, last_vd, resources, last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
 
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Science");
@@ -470,26 +497,23 @@ namespace KERBALISM
 		{
 			// attach map renderer to planetarium camera once
 			if (MapView.MapIsEnabled && map_camera_script == null)
-				map_camera_script = PlanetariumCamera.Camera.gameObject.AddComponent<MapCameraScript>();
+			map_camera_script = PlanetariumCamera.Camera.gameObject.AddComponent<MapCameraScript>();
 
 			// process keyboard input
 			Misc.KeyboardInput();
-
-			// add description to techs
-			Misc.TechDescriptions();
 
 			// set part highlight colors
 			Highlighter.Update();
 
 			// prepare gui content
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.UI.Update");
-			UI.Update(Callbacks.visible);
+			UI.Update(UIVisible);
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		void OnGUI()
 		{
-			UI.On_gui(Callbacks.visible);
+			UI.On_gui(UIVisible);
 		}
 
 		#endregion
@@ -521,65 +545,6 @@ namespace KERBALISM
 			// remove control locks
 			InputLockManager.RemoveControlLock("eva_dead_lock");
 			InputLockManager.RemoveControlLock("no_signal_lock");
-		}
-
-		public static void SetLocks(Vessel v)
-		{
-			// lock controls for EVA death
-			if (EVA.IsDead(v))
-			{
-				InputLockManager.SetControlLock(ControlTypes.EVA_INPUT, "eva_dead_lock");
-			}
-		}
-
-		public static void TechDescriptions()
-		{
-			var rnd = RDController.Instance;
-			if (rnd == null)
-				return;
-			var selected = RDController.Instance.node_selected;
-			if (selected == null)
-				return;
-			var techID = selected.tech.techID;
-			if (rnd.node_description.text.IndexOf("<i></i>\n", StringComparison.Ordinal) == -1) //< check for state in the string
-			{
-				rnd.node_description.text += "<i></i>\n"; //< store state in the string
-
-				// collect unique configure-related unlocks
-				HashSet<string> labels = new HashSet<string>();
-				foreach (AvailablePart p in PartLoader.LoadedPartsList)
-				{
-					// workaround for FindModulesImplementing nullrefs in 1.8 when called on the strange kerbalEVA_RD_Exp prefab
-					// due to the (private) cachedModuleLists being null on it
-					if (p.partPrefab.Modules.Count == 0)
-						continue;
-
-					foreach (Configure cfg in p.partPrefab.FindModulesImplementing<Configure>())
-					{
-						foreach (ConfigureSetup setup in cfg.Setups())
-						{
-							if (setup.tech == selected.tech.techID)
-							{
-								labels.Add(Lib.BuildString(setup.name, " to ", cfg.title));
-							}
-						}
-					}
-				}
-
-				// add unique configure-related unlocks
-				// avoid printing text over the "available parts" section
-				int i = 0;
-				foreach (string label in labels)
-				{
-					rnd.node_description.text += Lib.BuildString("\n• <color=#00ffff>", label, "</color>");
-					i++;
-					if (i >= 5 && labels.Count > i + 1)
-					{
-						rnd.node_description.text += Lib.BuildString("\n• <color=#00ffff>(+", (labels.Count - i).ToString(), " more)</color>");
-						break;
-					}
-				}
-			}
 		}
 
 		public static void KeyboardInput()

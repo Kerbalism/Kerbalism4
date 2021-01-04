@@ -44,11 +44,11 @@ namespace KERBALISM
 		{
 			public File file;
 			public double sciencePerMB; // caching this because it's slow to get
-			public DriveData drive;
+			public DriveHandler drive;
 			public bool isInBuffer;
 			public File realDriveFile; // reference to the "real" file for files in the buffer drive
 
-			public XmitFile(File file, DriveData drive, double sciencePerMB, bool isInBuffer, File realDriveFile = null)
+			public XmitFile(File file, DriveHandler drive, double sciencePerMB, bool isInBuffer, File realDriveFile = null)
 			{
 				this.file = file;
 				this.drive = drive;
@@ -90,8 +90,6 @@ namespace KERBALISM
 			// clear list of files transmitted
 			vd.filesTransmitted.Clear();
 
-			DriveData transmitBufferDrive = Cache.TransmitBufferDrive(v);
-
 			// check connection
 			if (!vd.CommHandler.IsReady
 				|| !vd.Connection.linked
@@ -99,13 +97,13 @@ namespace KERBALISM
 				|| !vd.deviceTransmit)
 			{
 				// reset all files transmit rate
-				foreach (DriveData drive in DriveData.GetDrives(vd, true))
+				foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
 					foreach (File f in drive.files.Values)
 						f.transmitRate = 0.0;
 
 				// set transmit capacity to 0 and make sure there is nothing in it.
-				transmitBufferDrive.dataCapacity = 0.0;
-				transmitBufferDrive.DeleteAllData();
+				vd.TransmitBuffer.dataCapacity = 0.0;
+				vd.TransmitBuffer.DeleteAllData();
 
 				// do nothing else
 				return;
@@ -114,10 +112,10 @@ namespace KERBALISM
 			// Note : we use the buffer drive size (which is the transmit capacity of previous step) instead of recalculating
 			// the rate now because elapsed_s instabity will result in some files in the buffer not being
 			// entirely transmitted or small amounts of non buffer files being transmitted randomly.
-			double totalTransmitCapacity = transmitBufferDrive.dataCapacity;
+			double totalTransmitCapacity = vd.TransmitBuffer.dataCapacity;
 			double remainingTransmitCapacity = totalTransmitCapacity;
 
-			GetFilesToTransmit(v, vd, transmitBufferDrive);
+			GetFilesToTransmit(vd);
 
 			if (xmitFiles.Count == 0)
 				return;
@@ -194,17 +192,17 @@ namespace KERBALISM
 			// Set new buffer capacity based on data rate.
 			// Note : we don't delete the files to avoid them being re-instantiated every step.
 			// Non-transmitted buffer files are deleted by checking against the "fake" file on the real drive (sorry, this is a bit complex...)
-			transmitBufferDrive.dataCapacity = vd.Connection.rate * elapsed_s * vd.ResHandler.ElectricCharge.AvailabilityFactor;
+			vd.TransmitBuffer.dataCapacity = vd.Connection.rate * elapsed_s * vd.ResHandler.ElectricCharge.AvailabilityFactor;
 		}
 
-		private static void GetFilesToTransmit(Vessel v, VesselData vd, DriveData transmitBufferDrive)
+		private static void GetFilesToTransmit(VesselData vd)
 		{
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.Science.GetFilesToTransmit");
 
 			xmitFiles.Clear();
 			List<SubjectData> filesToRemove = new List<SubjectData>();
 
-			foreach (DriveData drive in DriveData.GetDrives(vd, true))
+			foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
 			{
 				foreach (File f in drive.files.Values)
 				{
@@ -214,11 +212,11 @@ namespace KERBALISM
 					// delete empty files that aren't being transmitted
 					if (f.size <= 0.0)
 					{
-						if (transmitBufferDrive.files.TryGetValue(f.subjectData, out File bufferFile))
+						if (vd.TransmitBuffer.files.TryGetValue(f.subjectData, out File bufferFile))
 						{
 							if (bufferFile.size <= 0.0)
 							{
-								transmitBufferDrive.files.Remove(f.subjectData);
+								vd.TransmitBuffer.files.Remove(f.subjectData);
 								filesToRemove.Add(f.subjectData);
 								continue;
 							}
@@ -251,7 +249,7 @@ namespace KERBALISM
 			UnityEngine.Profiling.Profiler.EndSample();
 
 			// add all buffer files to the beginning of the XmitFile list
-			foreach (File f in transmitBufferDrive.files.Values)
+			foreach (File f in vd.TransmitBuffer.files.Values)
 			{
 				// don't transmit empty files
 				if (f.size <= 0.0)
@@ -261,9 +259,9 @@ namespace KERBALISM
 				// this allow to use the real file for displaying transmit info and saving state (filemanager, monitor, vesseldata...)
 				int driveFileIndex = xmitFiles.FindIndex(df => df.file.subjectData == f.subjectData);
 				if (driveFileIndex >= 0)
-					xmitFiles.Add(new XmitFile(f, transmitBufferDrive, f.subjectData.SciencePerMB, true, xmitFiles[driveFileIndex].file));
+					xmitFiles.Add(new XmitFile(f, vd.TransmitBuffer, f.subjectData.SciencePerMB, true, xmitFiles[driveFileIndex].file));
 				else
-					xmitFiles.Add(new XmitFile(f, transmitBufferDrive, f.subjectData.SciencePerMB, true)); // should not be happening, but better safe than sorry
+					xmitFiles.Add(new XmitFile(f, vd.TransmitBuffer, f.subjectData.SciencePerMB, true)); // should not be happening, but better safe than sorry
 
 			}
 			UnityEngine.Profiling.Profiler.EndSample();

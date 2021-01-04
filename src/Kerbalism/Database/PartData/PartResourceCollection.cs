@@ -33,6 +33,10 @@ namespace KERBALISM
 			return false;
 		}
 
+		/// <summary>
+		/// Add a resource to the part. Note : check first if the resource exists already !
+		/// Could do a "merge" here but this is usually something you want to check in the calling code.
+		/// </summary>
 		public PartResourceWrapper AddResource(string resName, double amount, double capacity)
 		{
 			if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(resName))
@@ -72,6 +76,33 @@ namespace KERBALISM
 
 			return wrapper;
 		}
+
+		/// <summary>
+		/// Remve a resource from the part.
+		/// </summary>
+		public void RemoveResource(string resName)
+		{
+			PartResourceDefinition resDefinition = PartResourceLibrary.Instance.GetDefinition(resName);
+			if (resDefinition == null)
+			{
+				Lib.Log($"Failed to remove resource {resName} to part {partData} : the resource doesn't exists", Lib.LogLevel.Warning);
+				return;
+			}
+
+			if (partData.IsLoaded)
+			{
+				partData.LoadedPart.Resources.dict.Remove(resDefinition.id);
+				partData.LoadedPart.SimulationResources?.dict.Remove(resDefinition.id);
+				GameEvents.onPartResourceListChange.Fire(partData.LoadedPart);
+			}
+			else
+			{
+				partData.ProtoPart.resources.RemoveAll(p => p.resourceName == resName);
+			}
+
+			RemoveAll(p => p.ResName == resName);
+		}
+
 
 		public void Synchronize()
 		{

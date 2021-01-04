@@ -144,9 +144,9 @@ namespace KERBALISM
 			partListEnabled.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 230, 0);
 			partListEnabled.TopTransform.SetSizeDelta(60, 16);
 
-			foreach (ProcessControllerData pcd in vd.Parts.AllModulesOfType<ProcessControllerData>())
+			foreach (ProcessControllerHandler pcd in vd.Parts.AllModulesOfType<ProcessControllerHandler>())
 			{
-				if (pcd.processName == vesselProcess.ProcessName)
+				if (pcd.definition.processName == vesselProcess.ProcessName)
 				{
 					parts.Add(new PartEntry(partList, pcd.partData.Title, pcd, vd));
 				}
@@ -314,10 +314,10 @@ namespace KERBALISM
 		{
 			KsmGuiText resCapText;
 			KsmGuiTextButton resToggleText;
-			ProcessControllerData data;
+			ProcessControllerHandler data;
 			VesselDataBase vd;
 
-			public PartEntry(KsmGuiBase parent, string partTitle, ProcessControllerData data, VesselDataBase vd) : base(parent)
+			public PartEntry(KsmGuiBase parent, string partTitle, ProcessControllerHandler data, VesselDataBase vd) : base(parent)
 			{
 				this.data = data;
 				this.vd = vd;
@@ -330,7 +330,7 @@ namespace KERBALISM
 				resNameText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 				resNameText.TopTransform.SetSizeDelta(150, 16);
 
-				resCapText = new KsmGuiText(this, data.processCapacity.ToString("F1"), null, TextAlignmentOptions.Center);
+				resCapText = new KsmGuiText(this, data.definition.capacity.ToString("F1"), null, TextAlignmentOptions.Center);
 				resCapText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
 				resCapText.TopTransform.SetSizeDelta(55, 16);
 
@@ -344,24 +344,15 @@ namespace KERBALISM
 
 			private void Update()
 			{
-				if (data.isBroken)
-				{
-					resCapText.Text = Local.Generic_BROKEN;
-					resCapText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Red);
-					resToggleText.Enabled = false;
-				}
-				else
-				{
-					resCapText.Text = data.processCapacity.ToString("F1");
-					resCapText.TextComponent.color = Color.white;
-					resToggleText.Enabled = true;
-					resToggleText.Text = data.isRunning ? Local.Generic_YES : Local.Generic_NO;
-				}
+				resCapText.Text = data.definition.capacity.ToString("F1");
+				resCapText.TextComponent.color = Color.white;
+				resToggleText.Enabled = true;
+				resToggleText.Text = data.IsRunning ? Local.Generic_YES : Local.Generic_NO;
 			}
 
 			private void OnTogglePart()
 			{
-				ModuleKsmProcessController.Toggle(data, vd.LoadedOrEditor);
+				data.IsRunning = !data.IsRunning;
 			}
 		}
 	}

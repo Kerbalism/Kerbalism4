@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static KERBALISM.HabitatData;
+using static KERBALISM.HabitatHandler;
 
 namespace KERBALISM
 {
@@ -49,7 +49,7 @@ namespace KERBALISM
 		/// <summary> in rad/s, radiation received by all considered habitats : non pressurized unmanned parts are ignored</summary>
 		public double radiationRate = 0.0;
 
-		public List<HabitatData> Habitats { get; private set; } = new List<HabitatData>();
+		public List<HabitatHandler> Habitats { get; private set; } = new List<HabitatHandler>();
 
 		public void ResetBeforeModulesUpdate(VesselDataBase vd)
 		{
@@ -63,7 +63,7 @@ namespace KERBALISM
 
 			// the list of habitats will iterated over by every radiation emitter/shield, so build the list once.
 			Habitats.Clear();
-			foreach (HabitatData habitat in vd.Parts.AllModulesOfType<HabitatData>())
+			foreach (HabitatHandler habitat in vd.Parts.AllModulesOfType<HabitatHandler>())
 			{
 				Habitats.Add(habitat);
 			}
@@ -78,17 +78,17 @@ namespace KERBALISM
 
 			for (int i = 0; i < Habitats.Count; i++)
 			{
-				HabitatData habitat = Habitats[i];
+				HabitatHandler habitat = Habitats[i];
 				if (habitat.isEnabled)
 				{
 					switch (habitat.pressureState)
 					{
 						case PressureState.Breatheable:
-							livingVolume += habitat.baseVolume;
-							shieldingSurface += habitat.baseSurface;
+							livingVolume += habitat.definition.volume;
+							shieldingSurface += habitat.definition.surface;
 							shieldingAmount += habitat.shieldingAmount;
 
-							comfortMask |= habitat.baseComfortsMask;
+							comfortMask |= habitat.definition.baseComfortsMask;
 							if (habitat.IsRotationNominal)
 								comfortMask |= (int)Comfort.firmGround;
 
@@ -99,13 +99,13 @@ namespace KERBALISM
 							break;
 						case PressureState.Pressurized:
 						case PressureState.DepressurizingAboveThreshold:
-							pressurizedVolume += habitat.baseVolume;
-							livingVolume += habitat.baseVolume;
-							pressurizedSurface += habitat.baseSurface;
-							shieldingSurface += habitat.baseSurface;
+							pressurizedVolume += habitat.definition.volume;
+							livingVolume += habitat.definition.volume;
+							pressurizedSurface += habitat.definition.surface;
+							shieldingSurface += habitat.definition.surface;
 							shieldingAmount += habitat.shieldingAmount;
 
-							comfortMask |= habitat.baseComfortsMask;
+							comfortMask |= habitat.definition.baseComfortsMask;
 							if (habitat.IsRotationNominal)
 								comfortMask |= (int)Comfort.firmGround | (int)Comfort.exercice;
 
@@ -124,7 +124,7 @@ namespace KERBALISM
 						case PressureState.DepressurizingBelowThreshold:
 							if (habitat.crewCount > 0)
 							{
-								shieldingSurface += habitat.baseSurface;
+								shieldingSurface += habitat.definition.surface;
 								shieldingAmount += habitat.shieldingAmount;
 								poisoningLevel += habitat.wasteLevel;
 								wasteConsideredPartsCount++;
@@ -144,8 +144,8 @@ namespace KERBALISM
 							break;
 						case PressureState.Pressurized:
 						case PressureState.DepressurizingAboveThreshold:
-							pressurizedVolume += habitat.baseVolume;
-							pressurizedSurface += habitat.baseSurface;
+							pressurizedVolume += habitat.definition.volume;
+							pressurizedSurface += habitat.definition.surface;
 							pressurizedPartsAtmoAmount += habitat.atmoAmount;
 							// waste evaluation
 							break;

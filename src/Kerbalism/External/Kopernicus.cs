@@ -39,23 +39,23 @@ namespace KERBALISM
 
 		private static readonly Dictionary<string, BodyInfo> bodyTemplates = new Dictionary<string, BodyInfo>()
 		{
-			{ "Sun", new BodyInfo("Sun", null, 1.75654591319326E+28, 0.0, 0.0, 261600000, 1.17233279483249E+18, true, false)},
-			{ "Kerbin", new BodyInfo("Kerbin", "Sun", 5.29151583439215E+22, 21600, 13599840256, 600000, 3531600000000.0, false, true)},
-			{ "Mun", new BodyInfo("Mun", "Kerbin", 9.7599066119646E+20, 141115.385296176, 12000000, 200000, 65138397520.7807, false, false)},
-			{ "Minmus", new BodyInfo( "Minmus", "Kerbin", 2.64575795662095E+19, 40578.1222569469, 47000000, 60000, 1765800026.31247, false, false)},
-			{ "Moho", new BodyInfo("Moho", "Sun", 2.52633139930162E+21, 2665723.44748356, 5263138304, 250000, 168609378654.509, false, false)},
-			{ "Eve", new BodyInfo("Eve", "Sun", 1.2243980038014E+23, 81661.8566811459, 9832684544, 700000, 8171730229210.87, false, false)},
-			{ "Duna", new BodyInfo("Duna", "Sun", 4.51542702477492E+21, 65766.7068643109, 20726155264, 320000, 301363211975.098, false, false)},
-			{ "Ike", new BodyInfo("Ike", "Duna", 2.78216152235874E+20, 65766.7096451232, 3200000, 130000, 18568368573.144, false, false)},
-			{ "Jool", new BodyInfo("Jool", "Sun", 4.23321273059351E+24, 36012.3870456149, 68773560320, 6000000, 282528004209995, false, false)},
-			{ "Laythe", new BodyInfo("Laythe", "Jool", 2.93973106291216E+22, 53007.7122025236, 27184000, 500000, 1962000029236.08, false, false)},
-			{ "Vall", new BodyInfo("Vall", "Jool", 3.10876554482042E+21, 106069.476525395, 43152000, 300000 , 207481499473.751, false, false)},
-			{ "Bop", new BodyInfo("Bop", "Jool", 3.72610898343278E+19, 547355.076395446, 128500000, 65000, 2486834944.41491, false, false)},
-			{ "Tylo", new BodyInfo("Tylo", "Jool", 4.23321273059351E+22, 212356.353174406, 68500000, 600000, 2825280042099.95, false, false)},
-			{ "Gilly", new BodyInfo("Gilly", "Eve", 1.24203632781093E+17, 28396.8085034526, 31500000, 13000, 8289449.81471635, false, false)},
-			{ "Pol", new BodyInfo( "Pol", "Jool", 1.08135065806823E+19, 909742.17664378, 179890000, 44000,721702080, false, false)},
-			{ "Dres", new BodyInfo("Dres", "Sun", 3.21909365785247E+20, 34825.304721078, 40839348203, 138000, 21484488600, false, false)},
-			{ "Eeloo", new BodyInfo("Eeloo", "Sun", 1.11492242417007E+21, 19462.4124696157, 90118820000, 210000, 74410814527.0496, false, false)}
+			{ "Sun"   , new BodyInfo("Sun"    , null    , 1.75654591319326E+28, 0.0             , 0.0        , 261600000, 1.17233279483249E+18, true , false)},
+			{ "Kerbin", new BodyInfo("Kerbin" , "Sun"   , 5.29151583439215E+22, 21600           , 13599840256, 600000   , 3531600000000.0     , false, true)},
+			{ "Mun"   , new BodyInfo("Mun"    , "Kerbin", 9.7599066119646E+20 , 141115.385296176, 12000000   , 200000   , 65138397520.7807    , false, false)},
+			{ "Minmus", new BodyInfo( "Minmus", "Kerbin", 2.64575795662095E+19, 40578.1222569469, 47000000   , 60000    , 1765800026.31247    , false, false)},
+			{ "Moho"  , new BodyInfo("Moho"   , "Sun"   , 2.52633139930162E+21, 2665723.44748356, 5263138304 , 250000   , 168609378654.509    , false, false)},
+			{ "Eve"   , new BodyInfo("Eve"    , "Sun"   , 1.2243980038014E+23 , 81661.8566811459, 9832684544 , 700000   , 8171730229210.87    , false, false)},
+			{ "Duna"  , new BodyInfo("Duna"   , "Sun"   , 4.51542702477492E+21, 65766.7068643109, 20726155264, 320000   , 301363211975.098    , false, false)},
+			{ "Ike"   , new BodyInfo("Ike"    , "Duna"  , 2.78216152235874E+20, 65766.7096451232, 3200000    , 130000   , 18568368573.144     , false, false)},
+			{ "Jool"  , new BodyInfo("Jool"   , "Sun"   , 4.23321273059351E+24, 36012.3870456149, 68773560320, 6000000  , 282528004209995     , false, false)},
+			{ "Laythe", new BodyInfo("Laythe" , "Jool"  , 2.93973106291216E+22, 53007.7122025236, 27184000   , 500000   , 1962000029236.08    , false, false)},
+			{ "Vall"  , new BodyInfo("Vall"   , "Jool"  , 3.10876554482042E+21, 106069.476525395, 43152000   , 300000   , 207481499473.751    , false, false)},
+			{ "Bop"   , new BodyInfo("Bop"    , "Jool"  , 3.72610898343278E+19, 547355.076395446, 128500000  , 65000    , 2486834944.41491    , false, false)},
+			{ "Tylo"  , new BodyInfo("Tylo"   , "Jool"  , 4.23321273059351E+22, 212356.353174406, 68500000   , 600000   , 2825280042099.95    , false, false)},
+			{ "Gilly" , new BodyInfo("Gilly"  , "Eve"   , 1.24203632781093E+17, 28396.8085034526, 31500000   , 13000    , 8289449.81471635    , false, false)},
+			{ "Pol"   , new BodyInfo( "Pol"   , "Jool"  , 1.08135065806823E+19, 909742.17664378 , 179890000  , 44000    , 721702080           , false, false)},
+			{ "Dres"  , new BodyInfo("Dres"   , "Sun"   , 3.21909365785247E+20, 34825.304721078 , 40839348203, 138000   , 21484488600         , false, false)},
+			{ "Eeloo" , new BodyInfo("Eeloo"  , "Sun"   , 1.11492242417007E+21, 19462.4124696157, 90118820000, 210000   , 74410814527.0496    , false, false)}
 		};
 
 		/// <summary>
