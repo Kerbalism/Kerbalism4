@@ -671,7 +671,7 @@ namespace KERBALISM
 		}
 
 		/// <summary> delete all files/samples in the vessel drives</summary>
-		public static void DeleteDrivesData(VesselData vd)
+		public static void DeleteDrivesData(VesselDataBase vd)
 		{
 			foreach (DriveHandler driveData in vd.Parts.AllModulesOfType<DriveHandler>())
 			{
@@ -679,7 +679,7 @@ namespace KERBALISM
 			}
 		}
 
-		public static IEnumerable<DriveHandler> GetDrives (VesselData vd, bool includePrivate = false)
+		public static IEnumerable<DriveHandler> GetDrives (VesselDataBase vd, bool includePrivate = false)
 		{
 			if (!includePrivate)
 			{
@@ -691,7 +691,7 @@ namespace KERBALISM
 			}
 		}
 
-		public static void GetCapacity(VesselData vesseldata, out double free_capacity, out double total_capacity)
+		public static void GetCapacity(VesselDataBase vesseldata, out double free_capacity, out double total_capacity)
 		{
 			free_capacity = 0;
 			total_capacity = 0;
@@ -719,7 +719,7 @@ namespace KERBALISM
 		}
 
 		/// <summary> Get a drive for storing files. Will return null if there are no drives on the vessel </summary>
-		public static DriveHandler FileDrive(VesselData vesselData, double size = 0.0)
+		public static DriveHandler FileDrive(VesselDataBase vesselData, double size = 0.0)
 		{
 			DriveHandler result = null;
 			foreach (var drive in GetDrives(vesselData))
@@ -747,7 +747,7 @@ namespace KERBALISM
 		}
 
 		/// <summary> Get a drive for storing samples. Will return null if there are no drives on the vessel </summary>
-		public static DriveHandler SampleDrive(VesselData vesselData, double size = 0, SubjectData subject = null)
+		public static DriveHandler SampleDrive(VesselDataBase vesselData, double size = 0, SubjectData subject = null)
 		{
 			DriveHandler result = null;
 			foreach (var drive in GetDrives(vesselData))

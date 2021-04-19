@@ -48,13 +48,13 @@ namespace KERBALISM.Planner
 		private static void RunSimulatorStep(List<Part> parts)
 		{
 			// process all rules
-			foreach (Rule r in Profile.rules)
-			{
-				if (r.input.Length > 0 && r.rate > 0.0)
-				{
-					ExecuteRule(r);
-				}
-			}
+			//foreach (Rule r in Profile.rules)
+			//{
+			//	if (r.input.Length > 0 && r.rate > 0.0)
+			//	{
+			//		ExecuteRule(r);
+			//	}
+			//}
 
 			// process all processes
 			foreach (Process p in Profile.processes)
@@ -126,26 +126,26 @@ namespace KERBALISM.Planner
 		#region RULE/PROCESS HANDLERS
 
 		/// <summary>execute a rule</summary>
-		private static void ExecuteRule(Rule r)
-		{
-			// deduce rate per-second
-			double rate = vd.crewCount * r.rate;
-			double modifier = r.EvaluateModifier(vd);
+		//private static void ExecuteRule(Rule r)
+		//{
+		//	// deduce rate per-second
+		//	double rate = vd.crewCount * r.rate;
+		//	double modifier = r.EvaluateModifier(vd);
 
-			// prepare recipe
-			if (r.output.Length == 0)
-			{
-				handler.GetResource(r.input).Consume(rate * modifier, r.broker);
-			}
-			else if (rate > double.Epsilon)
-			{
-				// - rules always dump excess overboard (because it is waste)
-				Recipe recipe = new Recipe(r.broker);
-				recipe.AddInput(r.input, rate * modifier);
-				recipe.AddOutput(r.output, rate * modifier * r.ratio, true);
-				handler.AddRecipe(recipe);
-			}
-		}
+		//	// prepare recipe
+		//	if (r.output.Length == 0)
+		//	{
+		//		handler.GetResource(r.input).Consume(rate * modifier, r.broker);
+		//	}
+		//	else if (rate > double.Epsilon)
+		//	{
+		//		// - rules always dump excess overboard (because it is waste)
+		//		Recipe recipe = new Recipe(r.broker);
+		//		recipe.AddInput(r.input, rate * modifier);
+		//		recipe.AddOutput(r.output, rate * modifier * r.ratio, true);
+		//		handler.AddRecipe(recipe);
+		//	}
+		//}
 
 		/// <summary>execute a process</summary>
 		private static void ExecuteProcess(Process pr)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,7 +13,7 @@ namespace KERBALISM.KsmGui
 		public GameObject TopObject { get; private set; }
 		public LayoutElement LayoutElement { get; private set; }
 		public KsmGuiUpdateHandler UpdateHandler { get; private set; }
-		private KsmGuiTooltip tooltip;
+		private KsmGuiTooltipBase tooltip;
 		private KsmGuiLayoutOptimizer layoutOptimizer;
 
 		/// <summary>
@@ -56,8 +57,8 @@ namespace KERBALISM.KsmGui
 		}
 
 		/// <summary> callback that will be called on this object Update(). Won't be called if Enabled = false </summary>
-		/// <param name="updateFrequency">amount of Update() frames skipped between each call. 50 =~ 1 sec </param>
-		public void SetUpdateAction(Action action, int updateFrequency = 1)
+		/// <param name="updateFrequency">seconds between updates, or set to 0f to update every frame</param>
+		public void SetUpdateAction(Action action, float updateFrequency = 0.2f)
 		{
 			if (UpdateHandler == null)
 				UpdateHandler = TopObject.AddComponent<KsmGuiUpdateHandler>();
@@ -82,15 +83,23 @@ namespace KERBALISM.KsmGui
 				UpdateHandler.ForceExecuteCoroutine(fromStart);
 		}
 
-		public void SetTooltipText(string text)
+		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
 		{
 			if (text == null)
 				return;
 
-			if (tooltip == null)
-				tooltip = TopObject.AddComponent<KsmGuiTooltip>();
+			if (ReferenceEquals(tooltip, null))
+				tooltip = TopObject.AddComponent<KsmGuiTooltipStatic>();
 
-			tooltip.SetTooltipText(text);
+			((KsmGuiTooltipStatic)tooltip).SetTooltipText(text, textAlignement, width, content);
+		}
+
+		public void SetTooltipText(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
+		{
+			if (ReferenceEquals(tooltip, null))
+				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamic>();
+
+			((KsmGuiTooltipDynamic)tooltip).SetTooltipText(tooltipTextFunc, textAlignement, width, content);
 		}
 
 		/// <summary> Add sizing constraints trough a LayoutElement component</summary>

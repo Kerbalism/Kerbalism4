@@ -135,7 +135,7 @@ namespace KERBALISM
 			{ typeof(QuaternionD), new QuaternionDParser() },
 			{ typeof(Matrix4x4), new Matrix4x4Parser() },
 			{ typeof(Color), new ColorParser() },
-			{ typeof(Color32), new Color32Parser() },
+			{ typeof(Color32), new Color32Parser() }
 		};
 
 		public abstract class ValueParser
@@ -287,12 +287,7 @@ namespace KERBALISM
 		public class GuidParser : ValueParser<Guid>
 		{
 			public override string Serialize(Guid value) => value.ToString("N", CultureInfo.InvariantCulture);
-			public override bool Deserialize(string strValue, out Guid value)
-			{
-				try { value = new Guid(strValue); } // Note : .NET 4.x has a tryParse method
-				catch (Exception) { value = Guid.Empty;  return false; } 
-				return true;
-			}
+			public override bool Deserialize(string strValue, out Guid value) => Guid.TryParse(strValue, out value);
 		}
 
 		#endregion
@@ -339,7 +334,7 @@ namespace KERBALISM
 		{
 			public override bool Deserialize(string strValue, out Matrix4x4 value)
 			{
-				value = ConfigNode.ParseMatrix4x4(strValue);
+				value = ConfigNode.ParseMatrix4x4(strValue); // note : this will return Matrix4x4.identity if parsing fails
 				return true;
 			}
 			public override string Serialize(Matrix4x4 value) => ConfigNode.WriteMatrix4x4(value);

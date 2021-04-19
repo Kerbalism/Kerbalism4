@@ -14,28 +14,29 @@ namespace KERBALISM.KsmGui
 
 	public class KsmGuiUpdateHandler : MonoBehaviour
 	{
-		private int updateCounter;
-		public int updateFrequency = 1;
+		private float lastUpdate;
+		public float updateFrequency = 0.2f;
 		public Action updateAction;
 		public KsmGuiUpdateCoroutine coroutineFactory;
 		public IEnumerator currentCoroutine;
 
-		public void UpdateASAP() => updateCounter = updateFrequency;
+		public void UpdateASAP()
+		{
+			lastUpdate = float.MinValue;
+		}
 
 		void Start()
 		{
-			// always update on start
-			updateCounter = updateFrequency;
+			UpdateASAP();
 		}
 
 		void Update()
 		{
 			if (updateAction != null)
 			{
-				updateCounter++;
-				if (updateCounter >= updateFrequency)
+				if (updateFrequency <= 0f || lastUpdate + updateFrequency < Time.time)
 				{
-					updateCounter = 0;
+					lastUpdate = Time.time;
 					updateAction();
 				}
 			}

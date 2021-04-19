@@ -683,7 +683,7 @@ namespace KERBALISM
 			isRescue = CheckRescueStatus(Vessel, out rescueJustLoaded);
 
 			// dead EVA are not valid vessels
-			isEvaDead = EVA.IsDead(Vessel);
+			isEvaDead = Lib.IsEVADead(Vessel);
 
 			return isVessel && !isRescue && !isEvaDead;
 		}
@@ -740,7 +740,7 @@ namespace KERBALISM
 			// - vessel wide caches of radiation emitters and shields
 			Synchronizer.Synchronize();
 
-			// get crew count / capacity / info
+			// get crew data / count / capacity
 			CrewUpdate();
 
 			// don't update things that don't change often more than every 0.25 seconds of game time
@@ -769,13 +769,25 @@ namespace KERBALISM
 					module.OnFixedUpdate(elapsedSec);
 				}
 			}
+
+			foreach (KerbalData kerbal in Crew)
+			{
+				kerbal.OnFixedUpdate(this, elapsedSec);
+			}
 		}
 
 		private void CrewUpdate()
 		{
-			// TODO : acquire KerbalData references here
-			crewCount = Lib.CrewCount(Vessel);
+			// TODO : move all the synchronization things to the Synchronizer.Synchronize() method
+			Crew.Clear();
+			foreach (ProtoCrewMember stockCrew in Vessel.GetVesselCrew())
+			{
+				Crew.Add(DB.GetOrCreateKerbalData(stockCrew));
+			}
+			crewCount = Crew.Count;
 			crewCapacity = Lib.CrewCapacity(Vessel);
+
+			
 		}
 		
 		private void StateUpdate()
@@ -1036,8 +1048,8 @@ namespace KERBALISM
 
 			DB.AddNewVesselData(newVD);
 
-			Lib.LogDebug("Decoupling complete for new vessel, vd.partcount={1}, v.partcount={2} ({0})", Lib.LogLevel.Message, newVessel.vesselName, newVD.Parts.Count, newVessel.parts.Count);
-			Lib.LogDebug("Decoupling complete for old vessel, vd.partcount={1}, v.partcount={2} ({0})", Lib.LogLevel.Message, oldVessel.vesselName, oldVD.Parts.Count, oldVessel.parts.Count);
+			Lib.LogDebug($"Decoupling complete for new vessel, vd.partcount={newVD.Parts.Count}, v.partcount={newVessel.parts.Count} ({newVessel.vesselName})");
+			Lib.LogDebug($"Decoupling complete for old vessel, vd.partcount={oldVD.Parts.Count}, v.partcount={oldVessel.parts.Count} ({oldVessel.vesselName})");
 		}
 
 		/// <summary>
@@ -1045,7 +1057,7 @@ namespace KERBALISM
 		/// </summary>
 		public static void OnPartCouple(GameEvents.FromToAction<Part, Part> data)
 		{
-			Lib.LogDebug("Coupling part '{0}' from vessel '{1}' to vessel '{2}'", Lib.LogLevel.Message, data.from.partInfo.title, data.from.vessel.vesselName, data.to.vessel.vesselName);
+			Lib.LogDebug($"Coupling part '{data.from.partInfo.title}' from vessel '{data.from.vessel.vesselName}' to vessel '{data.to.vessel.vesselName}'");
 
 			Vessel fromVessel = data.from.vessel;
 			Vessel toVessel = data.to.vessel;
@@ -1072,8 +1084,8 @@ namespace KERBALISM
 			// reset a few things on the docked to vessel
 			toVD.OnVesselWasModified();
 
-			Lib.LogDebug("Coupling complete to   vessel, vd.partcount={1}, v.partcount={2} ({0})", Lib.LogLevel.Message, toVessel.vesselName, toVD.Parts.Count, toVessel.parts.Count);
-			Lib.LogDebug("Coupling complete from vessel, vd.partcount={1}, v.partcount={2} ({0})", Lib.LogLevel.Message, fromVessel.vesselName, fromVD.Parts.Count, fromVessel.parts.Count);
+			Lib.LogDebug($"Coupling complete to   vessel, vd.partcount={toVD.Parts.Count}, v.partcount={toVessel.parts.Count} ({toVessel.vesselName})");
+			Lib.LogDebug($"Coupling complete from vessel, vd.partcount={fromVD.Parts.Count}, v.partcount={fromVessel.parts.Count} ({fromVessel.vesselName})");
 		}
 
 		/// <summary>
@@ -1087,7 +1099,7 @@ namespace KERBALISM
 			vd.OnPartWillDie(part.flightID);
 
 			vd.OnVesselWasModified();
-			Lib.LogDebug("Removing dead part, vd.partcount={0}, v.partcount={1} (part '{2}' in vessel '{3}')", Lib.LogLevel.Message, vd.Parts.Count, part.vessel.parts.Count, part.partInfo.title, part.vessel.vesselName);
+			Lib.LogDebug($"Removing dead part, vd.partcount={vd.Parts.Count}, v.partcount={part.vessel.parts.Count} (part '{part.partInfo.title}' in vessel '{part.vessel.vesselName}')");
 		}
 
 		private void OnPartWillDie(uint flightId)

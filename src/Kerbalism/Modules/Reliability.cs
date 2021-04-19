@@ -522,7 +522,7 @@ namespace KERBALISM
 		{
 			// disable for dead eva kerbals
 			Vessel v = FlightGlobals.ActiveVessel;
-			if (v == null || EVA.IsDead(v)) return;
+			if (v == null || Lib.IsEVADead(v)) return;
 
 			// get normalized time to failure
 			double time_k = (Planetarium.GetUniversalTime() - last) / (next - last);
@@ -564,7 +564,7 @@ namespace KERBALISM
 		{
 			// disable for dead eva kerbals
 			Vessel v = FlightGlobals.ActiveVessel;
-			if (v == null || EVA.IsDead(v)) return;
+			if (v == null || Lib.IsEVADead(v)) return;
 
 			// check trait
 			if (!repair_cs.Check(v))

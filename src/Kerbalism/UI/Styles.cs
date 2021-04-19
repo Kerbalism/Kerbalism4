@@ -6,7 +6,7 @@ namespace KERBALISM
 	{
 		static Styles()
 		{
-			blackBackground = Lib.GetTexture("black-background");
+			blackBackground = Lib.GetTexture("black-background", 16, 16);
 
 			// window container
 			win = new GUIStyle(HighLogic.Skin.window)

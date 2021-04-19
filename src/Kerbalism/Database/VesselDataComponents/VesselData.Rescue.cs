@@ -20,7 +20,7 @@ namespace KERBALISM
 				// get kerbal data
 				// note : this whole thing rely on KerbalData.rescue being initialized to true
 				// when DB.Kerbal() (which is a get-or-create) is called for the first time
-				KerbalData kd = DB.Kerbal(c.name);
+				KerbalData kd = DB.GetOrCreateKerbalData(c);
 
 				// flag the kerbal as not rescue at prelaunch
 				// if the KerbalData wasn't created during prelaunch, that code won't be called

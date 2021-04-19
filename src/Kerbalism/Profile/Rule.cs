@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace KERBALISM
 {
 
-
+	/*
 	public sealed class Rule
 	{
 		public Rule(ConfigNode node)
@@ -297,7 +297,7 @@ namespace KERBALISM
 	}
 
 
-
+	*/
 
 
 } // KERBALISM

@@ -18,16 +18,15 @@ namespace KERBALISM.Events
 
 		static void Postfix(TooltipController_CrewAC __instance, ProtoCrewMember pcm)
 		{
-			var crewRules = DB.Kerbal(pcm.name).rules;
+			KerbalData kd = DB.GetOrCreateKerbalData(pcm);
 			sb.Length = 0;
 
-			foreach (var rule in Profile.rules)
+			foreach (KerbalRule rule in kd.rules)
 			{
-				if (!rule.lifetime) continue;
-				if (!crewRules.ContainsKey(rule.name)) continue;
+				if (rule.Definition.resetOnRecovery)
+					continue;
 
-				var level = crewRules[rule.name].problem / rule.fatal_threshold;
-				sb.Append(Lib.BuildString("<b>Career ", rule.title, "</b>: ", Lib.HumanReadablePerc(level), "\n"));
+				sb.Append(Lib.BuildString("<b>Career ", rule.Definition.title, "</b>: ", Lib.HumanReadablePerc(rule.Level), "\n"));
 			}
 
 			if (sb.Length > 0)

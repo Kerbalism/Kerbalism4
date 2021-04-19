@@ -30,6 +30,8 @@
     <Prefer32Bit>false</Prefer32Bit>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
     <NoWarn>IDE0018</NoWarn>
+    <DocumentationFile>
+    </DocumentationFile>
   </PropertyGroup>
   <!-- ///////////////////////////////////////////////////// -->
   <!-- //////////// RELEASE CONFIGURATION SETUP //////////// -->
@@ -186,15 +188,16 @@
     <Compile Include="Database\PartData\PartRadiationData.Occlusion.cs" />
     <Compile Include="Modules\Base\KsmModuleDefinition.cs" />
     <Compile Include="Modules\KsmRadiationEmitter\RadiationEmitterDefinition.cs" />
-    <Compile Include="Modules\StockModules\KerbalEVAHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleAsteroidDrillHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleCommandHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleScienceConverterHandler.cs" />
-    <Compile Include="Modules\SupportedModules\ModuleCryoTankHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleGeneratorHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleLightHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleResourceConverterHandler.cs" />
-    <Compile Include="Modules\StockModules\ModuleResourceHarvesterHandler.cs" />
+    <Compile Include="Modules\StockSupport\KerbalEVAHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleAsteroidDrillHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleCommandHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleScienceConverterHandler.cs" />
+    <Compile Include="Modules\ModsSupport\ModuleCryoTankHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleGeneratorHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleLightHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleResourceConverterHandler.cs" />
+    <Compile Include="Modules\StockSupport\ModuleResourceHarvesterHandler.cs" />
+    <Compile Include="Profile\KerbalRule.cs" />
     <Compile Include="ResourceSim\VirtualPartResource.cs" />
     <Compile Include="Database\PartData\PartResourceCollection.cs" />
     <Compile Include="Database\PartData\PartVirtualResourceCollection.cs" />
@@ -247,7 +250,6 @@
     <Compile Include="Database\KerbalData.cs" />
     <Compile Include="Database\PartData\PartData.cs" />
     <Compile Include="Database\PartData\PartDataCollectionVessel.cs" />
-    <Compile Include="Database\RuleData.cs" />
     <Compile Include="Database\VesselDataComponents\VesselEnvironment.cs" />
     <Compile Include="Database\VesselDataComponents\VesselSituations.cs" />
     <Compile Include="LocalizationCache.cs" />
@@ -322,6 +324,8 @@
     <Compile Include="UI\Science\ExperimentSubjectsList.cs" />
     <Compile Include="UI\Science\ExperimentPopup.cs" />
     <Compile Include="UI\Science\ScienceArchiveWindow.cs" />
+    <Compile Include="UI\Vessel\VesselSummary.cs" />
+    <Compile Include="Utility\CFGValue.cs" />
     <Compile Include="Utility\Collections.cs" />
     <Compile Include="Utility\DebugDrawer.cs" />
     <Compile Include="Utility\GotoVessel.cs" />
@@ -344,7 +348,6 @@
     <Compile Include="UI\Tooltip.cs" />
     <Compile Include="UI\UI.cs" />
     <Compile Include="Modules\PlannerController.cs" />
-    <Compile Include="EVA.cs" />
     <Compile Include="Profile\Profile.cs" />
     <Compile Include="Profile\Supply.cs" />
     <Compile Include="Profile\Rule.cs" />
@@ -364,7 +367,7 @@
     <Compile Include="Utility\Specifics.cs" />
     <Compile Include="Utility\Transformator.cs" />
     <Compile Include="System\Preferences.cs" />
-    <Compile Include="Modules\SupportedModules\KerbalismScansat.cs" />
+    <Compile Include="Modules\ModsSupport\KerbalismScansat.cs" />
     <Compile Include="Events\StockPatches\DeployedScienceExperiments.cs" />
     <Compile Include="Utility\Serenity.cs" />
     <Compile Include="Events\StockPatches\VesselRecovery.cs" />
@@ -388,9 +391,7 @@
     <Compile Include="Database\VesselDataComponents\VesselData.Synchronizer.cs" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Database\ModuleData\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- This target is called before the build, you can use it for debugging the build system -->
   <Target Name="BeforeBuild">

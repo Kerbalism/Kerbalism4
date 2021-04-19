@@ -77,10 +77,10 @@ namespace KERBALISM
 				// signal strength
 				controlPoint[1] = Lib.HumanReadablePerc(Math.Ceiling(signalStrength * 10000) / 10000, "F2");
 
-				// tooltip
+				// extra info
 				controlPoint[2] = Lib.BuildString(
 					"Distance: ", Lib.HumanReadableDistance(linkDistance),
-					"\nMax Distance: ", Lib.HumanReadableDistance(linkMaxDistance));
+					" (Max: ", Lib.HumanReadableDistance(linkMaxDistance), ")");
 
 				connection.control_path.Add(controlPoint);
 			}

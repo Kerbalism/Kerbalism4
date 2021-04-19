@@ -278,15 +278,7 @@ namespace KERBALISM
 		}
 	}
 
-	/// <summary>
-	/// If applied on a field or property, the value will parsed from the loaded ConfigNode.
-	/// Works on public and non-public members. Properties must have a setter.
-	/// The ConfigNode value name will be the same as the member name.
-	/// If the value isn't found in the node, it isn't overriden.
-	/// See the Serializaton class for a list of supported types.
-	/// </summary>
-	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-	public sealed class CFGValue : Attribute { }
+
 
 	public abstract class KsmModuleDefinition
 	{
@@ -327,37 +319,7 @@ namespace KERBALISM
 
 		public void Load()
 		{
-			foreach (FieldInfo field in GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-			{
-				if (!Attribute.IsDefined(field, typeof(CFGValue)))
-					continue;
-
-				string valueStr = config.GetValue(field.Name);
-
-				if (string.IsNullOrEmpty(valueStr))
-					continue;
-
-				if (Serialization.TryDeserialize(valueStr, field.FieldType, out object value))
-					field.SetValue(this, value);
-			}
-
-			foreach (PropertyInfo property in GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-			{
-				if (!property.CanWrite)
-					continue;
-
-				if (!Attribute.IsDefined(property, typeof(CFGValue)))
-					continue;
-
-				string valueStr = config.GetValue(property.Name);
-
-				if (string.IsNullOrEmpty(valueStr))
-					continue;
-
-				if (Serialization.TryDeserialize(valueStr, property.PropertyType, out object value))
-					property.SetValue(this, value);
-			}
-
+			CFGValue.Parse(this, config);
 			OnLoad(config);
 		}
 

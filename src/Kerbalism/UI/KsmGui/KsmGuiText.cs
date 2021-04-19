@@ -13,7 +13,7 @@ namespace KERBALISM.KsmGui
 
 		public KsmGuiText(
 			KsmGuiBase parent,
-			string text,
+			string text = "",
 			string tooltipText = null,
 			TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft,
 			bool wordWrap = true,

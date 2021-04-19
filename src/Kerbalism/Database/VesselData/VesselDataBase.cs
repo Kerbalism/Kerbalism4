@@ -11,6 +11,8 @@ namespace KERBALISM
 		public const string NODENAME_VESSEL = "KERBALISM_VESSEL";
 		public const string NODENAME_MODULE = "MODULES";
 
+		public static VesselDataBase ExpressionBuilderInstance { get; private set; } = new VesselDataBase();
+
 		#region BASE FIELDS/PROPERTIES
 
 		public ExpressionContext ModifierContext { get; private set; }
@@ -19,6 +21,8 @@ namespace KERBALISM
 
 		/// <summary>habitat info</summary>
 		public HabitatVesselData Habitat => habitatData; HabitatVesselData habitatData;
+
+		public List<KerbalData> Crew { get; private set; } = new List<KerbalData>();
 
 		// the following is to provide Flee modifiers access, it isn't functionally needed otherwise
 		private PreferencesReliability PrefReliability => PreferencesReliability.Instance;
@@ -41,6 +45,8 @@ namespace KERBALISM
 		public virtual bool IsPersistent => true;
 
 		public virtual PartDataCollectionBase Parts { get; }
+
+		public virtual List<KerbalData> Kerbals { get; }
 
 		public virtual VesselResHandler ResHandler { get; }
 

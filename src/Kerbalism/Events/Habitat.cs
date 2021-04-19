@@ -347,6 +347,11 @@ namespace KERBALISM
 			GameEvents.onEditorShipCrewModified.Fire(crewManifest);
 		}
 
+		internal void blah()
+		{
+			throw new NotImplementedException();
+		}
+
 		#endregion
 	}
 

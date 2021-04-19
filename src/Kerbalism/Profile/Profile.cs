@@ -15,7 +15,7 @@ namespace KERBALISM
 		public const string NODENAME_VIRTUAL_RESOURCE = "VIRTUAL_RESOURCE";
 		public const string NODENAME_RESOURCE_HVL = "RESOURCE_HVL";
 
-		public static List<Rule> rules;               // rules in the profile
+		public static List<KerbalRuleDefinition> rules;
 		public static List<Supply> supplies;          // supplies in the profile
 		public static List<Process> processes;        // processes in the profile
 
@@ -26,11 +26,11 @@ namespace KERBALISM
 			Radiation.PopulateResourcesOcclusionLibrary(profile_node.GetNodes(NODENAME_RESOURCE_HVL));
 
 			// parse all VirtualResourceDefinition
-			foreach (ConfigNode vResNode in profile_node.GetNodes(NODENAME_VIRTUAL_RESOURCE))
+			foreach (ConfigNode virtualResNode in profile_node.GetNodes(NODENAME_VIRTUAL_RESOURCE))
 			{
 				try
 				{
-					VirtualResourceDefinition vResDef = new VirtualResourceDefinition(vResNode);
+					VirtualResourceDefinition vResDef = new VirtualResourceDefinition(virtualResNode);
 					if (!VirtualResourceDefinition.definitions.ContainsKey(vResDef.name))
 					{
 						VirtualResourceDefinition.definitions.Add(vResDef.name, vResDef);
@@ -43,18 +43,17 @@ namespace KERBALISM
 			}
 
 			// parse all rules
-			foreach (ConfigNode rule_node in profile_node.GetNodes(NODENAME_RULE))
+			foreach (ConfigNode ruleNode in profile_node.GetNodes(NODENAME_RULE))
 			{
 				try
 				{
-					// parse rule
-					Rule rule = new Rule(rule_node);
+					KerbalRuleDefinition ruleDefinition = new KerbalRuleDefinition(ruleNode);
 
 					// ignore duplicates
-					if (rules.Find(k => k.name == rule.name) == null)
+					if (rules.Find(k => k.name == ruleDefinition.name) == null)
 					{
 						// add the rule
-						rules.Add(rule);
+						rules.Add(ruleDefinition);
 					}
 				}
 				catch (Exception e)
@@ -109,7 +108,7 @@ namespace KERBALISM
 		public static void Parse()
 		{
 			// initialize data
-			rules = new List<Rule>();
+			rules = new List<KerbalRuleDefinition>();
 			supplies = new List<Supply>();
 			processes = new List<Process>();
 
@@ -148,7 +147,7 @@ namespace KERBALISM
 				Lib.Log($"- {supply.resource}");
 
 			Lib.Log($"{rules.Count} {NODENAME_RULE} definitions found :");
-			foreach (Rule rule in rules)
+			foreach (KerbalRuleDefinition rule in rules)
 				Lib.Log($"- {rule.name}");
 
 			Lib.Log($"{processes.Count} {NODENAME_PROCESS} definitions found :");
@@ -167,15 +166,6 @@ namespace KERBALISM
 
 		public static void Execute(Vessel v, VesselData vd, VesselResHandler resources, double elapsed_s)
 		{
-			if(vd.CrewCount > 0)
-			{
-				// execute all rules
-				foreach (Rule rule in rules)
-				{
-					rule.Execute(v, vd, resources, elapsed_s);
-				}
-			}
-
 			foreach (Process process in processes)
 			{
 				process.Execute(vd, elapsed_s);

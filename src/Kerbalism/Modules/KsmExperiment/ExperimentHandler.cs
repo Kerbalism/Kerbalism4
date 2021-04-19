@@ -147,12 +147,15 @@ namespace KERBALISM
 
 		public void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition)
 		{
-			if (definition.ExpInfo != null && !definition.SampleCollecting && definition.ExpInfo.SampleMass > 0.0)
-				remainingSampleMass = definition.ExpInfo.SampleMass * definition.Samples;
-			else
+			if (definition.ExpInfo == null)
+			{
 				remainingSampleMass = 0.0;
-
-			loadedModule.OnDefinitionChanged();
+			}
+			else
+			{
+				remainingSampleMass = definition.SampleCollecting ? 0.0 : definition.ExpInfo.SampleMass * definition.Samples;
+				loadedModule.OnDefinitionChanged();
+			}
 		}
 
 		public void OnSwitchEnable() { }

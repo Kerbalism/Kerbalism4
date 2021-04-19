@@ -38,8 +38,8 @@ namespace KERBALISM
 				}
 			}
 
-			kerbal = DB.Kerbal(partData.LoadedPart.protoModuleCrew[0].name);
-			isDead = false;
+			kerbal = DB.GetOrCreateKerbalData(partData.LoadedPart.protoModuleCrew[0]);
+			isDead = false; // will be synchronized in the first FU in case kerbal.evaDead is true
 		}
 
 		public override void OnFixedUpdate(double elapsedSec)
@@ -65,7 +65,7 @@ namespace KERBALISM
 			}
 
 			// set dead state if necessary, but wait until the fsm is properly initialized
-			if (!isDead && kerbal.eva_dead && !string.IsNullOrEmpty(loadedModule.fsm.currentStateName))
+			if (!isDead && kerbal.evaDead && !string.IsNullOrEmpty(loadedModule.fsm.currentStateName))
 			{
 				SetDeadState(loadedModule);
 				isDead = true;

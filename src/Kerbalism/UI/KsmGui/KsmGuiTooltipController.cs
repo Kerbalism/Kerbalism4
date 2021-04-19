@@ -17,6 +17,9 @@ namespace KERBALISM.KsmGui
 		public RectTransform ContentTransform { get; private set; }
 		public bool IsVisible { get; private set; }
 
+		private RectTransform backgroundTranform;
+		private KsmGuiBase content;
+
 		private void Awake()
 		{
 			Instance = this;
@@ -78,7 +81,7 @@ namespace KERBALISM.KsmGui
 
 			// 2nd child : black background
 			GameObject background = new GameObject("KsmGuiTooltipBackground");
-			RectTransform backgroundTranform = background.AddComponent<RectTransform>();
+			backgroundTranform = background.AddComponent<RectTransform>();
 			backgroundTranform.SetParentFixScale(ContentTransform);
 			background.AddComponent<CanvasRenderer>();
 
@@ -118,15 +121,35 @@ namespace KERBALISM.KsmGui
 			textComponent.SetText(text);
 		}
 
-		public void ShowTooltip(string text)
+		public void ShowTooltip(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase tooltipContent = null)
 		{
-			if (!string.IsNullOrEmpty(text))
+			if (width == -1f)
+				width = KsmGuiStyle.tooltipMaxWidth;
+
+			TopTransform.sizeDelta = new Vector2(width, 0f);
+
+			if (string.IsNullOrEmpty(text))
 			{
-				tooltipObject.SetActive(true);
-				textComponent.SetText(text);
-				LayoutRebuilder.ForceRebuildLayoutImmediate(TopTransform);
-				IsVisible = true;
+				textComponent.enabled = false;
 			}
+			else
+			{
+				textComponent.enabled = true;
+				textComponent.alignment = textAlignement;
+				textComponent.SetText(text);
+			}
+
+			content?.TopObject.DestroyGameObject();
+
+			if (content != null)
+			{
+				content = tooltipContent;
+				content.TopTransform.SetParentFixScale(backgroundTranform);
+			}
+
+			tooltipObject.SetActive(true);
+			LayoutRebuilder.ForceRebuildLayoutImmediate(TopTransform);
+			IsVisible = true;
 		}
 
 		public void HideTooltip()
@@ -140,11 +163,21 @@ namespace KERBALISM.KsmGui
 			if (IsVisible)
 			{
 				Vector3 mouseWorldPos;
+				Vector3 position = new Vector3();
 				RectTransformUtility.ScreenPointToWorldPointInRectangle(TopTransform, Input.mousePosition, UIMasterController.Instance.uiCamera, out mouseWorldPos);
 
-				mouseWorldPos.x -= ContentTransform.rect.width / 2f;
-				mouseWorldPos.y += 15f;
-				TopTransform.position = mouseWorldPos;
+				position.x = mouseWorldPos.x - (ContentTransform.rect.width * ContentTransform.lossyScale.x * 0.5f);
+				position.y = mouseWorldPos.y + 15f;
+
+				if (position.x < -0.5f * Screen.width)
+					position.x = -0.5f * Screen.width;
+				else if (position.x + ContentTransform.rect.width * ContentTransform.lossyScale.x > 0.5f * Screen.width)
+					position.x = 0.5f * Screen.width - ContentTransform.rect.width * ContentTransform.lossyScale.x;
+
+				if (position.y + ContentTransform.rect.height * ContentTransform.lossyScale.y > 0.5f * Screen.height)
+					position.y = 0.5f * Screen.height - ContentTransform.rect.height * ContentTransform.lossyScale.y;
+
+				TopTransform.position = position;
 			}
 		}
 	}

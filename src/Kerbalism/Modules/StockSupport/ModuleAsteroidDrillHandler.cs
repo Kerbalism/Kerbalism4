@@ -89,7 +89,7 @@ namespace KERBALISM
 				}
 			}
 
-			// IsActivated will be true only if the drill was actively working (all checks done) when last unloaded
+			// IsActivated will be true only if the drill was actively working (all checks done) when last loaded
 			if (!Lib.Proto.GetBool(protoModule, nameof(ModuleAsteroidDrill.IsActivated)))
             {
 				handlerIsEnabled = false;
@@ -190,7 +190,7 @@ namespace KERBALISM
             {
 				lastLostMass += virtualOutput.Amount * asteroidResource.lastOutput * asteroidResource.resource.Density;
 				asteroidResource.lastOutput = asteroidResource.abundance * prefabModule.Efficiency * prefabModule.EfficiencyBonus * expBonus * elapsedSec;
-				// Note : stock allow dumping outputs if there is some space for at least one output. We have no way of replicating that, but
+				// Note : stock allow running the drill and dumping outputs if there is some space for at least one output. We have no way of replicating that, but
 				// we ensured that we have at least some capacity for every "resources" entry. Ideally we would give the player the option to select 
 				// what to dump, but the default "dump everything but ore" is good enough for now.
 				recipe.AddOutput(asteroidResource.resource.Name, asteroidResource.lastOutput, asteroidResource.dump); 

@@ -39,11 +39,13 @@ namespace KERBALISM
 					return false;
 				}
 
-				resourceOcclusion = new ResourceOcclusion();
-				resourceOcclusion.StockDefinition = stockDefinition;
-				resourceOcclusion.IsWallResource = Lib.ConfigValue(definitionNode, "isWallResource", false);
-				resourceOcclusion.LowHVL = Lib.ConfigValue(definitionNode, "lowHVL", 1.0);
-				resourceOcclusion.HighHVL = Lib.ConfigValue(definitionNode, "highHVL", 1.0);
+				resourceOcclusion = new ResourceOcclusion
+				{
+					StockDefinition = stockDefinition,
+					IsWallResource = Lib.ConfigValue(definitionNode, "isWallResource", false),
+					LowHVL = Lib.ConfigValue(definitionNode, "lowHVL", 1.0),
+					HighHVL = Lib.ConfigValue(definitionNode, "highHVL", 1.0)
+				};
 				return true;
 			}
 		}

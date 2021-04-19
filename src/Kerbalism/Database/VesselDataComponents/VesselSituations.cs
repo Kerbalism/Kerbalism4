@@ -100,8 +100,15 @@ namespace KERBALISM
 				switch (vd.Vessel.situation)
 				{
 					case Vessel.Situations.PRELAUNCH:
-					case Vessel.Situations.LANDED: situations.Add(ScienceSituation.SrfLanded); break;
-					case Vessel.Situations.SPLASHED: situations.Add(ScienceSituation.SrfSplashed); break;
+					case Vessel.Situations.LANDED:
+						if (body.ocean && vd.Vessel.altitude < -5.0)
+							situations.Add(ScienceSituation.SrfSplashed);
+						else
+							situations.Add(ScienceSituation.SrfLanded);
+						break;
+					case Vessel.Situations.SPLASHED:
+						situations.Add(ScienceSituation.SrfSplashed);
+						break;
 				}
 				situations.Add(ScienceSituation.Surface);
 				situations.Add(ScienceSituation.BodyGlobal);

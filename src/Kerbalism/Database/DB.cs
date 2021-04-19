@@ -19,8 +19,9 @@ namespace KERBALISM
 		public static Version version;
 		// savegame unique id
 		private static Guid uid;
-		// store data per-kerbal
-		private static Dictionary<string, KerbalData> kerbals;
+		// Store data per-kerbal.
+		// Using ProtoCrewMember as keys because that is faster and safer than using the kerbal name as a string.
+		private static Dictionary<ProtoCrewMember, KerbalData> kerbals = new Dictionary<ProtoCrewMember, KerbalData>();
 		// store data per-vessel
 		private static Dictionary<Guid, VesselData> vessels = new Dictionary<Guid, VesselData>();
 		// store data per-body
@@ -29,7 +30,6 @@ namespace KERBALISM
 		private static UIData uiData;                               
 
 		public static Guid Guid => uid;
-		public static Dictionary<string, KerbalData> Kerbals => kerbals;
 		public static UIData UiData => uiData;
 		public static Dictionary<Guid, VesselData>.ValueCollection VesselDatas => vessels.Values;
 		public static bool VesselExist(Guid guid) => vessels.ContainsKey(guid);
@@ -55,14 +55,22 @@ namespace KERBALISM
             uid = Lib.ConfigValue(node, VALUENAME_UID, Guid.NewGuid());
 
 			// load kerbals data
-			kerbals = new Dictionary<string, KerbalData>();
-            if (node.HasNode(NODENAME_KERBALS))
-            {
-                foreach (var kerbal_node in node.GetNode(NODENAME_KERBALS).GetNodes())
-                {
-                    kerbals.Add(FromSafeKey(kerbal_node.name), new KerbalData(kerbal_node));
-                }
-            }
+			kerbals.Clear();
+			if (HighLogic.CurrentGame.CrewRoster != null)
+			{
+				ConfigNode kerbalsNode = node.GetNode(NODENAME_KERBALS);
+				if (kerbalsNode != null)
+				{
+					foreach (ConfigNode kerbalNode in kerbalsNode.GetNodes())
+					{
+						KerbalData kerbalData = KerbalData.Load(HighLogic.CurrentGame.CrewRoster, kerbalNode);
+						if (kerbalData != null)
+						{
+							kerbals.Add(kerbalData.stockKerbal, kerbalData);
+						}
+					}
+				}
+			}
 
 			// load the science database, has to be before vessels are loaded
 			ScienceDB.Load(node);
@@ -137,11 +145,11 @@ namespace KERBALISM
             node.AddValue(VALUENAME_UID, uid);
 
 			// save kerbals data
-			var kerbals_node = node.AddNode(NODENAME_KERBALS);
-            foreach (var p in kerbals)
-            {
-                p.Value.Save(kerbals_node.AddNode(ToSafeKey(p.Key)));
-            }
+			ConfigNode kerbalsNode = node.AddNode(NODENAME_KERBALS);
+			foreach (KerbalData kerbal in kerbals.Values)
+			{
+				kerbal.Save(kerbalsNode);
+			}
 
 			// only persist vessels that exists in KSP own vessel persistence
 			// this prevent creating junk data without going into the mess of using gameevents
@@ -263,54 +271,41 @@ namespace KERBALISM
 
 		#region KERBALS METHODS
 
-		public static KerbalData Kerbal(string name)
+		/// <summary>
+		/// Get a KerbalData given a stock ProtoCrewMember reference, but only if that Kerbal is known is the DB
+		/// </summary>
+		public static bool TryGetKerbalData(ProtoCrewMember stockKerbal, out KerbalData kerbalData)
 		{
-			if (!kerbals.ContainsKey(name))
-			{
-				kerbals.Add(name, new KerbalData());
-			}
-			return kerbals[name];
+			return kerbals.TryGetValue(stockKerbal, out kerbalData);
 		}
 
-		public static bool ContainsKerbal(string name)
-        {
-            return kerbals.ContainsKey(name);
-        }
+		/// <summary>
+		/// Get or create the KerbalData given a stock ProtoCrewMember reference
+		/// </summary>
+		public static KerbalData GetOrCreateKerbalData(ProtoCrewMember stockKerbal)
+		{
+			if (!kerbals.TryGetValue(stockKerbal, out KerbalData kerbalData))
+			{
+				kerbalData = new KerbalData(stockKerbal, true);
+				kerbals.Add(stockKerbal, kerbalData);
+			}
+			return kerbalData;
+		}
 
-        /// <summary>
-        /// Remove a Kerbal and his lifetime data from the database
-        /// </summary>
-        public static void KillKerbal(String name, bool reallyDead)
-        {
-            if (reallyDead)
-            {
-                kerbals.Remove(name);
-            }
-            else
-            {
-                // called when a vessel is destroyed. don't remove the kerbal just yet,
-                // check with the roster if the kerbal is dead or not
-                Kerbal(name).Recover();
-            }
-        }
-
-        /// <summary>
-        /// Resets all process data of a kerbal, except lifetime data
-        /// </summary>
-        public static void RecoverKerbal(string name)
-        {
-            if (ContainsKerbal(name))
-            {
-                if (Kerbal(name).eva_dead)
-                {
-                    kerbals.Remove(name);
-                }
-                else
-                {
-                    Kerbal(name).Recover();
-                }
-            }
-        }
+		/// <summary>
+		/// Alternate method for getting a kerbal data by name. When possible, use the faster GetOrCreateKerbalData(ProtoCrewMember stockKerbal) method instead.
+		/// </summary>
+		public static bool TryGetOrCreateKerbalData(string kerbalName, out KerbalData kerbalData)
+		{
+			ProtoCrewMember stockKerbal = HighLogic.CurrentGame.CrewRoster[kerbalName];
+			if (stockKerbal != null)
+			{
+				kerbalData = GetOrCreateKerbalData(stockKerbal);
+				return true;
+			}
+			kerbalData = null;
+			return false;
+		}
 
 		#endregion
 

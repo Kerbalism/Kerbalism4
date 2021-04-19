@@ -415,6 +415,7 @@ namespace KERBALISM
 
 		void Problem_kerbals(List<ProtoCrewMember> crew, ref List<Texture2D> icons, ref List<string> tooltips)
 		{
+			/*
 			UInt32 health_severity = 0;
 			UInt32 stress_severity = 0;
 			foreach (ProtoCrewMember c in crew)
@@ -447,6 +448,7 @@ namespace KERBALISM
 			else if (health_severity == 2) icons.Add(Textures.health_red);
 			if (stress_severity == 1) icons.Add(Textures.brain_yellow);
 			else if (stress_severity == 2) icons.Add(Textures.brain_red);
+			*/
 		}
 
 		void Problem_radiation(VesselData vd, ref List<Texture2D> icons, ref List<string> tooltips)

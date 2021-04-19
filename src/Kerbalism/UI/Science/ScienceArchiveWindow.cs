@@ -124,7 +124,7 @@ namespace KERBALISM
 				if (experimentInfo.IsROC)
 					ROCExpInfos.Add(experimentInfo);
 
-			window.SetUpdateAction(Update, 20);
+			window.SetUpdateAction(Update, 0.1f);
 
 			//Callbacks.onConfigure.Add(OnConfigure);
 

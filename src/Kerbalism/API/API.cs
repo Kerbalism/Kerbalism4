@@ -24,6 +24,11 @@ namespace KERBALISM
 
 		#region KERBALS
 
+		/*
+
+		// DEPRECIATED
+		// Will see what we do regarding the API in the future.
+		 
 		// kill a kerbal, even an EVA one
 		public static void Kill(Vessel v, ProtoCrewMember c)
 		{
@@ -76,6 +81,8 @@ namespace KERBALISM
 				}
 			}
 		}
+
+		*/
 
 		#endregion
 

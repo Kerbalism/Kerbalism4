@@ -1,0 +1,116 @@
+  RULE
+  {
+    name = climatization
+    title = #KERBALISM_RuleName_climatization
+    input = ElectricCharge
+    rate = 0.0001 // per-kelvin (temp diff), per m^3 (living space), per-second
+    degeneration = 0.00000007 // about 2h at 100k temp diff in 20m^3
+    //modifier = temperature,volume,per_capita
+    modifier = (EnvTempDiff * Habitat.livingVolume) / Max(CrewCount, 1.0)
+    warning_message = #KERBALISM_climatization_warning
+    danger_message = #KERBALISM_climatization_danger
+    fatal_message = #KERBALISM_climatization_fatal
+    relax_message = #KERBALISM_climatization_relax
+  }
+
+  RULE
+  {
+    name = eating
+    title = #KERBALISM_RuleName_eating
+    input = Food
+    output = Waste
+    rate = 0.00001215 // Based on ISS figures of dehydrated food of 0.59Kg/meal 3 times/day = 1.77Kg/day.
+                        // Kerbals use 1/16 of an astronauts use and have 2 meals/day giving figures of 0.036875Kg/meal = 0.07375Kg/day
+                        // Food to Waste mass difference is calculated internally
+    individuality = 0.01
+    degeneration = 0.00001543 // 15 days
+    warning_message = #KERBALISM_food_warning
+    danger_message = #KERBALISM_food_danger
+    fatal_message = #KERBALISM_food_fatal
+    relax_message = #KERBALISM_food_relax
+  }
+
+  RULE
+  {
+    name = drinking
+    title = #KERBALISM_RuleName_drinking
+    input = Water
+    output = WasteWater
+    rate = 0.00000622 // Based on ISS figures of 1.62Kg/day drinking and 0.8Kg/day to rehydrate food 3 times/day = 2.42 Kg/day.
+                      // Kerbals use 1/16 of an astronauts use and have 2 meals/day giving figures of 0.10125Kg/day drinking
+                      // and 0.033125Kg/day to rehydrate food 2 times/day = 0.134375Kg/day.
+                      // Water to WasteWater mass difference is calculated internally.
+    degeneration = 0.00000309 // 3 days
+    individuality = 0.01
+    warning_message = #KERBALISM_water_warning
+    danger_message = #KERBALISM_water_danger
+    fatal_message = #KERBALISM_water_fatal
+    relax_message = #KERBALISM_water_relax
+  }
+
+  RULE
+  {
+    name = breathing
+    title = #KERBALISM_RuleName_breathing
+    input = Oxygen
+    output = KsmWasteAtmosphere
+    rate = 0.00172379825 // Based on ISS figures of 0.84Kg/day. Kerbals use 1/16 of an astronauts use giving figures of 0.0525Kg/day.
+                         // Oxygen to WasteAtmosphere mass difference is calculated internally
+    degeneration = 0.0055555 // 3 minutes
+    warning_message = #KERBALISM_oxygen_warning
+    danger_message = #KERBALISM_oxygen_danger
+    fatal_message = #KERBALISM_oxygen_fatal
+    relax_message = #KERBALISM_oxygen_relax
+  }
+
+  RULE
+  {
+    name = co2Poisoning
+    title = #KERBALISM_RuleName_co2poisoning
+    degeneration = 0.0005555 // 30 minutes
+    // modifier = poisoning
+    modifier = if(Habitat.poisoningLevel > 0.02, 1.0, 0.0)
+    warning_threshold = 0.23
+    warning_message = #KERBALISM_co2_warning
+    danger_message = #KERBALISM_co2_danger
+    fatal_message = #KERBALISM_co2_fatal
+    relax_message = #KERBALISM_co2_relax
+  }
+
+  RULE
+  {
+    name = stress
+    title = #KERBALISM_RuleName_stress
+    degeneration = 0.00000925926 // 5 kerbin days
+    regeneration = 0.00000010919 // 1 kerbin year
+    variance = 0.33 // add per-kerbal variance
+    individuality = 0.1
+    modifier = Pow((2.0 - Pow(Habitat.livingSpaceFactor, 0.25) - Pow(Habitat.comfortFactor, 0.5)) / 2.0, 4.0)
+    breakdown = true // trigger breakdown event instead of death
+    warning_message = #KERBALISM_stress_warning
+    danger_message = #KERBALISM_stress_danger
+    relax_message = #KERBALISM_stress_relax
+
+    // old formula (no stress regeneration)
+    // degeneration = 0.00000000463 // 10000 kerbin days
+    // modifier = ((1.0 / Max(0.1, Habitat.livingSpaceFactor)) / Max(0.1, Habitat.comfortFactor)) * Max(1.0, (1.0 - Habitat.pressureFactor) * 20.0)
+  }
+
+  RULE
+  {
+    name = radiation
+    title = #KERBALISM_RuleName_radiation
+    degeneration = 1.0 // just use the modifier
+    variance = 0.1 // add per-kerbal variance
+    individuality = 0.15
+    lifetime = true // this is a life time value
+    //modifier = radiation,shielding
+    modifier = EnvHabitatRadiation
+    warning_threshold = 25.0
+    danger_threshold = 37.5
+    fatal_threshold = 50.0
+    warning_message = #KERBALISM_radiation_warning
+    danger_message = #KERBALISM_radiation_danger
+    fatal_message = #KERBALISM_radiation_fatal
+    relax_message = #KERBALISM_radiation_relax
+  }

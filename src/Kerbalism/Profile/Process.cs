@@ -2,6 +2,7 @@ using Flee.PublicTypes;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 namespace KERBALISM
 {
@@ -13,24 +14,22 @@ namespace KERBALISM
 			public string displayName;
 			public string abbreviation;
 			public double rate;
+			public double ratio;
+			public PartResourceDefinition resourceDef;
 
-			public virtual bool Load(ConfigNode node)
+			public virtual bool Load(string processName, ConfigNode node)
 			{
 				name = Lib.ConfigValue(node, "name", string.Empty);
 				if (name.Length == 0)
 				{
-					Lib.Log($"skipping INPUT definition with no name in process {name}", Lib.LogLevel.Error);
+					Lib.Log($"skipping INPUT definition with no name in process `{processName}`", Lib.LogLevel.Error);
 					return false;
 				}
 
 				rate = Lib.ConfigValue(node, "rate", 0.0);
-				if (rate <= 0.0)
-				{
-					Lib.Log($"skipping INPUT definition with no rate in process {name}", Lib.LogLevel.Error);
-					return false;
-				}
+				ratio = Lib.ConfigValue(node, "ratio", 0.0);
 
-				PartResourceDefinition resourceDef = PartResourceLibrary.Instance.GetDefinition(name);
+				resourceDef = PartResourceLibrary.Instance.GetDefinition(name);
 				if (resourceDef != null)
 				{
 					displayName = resourceDef.displayName;
@@ -46,16 +45,31 @@ namespace KERBALISM
 			}
 		}
 
-		public class Input : Resource { }
+		public class Input : Resource
+		{
+			public override bool Load(string processName, ConfigNode node)
+			{
+				if (!base.Load(processName, node))
+					return false;
+
+				if (rate <= 0.0)
+				{
+					Lib.Log($"skipping INPUT `{name}` with no rate in process `{processName}`", Lib.LogLevel.Error);
+					return false;
+				}
+
+				return true;
+			}
+		}
 
 		public class Output : Resource
 		{
 			public bool canDump;
 			public bool dumpByDefault;
 
-			public override bool Load(ConfigNode node)
+			public override bool Load(string processName, ConfigNode node)
 			{
-				if (!base.Load(node))
+				if (!base.Load(processName, node))
 					return false;
 
 				canDump = Lib.ConfigValue(node, "canDump", true);
@@ -69,7 +83,6 @@ namespace KERBALISM
 			}
 		}
 
-		private static VesselDataBase modifierData = new VesselDataBase();
 		private static StringBuilder sb = new StringBuilder();
 
 		public string name;                           // unique name for the process
@@ -78,6 +91,7 @@ namespace KERBALISM
 		public bool canToggle;                        // defines if this process can be toggled
 		public List<Input> inputs;
 		public List<Output> outputs;
+		public bool massConservation;
 
 		public ResourceBroker broker;
 		public bool hasModifier;
@@ -101,7 +115,8 @@ namespace KERBALISM
 			title = Lib.ConfigValue(node, "title", string.Empty);
 			desc = Lib.ConfigValue(node, "desc", string.Empty);
 			canToggle = Lib.ConfigValue(node, "canToggle", true);
-			
+			massConservation = Lib.ConfigValue(node, "massConservation", false);
+
 			broker = ResourceBroker.GetOrCreate(name, ResourceBroker.BrokerCategory.Converter, title);
 
 			string modifierString = Lib.ConfigValue(node, "modifier", string.Empty);
@@ -110,11 +125,11 @@ namespace KERBALISM
 			{
 				try
 				{
-					modifier = modifierData.ModifierContext.CompileGeneric<double>(modifierString);
+					modifier = VesselDataBase.ExpressionBuilderInstance.ModifierContext.CompileGeneric<double>(modifierString);
 				}
 				catch (Exception e)
 				{
-					ErrorManager.AddError(false, $"Can't parse modifier for process '{name}'", $"modifier: {modifierString}\n{e.Message}");
+					ErrorManager.AddError(false, $"Can't parse modifier for process '{name}'", $"expression: {modifierString}\n{e.Message}");
 					hasModifier = false;
 				}
 			}
@@ -123,7 +138,7 @@ namespace KERBALISM
 			foreach (ConfigNode inputNode in node.GetNodes("INPUT"))
 			{
 				Input input = new Input();
-				if (!input.Load(inputNode))
+				if (!input.Load(name, inputNode))
 					continue;
 
 				inputs.Add(input);
@@ -133,10 +148,90 @@ namespace KERBALISM
 			foreach (ConfigNode outputNode in node.GetNodes("OUTPUT"))
 			{
 				Output output = new Output();
-				if (!output.Load(outputNode))
+				if (!output.Load(name, outputNode))
 					continue;
 
 				outputs.Add(output);
+			}
+
+			
+			double inputsMass = 0.0;
+			Input mainInput = inputs.Find(p => p.rate > 0.0 && p.ratio > 0.0);
+
+			foreach (Input input in inputs)
+			{
+				/*
+				This allow to define inputs with a rate + ratio on a specific input, and
+				others inputs having only a ratio and their rate being calculated. Example :
+				INPUT
+				{
+					// only one input can have both a rate and ratio defined
+					name = ore
+					rate = 0.001
+					ratio = 0.5
+				}
+				INPUT
+				{
+					// only ratio defined : rate will be 0.001 * (1.0 / 0.5) = 0.002
+					name = water
+					ratio = 1.0
+				}
+				INPUT
+				{
+					// only rate defined : no influence from or toward the other inputs
+					name = ElectricCharge
+					rate = 2.5 
+				}
+				*/
+				if (mainInput != null && input.rate == 0.0)
+				{
+					input.rate = mainInput.rate * (input.ratio / mainInput.ratio);
+				}
+
+				if (input.resourceDef != null && input.resourceDef.density > 0f)
+				{
+					inputsMass += input.rate * input.resourceDef.density;
+				}
+			}
+
+
+			if (massConservation)
+			{
+				/*
+				using outputMassConservation :
+				- require to have at least one non-massless input
+				- if multiple non-massless outputs : use ratios on the outputs for which you want the sum of their mass being equal to the sum of the mass of all inputs
+				- if there is a single non-massless output, you don't need to define the ratio
+				- massless outputs can't use a ratio, they must define a rate
+				- you can exclude a non-massless output from being mass-conservating by defining it's rate and not defining it's ratio.
+				*/
+
+				double outputsTotalRatios = 0.0;
+				foreach (Output output in outputs)
+				{
+					if (output.rate == 0.0 && output.resourceDef != null && output.resourceDef.density > 0f)
+					{
+						if (output.ratio == 0.0)
+							output.ratio = 1.0;
+
+						outputsTotalRatios += output.ratio;
+					}
+				}
+
+				foreach (Output output in outputs)
+				{
+					if (output.rate == 0.0)
+					{
+						if (output.resourceDef == null || output.resourceDef.density == 0f)
+						{
+							ErrorManager.AddError(false, $"Error parsing process '{name}'", $"Output '{output.name}' is massless but has no rate defined !");
+							throw new Exception($"Error parsing process '{name}'");
+						}
+
+						double mass = inputsMass * (output.ratio / outputsTotalRatios);
+						output.rate = mass / output.resourceDef.density;
+					}
+				}
 			}
 
 			if (inputs.Count == 0 && outputs.Count == 0)
@@ -256,21 +351,21 @@ namespace KERBALISM
 			StringBuilder sb = new StringBuilder();
 
 			// this will only be printed if the process looks suspicious
-			sb.Append($"Process {name} changes total mass of vessel:").AppendLine();
+			sb.AppendKSPLine($"Process {name} changes total mass of vessel:");
 
 			foreach (Input i in inputs)
 			{
 				PartResourceDefinition resourceDef = PartResourceLibrary.Instance.GetDefinition(i.name);
 				if (resourceDef == null)
 				{
-					sb.Append($"Unknown input resource {i.name}").AppendLine();
+					sb.AppendKSPLine($"Unknown input resource {i.name}");
 				}
 				else
 				{
 					double kilosPerUnit = resourceDef.density * 1000.0;
 					double kilosPerHour = 3600.0 * i.rate * kilosPerUnit;
 					totalInputMass += kilosPerHour;
-					sb.Append($"Input {i.name}@{i.rate} = {kilosPerHour} kg/h").AppendLine();
+					sb.AppendKSPLine($"Input {i.name}@{i.rate} = {kilosPerHour} kg/h");
 				}
 			}
 
@@ -279,19 +374,19 @@ namespace KERBALISM
 				PartResourceDefinition resourceDef = PartResourceLibrary.Instance.GetDefinition(o.name);
 				if (resourceDef == null)
 				{
-					sb.Append($"$Unknown output resource {o.name}").AppendLine();
+					sb.AppendKSPLine($"$Unknown output resource {o.name}");
 				}
 				else
 				{
 					double kilosPerUnit = resourceDef.density * 1000.0;
 					double kilosPerHour = 3600.0 * o.rate * kilosPerUnit;
 					totalOutputMass += kilosPerHour;
-					sb.Append($"Output {o.name}@{o.rate} = {kilosPerHour} kg/h").AppendLine();
+					sb.AppendKSPLine($"Output {o.name}@{o.rate} = {kilosPerHour} kg/h");
 				}
 			}
 
-			sb.Append($"Total input mass : {totalInputMass}").AppendLine();
-			sb.Append($"Total output mass: {totalOutputMass}").AppendLine();
+			sb.AppendKSPLine($"Total input mass : {totalInputMass}");
+			sb.AppendKSPLine($"Total output mass: {totalOutputMass}");
 
 			// there will be some numerical errors involved in the simulation.
 			// due to the very small numbers (very low rates per second, calculated 20 times per second and more),
@@ -303,14 +398,14 @@ namespace KERBALISM
 
 			if (diff > 0.001) // warn if process generates > 1g/h
 			{
-				sb.Append($"Process is generating mass: {diff} kg/h ({(diff * 1000.0).ToString("F5")} g/h)").AppendLine();
-				sb.Append("Note: this might be expected behaviour if external resources (like air) are used as an input.").AppendLine();
+				sb.AppendKSPLine($"Process is generating mass: {diff} kg/h ({(diff * 1000.0).ToString("F5")} g/h)");
+				sb.AppendKSPLine("Note: this might be expected behaviour if external resources (like air) are used as an input.");
 				Lib.Log(sb.ToString());
 			}
 
 			if (diff < -0.01) // warn if process looses > 10g/h
 			{
-				sb.Append($"Process looses more than 1g/h mass: {diff} kg/h ({(diff * 1000.0).ToString("F5")} g/h)");
+				sb.AppendKSPLine($"Process looses more than 1g/h mass: {diff} kg/h ({(diff * 1000.0).ToString("F5")} g/h)");
 				Lib.Log(sb.ToString());
 			}
 #endif

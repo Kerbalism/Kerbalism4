@@ -1,3 +1,4 @@
+using KERBALISM.KsmGui;
 using KSP.UI.Screens;
 using UnityEngine;
 
@@ -7,6 +8,8 @@ namespace KERBALISM
 
 	public sealed class Launcher
 	{
+		private KsmGuiWindow test;
+
 		// click through locks
 		private bool clickThroughLocked = false;
 		private const ControlTypes MainGUILockTypes = ControlTypes.MANNODE_ADDEDIT | ControlTypes.MANNODE_DELETE | ControlTypes.MAP_UI |
@@ -98,6 +101,19 @@ namespace KERBALISM
 			// do nothing if GUI has not been initialized
 			if (!ui_initialized)
 				return;
+
+			if (!vesselListLauncher.toggleButton.Value && test != null)
+			{
+				test.Close();
+				test = null;
+			}
+
+			if (vesselListLauncher.toggleButton.Value && test == null)
+			{
+				test = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
+				new VesselSummaryUI(test, false, FlightGlobals.ActiveVessel.GetVesselData());
+			}
+
 
 			// render the window
 			if (vesselListLauncher.toggleButton.Value || vesselListLauncher.IsHovering || (win_rect.width > 0f && win_rect.Contains(Mouse.screenPos)))

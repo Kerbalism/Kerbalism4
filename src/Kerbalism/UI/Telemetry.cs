@@ -238,6 +238,7 @@ namespace KERBALISM
 
 		static void Render_crew(Panel p, List<ProtoCrewMember> crew)
 		{
+			/*
 			// do nothing if there isn't a crew, or if there are no rules
 			if (crew.Count == 0 || Profile.rules.Count == 0) return;
 
@@ -286,6 +287,7 @@ namespace KERBALISM
 				p.AddRightIcon(health_severity == 0 ? Textures.health_white : health_severity == 1 ? Textures.health_yellow : Textures.health_red, tooltip);
 				p.AddRightIcon(stress_severity == 0 ? Textures.brain_white : stress_severity == 1 ? Textures.brain_yellow : Textures.brain_red, tooltip);
 			}
+			*/
 		}
 	}
 

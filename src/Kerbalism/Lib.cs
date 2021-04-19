@@ -13,6 +13,7 @@ using KSP.UI;
 using KSP.UI.Screens.Flight;
 using System.Collections;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace KERBALISM
@@ -28,58 +29,94 @@ namespace KERBALISM
 			Error
 		}
 
-		private static void Log(MethodBase method, string message, LogLevel level)
+		private const string modName = "Kerbalism";
+
+		///<summary>write a message to the log</summary>
+		public static void Log(string message, LogLevel level = LogLevel.Message,
+		[CallerMemberName] string memberName = "",
+		[CallerFilePath] string sourceFilePath = "")
 		{
 			switch (level)
 			{
 				default:
-					UnityEngine.Debug.Log(string.Format("[Kerbalism] {0}.{1} {2}", method.ReflectedType.Name, method.Name, message));
+					UnityEngine.Debug.Log($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
 					return;
 				case LogLevel.Warning:
-					UnityEngine.Debug.LogWarning(string.Format("[Kerbalism] {0}.{1} {2}", method.ReflectedType.Name, method.Name, message));
+					UnityEngine.Debug.LogWarning($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
 					return;
 				case LogLevel.Error:
-					UnityEngine.Debug.LogError(string.Format("[Kerbalism] {0}.{1} {2}", method.ReflectedType.Name, method.Name, message));
+					UnityEngine.Debug.LogError($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
 					return;
 			}
 		}
 
-		///<summary>write a message to the log</summary>
-		public static void Log(string message, LogLevel level = LogLevel.Message, params object[] param)
-		{
-			StackTrace stackTrace = new StackTrace();
-			Log(stackTrace.GetFrame(1).GetMethod(), string.Format(message, param), level);
-		}
-
 		///<summary>write a message and the call stack to the log</summary>
-		public static void LogStack(string message, LogLevel level = LogLevel.Message, params object[] param)
+		public static void LogStack(string message, LogLevel level = LogLevel.Message,
+			[CallerMemberName] string memberName = "",
+			[CallerFilePath] string sourceFilePath = "")
 		{
-			StackTrace stackTrace = new StackTrace();
-			Log(stackTrace.GetFrame(1).GetMethod(), string.Format(message, param), level);
+			StackTrace trace;
 
-			// KSP will already log the stacktrace if the log level is error
-			if (level != LogLevel.Error)
-				UnityEngine.Debug.Log(stackTrace);
+			switch (level)
+			{
+				default:
+					trace = new StackTrace();
+					UnityEngine.Debug.Log($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n\t{trace.ToString().Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Warning:
+					trace = new StackTrace();
+					UnityEngine.Debug.LogWarning($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n\t{trace.ToString().Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Error:
+					// KSP will already log the stacktrace if the log level is error
+					UnityEngine.Debug.LogError($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n");
+					return;
+			}
 		}
 
 		///<summary>write a message to the log, only on DEBUG and DEVBUILD builds</summary>
 		[Conditional("DEBUG"), Conditional("DEVBUILD")]
-		public static void LogDebug(string message, LogLevel level = LogLevel.Message, params object[] param)
+		public static void LogDebug(string message, LogLevel level = LogLevel.Message,
+		[CallerMemberName] string memberName = "",
+		[CallerFilePath] string sourceFilePath = "")
 		{
-			StackTrace stackTrace = new StackTrace();
-			Log(stackTrace.GetFrame(1).GetMethod(), string.Format(message, param), level);
+			switch (level)
+			{
+				default:
+					UnityEngine.Debug.Log($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Warning:
+					UnityEngine.Debug.LogWarning($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Error:
+					UnityEngine.Debug.LogError($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+			}
 		}
 
 		///<summary>write a message and the full call stack to the log, only on DEBUG and DEVBUILD builds</summary>
 		[Conditional("DEBUG"), Conditional("DEVBUILD")]
-		public static void LogDebugStack(string message, LogLevel level = LogLevel.Message, params object[] param)
+		public static void LogDebugStack(string message, LogLevel level = LogLevel.Message,
+			[CallerMemberName] string memberName = "",
+			[CallerFilePath] string sourceFilePath = "")
 		{
-			StackTrace stackTrace = new StackTrace();
-			Log(stackTrace.GetFrame(1).GetMethod(), string.Format(message, param), level);
+			StackTrace trace;
 
-			// KSP will already log the stacktrace if the log level is error
-			if (level != LogLevel.Error)
-				UnityEngine.Debug.Log(stackTrace);
+			switch (level)
+			{
+				default:
+					trace = new StackTrace();
+					UnityEngine.Debug.Log($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n\t{trace.ToString().Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Warning:
+					trace = new StackTrace();
+					UnityEngine.Debug.LogWarning($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n\t{trace.ToString().Replace("\n", "\r\n\t").TrimEnd()}");
+					return;
+				case LogLevel.Error:
+					// KSP will already log the stacktrace if the log level is error
+					UnityEngine.Debug.LogError($"[{modName}:{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}] {message.Replace("\n", "\r\n\t").TrimEnd()}\r\n");
+					return;
+			}
 		}
 
 		/// <summary> This constant is being set by the build system when a dev release is requested</summary>
@@ -197,6 +234,15 @@ namespace KERBALISM
 		{
 			return a * (1.0 - k) + b * k;
 		}
+
+		/// <summary>
+		/// For a value in range [inputMin, inputMax], return the linearly scaled value in the range [outputMin, outputMax]
+		/// </summary>
+		public static double MapValueToRange(double value, double inputMin, double inputMax, double outputMin, double outputMax)
+		{
+			return (outputMax - outputMin) * (value - inputMin) / (inputMax - inputMin) + outputMin;
+		}
+
 		#endregion
 
 		#region 3D MATH
@@ -427,12 +473,30 @@ namespace KERBALISM
 			return (float)rng.NextDouble();
 		}
 
+		///<summary>return random float [min, max]</summary>
+		public static float RandomFloat(float min, float max)
+		{
+			return (max - min) * RandomFloat() / 1f + min;
+		}
+
 		///<summary>return random double [0..1]</summary>
 		public static double RandomDouble()
 		{
 			return rng.NextDouble();
 		}
 
+		///<summary>return random double [min, max]</summary>
+		public static double RandomDouble(double min, double max)
+		{
+			return (max - min) * RandomDouble() / 1.0 + min;
+		}
+
+		///<summary> return a random but deterministic double in range [min, max] for the given string seed </summary>
+		public static double RandomDeterministic(string seed, double min, double max)
+		{
+			double k = (double)Hash32(seed) / uint.MaxValue;
+			return min + k * (max - min);
+		}
 
 		static int fast_float_seed = 1;
 		/// <summary>
@@ -469,10 +533,10 @@ namespace KERBALISM
 		}
 
 		///<summary>get 32bit FNV-1a hash of a string</summary>
-		public static UInt32 Hash32(string s)
+		public static uint Hash32(string s)
 		{
 			// offset basis
-			UInt32 h = 2166136261u;
+			uint h = 2166136261u;
 
 			// for each byte of the buffer
 			for (int i = 0; i < s.Length; ++i)
@@ -1435,7 +1499,7 @@ namespace KERBALISM
 		public static string HumanReadableDataSize(double size)
 		{
 			if (size < MBPerBTenth)  // min size is 0.1 byte
-				return Local.Generic_NONE;//"none"
+				return "0.0 B";
 			if (size < MBPerkB)
 				return (size * BPerMB).ToString("0.0 B");
 			if (size < 1.0)
@@ -1451,8 +1515,8 @@ namespace KERBALISM
 		///<summary> Format data rate, the rate parameter is in MB/s </summary>
 		public static string HumanReadableDataRate(double rate)
 		{
-			if (rate < MBPerBTenth)  // min rate is 0.1 byte/s
-				return Local.Generic_NONE;//"none"
+			if (rate < MBPerBTenth) // min rate is 0.1 byte/s
+				return "0.0 B/s";
 			if (rate < MBPerkB)
 				return (rate * BPerMB).ToString("0.0 B/s");
 			if (rate < 1.0)
@@ -1703,6 +1767,13 @@ namespace KERBALISM
 				}
 				return capacity;
 			}
+		}
+
+		///<summary> return true if the vessel is a kerbal eva, and is flagged as dead</summary>
+		public static bool IsEVADead(Vessel v)
+		{
+			if (!v.isEVA) return false;
+			return DB.GetOrCreateKerbalData(CrewList(v)[0]).evaDead;
 		}
 
 
@@ -2257,7 +2328,7 @@ namespace KERBALISM
 		/// <summary> density in t/m3 of a resource (KSP "density" is in ton/unit and doesn't account for the resource volume property) </summary>
 		public static double RealDensity(this PartResourceDefinition res)
 		{
-			return res.density * 1000.0 / res.volume;
+			return (res.density * 1000.0) / res.volume;
 		}
 
 		/// <summary> Returns the amount of a resource in a part </summary>
@@ -2615,8 +2686,21 @@ namespace KERBALISM
 			return dll_path.Substring( 0, dll_path.LastIndexOf( Path.DirectorySeparatorChar ) );
 		}
 
+		///<summary> Get a texture loaded by KSP from the GameData folder. Ex "Kerbalism/Textures/small-info". Height/width must be a power of 2</summary>
+		public static Texture2D GetTexture(string path)
+		{
+			return GameDatabase.Instance.GetTexture(path, false);
+		}
+
+		///<summary> Get a texture loaded by KSP from the default Kerbalism/Textures folder. Height/width must be a power of 2</summary>
+		public static Texture2D GetKerbalismTexture(string path)
+		{
+			return GameDatabase.Instance.GetTexture("Kerbalism/Textures/" + path, false);
+		}
+
 		///<summary> Loads a .png texture from the folder defined in <see cref="Textures.TexturePath"/> </summary>
-		public static Texture2D GetTexture( string name, int width = 16, int height = 16 )
+		[Obsolete("Use GetKerbalismTexture(string path) / GetTexture(string path) instead")]
+		public static Texture2D GetTexture( string name, int width, int height)
 		{
 			Texture2D texture = new Texture2D( width, height, TextureFormat.ARGB32, false );
 			ImageConversion.LoadImage(texture, System.IO.File.ReadAllBytes(Textures.TexturePath + name + ".png"));

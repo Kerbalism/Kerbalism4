@@ -270,6 +270,9 @@ namespace KERBALISM
 							continue;
 						}
 						Require reqEnum = (Require)Enum.Parse(typeof(Require), reqString[0]);
+						if (reqEnum == Require.Part)
+							reqString[1] = reqString[1].Replace('_', '.');
+
 						reqList.Add(ParseRequiresValue(reqEnum, reqString[1]));
 					}
 					else
@@ -456,6 +459,10 @@ namespace KERBALISM
 				case Require.RndFacilityLevelMin:
 				case Require.RndFacilityLevelMax:
 					return ((int)reqValue).ToString();
+				case Require.Module:
+					return KSPUtil.PrintModuleName((string)reqValue);
+				case Require.Part:
+					return PartLoader.getPartInfoByName((string)reqValue)?.title ?? (string)reqValue;
 				default:
 					return string.Empty;
 			}

@@ -318,6 +318,7 @@ namespace KERBALISM.Planner
 		///<summary> Add stress sub-panel, including tooltips </summary>
 		private static void AddSubPanelStress(Panel p)
 		{
+			/*
 			// get first living space rule
 			// - guaranteed to exist, as this panel is not rendered if it doesn't
 			// - even without crew, it is safe to evaluate the modifiers that use it
@@ -349,11 +350,13 @@ namespace KERBALISM.Planner
 
 			// render life estimate
 			p.AddContent(Local.Planner_lifeestimate, Lib.HumanReadableDuration(rule.fatal_threshold / (rule.degeneration * rule.EvaluateModifier(vesselData))));//"duration"
+			*/
 		}
 
 		///<summary> Add radiation sub-panel, including tooltips </summary>
 		private static void AddSubPanelRadiation(Panel p)
 		{
+			/*
 			// get first radiation rule
 			// - guaranteed to exist, as this panel is not rendered if it doesn't
 			// - even without crew, it is safe to evaluate the modifiers that use it
@@ -407,6 +410,7 @@ namespace KERBALISM.Planner
 			else
 				p.AddContent(Local.Planner_activeshielding, Lib.HumanReadableRadiation(-vesselData.emitted), tooltip);//"active shielding"
 			p.AddContent(Local.Planner_shielding, Radiation.VesselShieldingToString(vesselData.Habitat.shieldingSurface > 0.0 ? vesselData.Habitat.shieldingAmount / vesselData.Habitat.shieldingSurface : 0.0), tooltip);//"shielding"
+			*/
 		}
 
 		///<summary> Add reliability sub-panel, including tooltips </summary>
