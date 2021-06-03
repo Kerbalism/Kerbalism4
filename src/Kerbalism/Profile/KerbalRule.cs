@@ -13,7 +13,7 @@ namespace KERBALISM
 		private KerbalData kerbalData;
 		public KerbalRuleDefinition Definition { get; private set; }
 		private List<KerbalRuleEffect> effects = new List<KerbalRuleEffect>(); // serialized
-		private List<KerbalRuleModifier> modifiers = new List<KerbalRuleModifier>(); // not serialized, for UI purpose only
+		public List<KerbalRuleModifier> Modifiers { get; private set; } = new List<KerbalRuleModifier>(); // not serialized, for UI purpose only
 
 		public KerbalData KerbalData => kerbalData;
 		public double Value { get; private set; } // serialized
@@ -32,7 +32,7 @@ namespace KERBALISM
 
 			foreach (KerbalRuleModifierDefinition modifierDefinition in Definition.modifiers)
 			{
-				modifiers.Add(new KerbalRuleModifier(modifierDefinition));
+				Modifiers.Add(new KerbalRuleModifier(modifierDefinition));
 			}
 
 			MaxValue = GetMaxValue();
@@ -125,14 +125,14 @@ namespace KERBALISM
 			if (kerbalData.evaDead || kerbalData.stockKerbal.rosterStatus != ProtoCrewMember.RosterStatus.Assigned)
 				return;
 
-			foreach (KerbalRuleModifier modifier in modifiers)
+			foreach (KerbalRuleModifier modifier in Modifiers)
 			{
 				modifier.Evaluate(vesselData);
 				Value += modifier.currentRate * elapsedSec;
 			}
 
 			Value = Lib.Clamp(Value, 0.0, MaxValue);
-			double level = Value / MaxValue;
+			Level = Value / MaxValue;
 
 			foreach (KerbalRuleEffect effect in effects)
 			{
@@ -151,7 +151,7 @@ namespace KERBALISM
 
 				effect.customData?.Evaluate(this, elapsedSec);
 
-				if (effect.cooldown > 0.0 || level < effect.nextThreshold)
+				if (effect.cooldown > 0.0 || Level < effect.nextThreshold)
 					continue;
 
 				bool waitForOtherEffectCooldown = false;
@@ -280,7 +280,7 @@ namespace KERBALISM
 		[CFGValue] public double maxValueStupidityBonus = 0.0;
 		[CFGValue] public double maxValueCourageBonus = 0.0;
 		[CFGValue] public double maxValueBadassBonus = 0.0;
-		[CFGValue] public double maxValueLevelBonus = 0.0; // need to recompute maxValue on level up
+		[CFGValue] public double maxValueLevelBonus = 0.0; // TODO : need to recompute maxValue on level up
 
 		// if true, the value is set to maxValue on recovery
 		// if false, the value is never reset

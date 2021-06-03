@@ -30,6 +30,58 @@ namespace KERBALISM
 		private KsmGuiText radiation; // "1.2 rad", tooltip : rad sources details
 
 
+		private KsmGuiVerticalLayout crewSpace;
+		private List<KerbalEntry> kerbalEntries = new List<KerbalEntry>();
+
+		private class KerbalEntry : KsmGuiHorizontalLayout
+		{
+			private class RuleEntry : KsmGuiText
+			{
+				private StringBuilder sb = new StringBuilder();
+				private KerbalRule rule;
+				public RuleEntry(KsmGuiBase parent, KerbalRule rule) : base(parent, rule.Definition.title)
+				{
+					this.rule = rule;
+					SetUpdateAction(Update);
+					SetTooltipText(UpdateTooltip);
+				}
+
+				private void Update()
+				{
+					Text = rule.Definition.title + ": " + rule.Level.ToString("P2");
+				}
+
+				private string UpdateTooltip()
+				{
+					sb.Clear();
+
+					sb.AppendKSPLine(rule.Value.ToString("F2") + "/" + rule.MaxValue.ToString("F2"));
+					for (int i = 0; i < rule.Modifiers.Count; i++)
+					{
+						sb.AppendKSPLine(rule.Definition.modifiers[i].title + ": " + rule.Modifiers[i].currentRate.ToString("F5"));
+					}
+
+					return sb.ToString();
+				}
+			}
+
+
+			private KerbalData kd;
+			private KsmGuiText name;
+			private List<RuleEntry> rules = new List<RuleEntry>();
+
+			public KerbalEntry(KsmGuiBase parent, KerbalData kd) : base(parent, 0, 0, 0, 0, 0, TextAnchor.UpperLeft)
+			{
+				this.kd = kd;
+				name = new KsmGuiText(this, kd.stockKerbal.displayName);
+
+				foreach (KerbalRule rule in kd.rules)
+				{
+					rules.Add(new RuleEntry(this, rule));
+				}
+			}
+		}
+
 
 		public VesselSummaryUI(KsmGuiBase parent, bool isPopup, VesselDataBase vd) : base(parent, 0, 0, 0, 0, 0, TextAnchor.UpperLeft)
 		{
@@ -69,6 +121,24 @@ namespace KERBALISM
 			situations.SetTooltipText(SituationTooltip);
 			temperature = new KsmGuiText(environment, "Temperature"); // "326 K", tooltip : flux details
 			radiation = new KsmGuiText(environment, "Radiation"); // "1.2 rad", tooltip : rad sources details
+
+			crewSpace = new KsmGuiVerticalLayout(this, 10);
+			crewSpace.SetUpdateAction(UpdateCrew);
+			new KsmGuiHeader(crewSpace, "CREW");
+		}
+
+		private void UpdateCrew()
+		{
+			for (int i = 0; i < vd.Crew.Count; i++)
+			{
+				if (kerbalEntries.Count - 1 < i)
+				{
+					kerbalEntries.Add(new KerbalEntry(crewSpace, vd.Crew[i]));
+				}
+
+
+
+			}
 		}
 
 		private void UpdateSummary()

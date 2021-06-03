@@ -20,6 +20,8 @@ namespace KERBALISM.KsmGui
 		private RectTransform backgroundTranform;
 		private KsmGuiBase content;
 
+		private KsmGuiTooltipBase currentTooltip;
+
 		private void Awake()
 		{
 			Instance = this;
@@ -116,30 +118,20 @@ namespace KERBALISM.KsmGui
 			IsVisible = false;
 		}
 
-		public void SetTooltipText(string text)
+		public void ShowTooltip(KsmGuiTooltipBase tooltip, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase tooltipContent = null)
 		{
-			textComponent.SetText(text);
-		}
+			currentTooltip = tooltip;
 
-		public void ShowTooltip(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase tooltipContent = null)
-		{
 			if (width == -1f)
 				width = KsmGuiStyle.tooltipMaxWidth;
 
 			TopTransform.sizeDelta = new Vector2(width, 0f);
 
-			if (string.IsNullOrEmpty(text))
-			{
-				textComponent.enabled = false;
-			}
-			else
-			{
-				textComponent.enabled = true;
-				textComponent.alignment = textAlignement;
-				textComponent.SetText(text);
-			}
+			textComponent.enabled = true;
+			textComponent.alignment = textAlignement;
+			textComponent.SetText(currentTooltip.Text);
 
-			content?.TopObject.DestroyGameObject();
+				content?.TopObject.DestroyGameObject();
 
 			if (content != null)
 			{
@@ -154,6 +146,7 @@ namespace KERBALISM.KsmGui
 
 		public void HideTooltip()
 		{
+			currentTooltip = null;
 			tooltipObject.SetActive(false);
 			IsVisible = false;
 		}
@@ -178,6 +171,8 @@ namespace KERBALISM.KsmGui
 					position.y = 0.5f * Screen.height - ContentTransform.rect.height * ContentTransform.lossyScale.y;
 
 				TopTransform.position = position;
+
+				textComponent.SetText(currentTooltip.Text);
 			}
 		}
 	}

@@ -8,23 +8,19 @@ namespace KERBALISM.KsmGui
 {
 	public class KsmGuiTooltipBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	{
-		protected bool IsTooltipOverThis = false;
-
-		protected virtual string Text => string.Empty;
+		public virtual string Text => string.Empty;
 		protected TextAlignmentOptions textAlignement;
 		protected float width;
 		protected KsmGuiBase content;
 
 		public void OnPointerEnter(PointerEventData eventData)
 		{
-			KsmGuiTooltipController.Instance.ShowTooltip(Text, textAlignement, width, content);
-			IsTooltipOverThis = true;
+			KsmGuiTooltipController.Instance.ShowTooltip(this, textAlignement, width, content);
 		}
 
 		public void OnPointerExit(PointerEventData eventData)
 		{
 			KsmGuiTooltipController.Instance.HideTooltip();
-			IsTooltipOverThis = false;
 		}
 	}
 
@@ -32,7 +28,7 @@ namespace KERBALISM.KsmGui
 	public class KsmGuiTooltipStatic : KsmGuiTooltipBase
 	{
 		private string tooltipText;
-		protected override string Text => tooltipText;
+		public override string Text => tooltipText;
 
 		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
 		{
@@ -41,8 +37,6 @@ namespace KERBALISM.KsmGui
 			this.content = content;
 
 			tooltipText = text;
-			if (IsTooltipOverThis)
-				KsmGuiTooltipController.Instance.SetTooltipText(text);
 		}
 	}
 
@@ -50,18 +44,14 @@ namespace KERBALISM.KsmGui
 	{
 		private Func<string> textFunc;
 
-		protected override string Text => textFunc();
+		public override string Text => textFunc();
 
 		public void SetTooltipText(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
 		{
 			this.textAlignement = textAlignement;
 			this.width = width;
 			this.content = content;
-
 			this.textFunc = textFunc;
-
-			if (IsTooltipOverThis)
-				KsmGuiTooltipController.Instance.SetTooltipText(Text);
 		}
 	}
 }
