@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
-using Harmony;
+using HarmonyLib;
 using KSP.UI.Screens;
 using KSP.Localization;
 using System.Collections;
@@ -273,6 +273,9 @@ namespace KERBALISM
 
 			lastLaunchedVessel = null;
 			VesselsReady = true;
+
+			// we need the sim to be ready for environment conditions to be evaluated properly in VesselData.Start()
+			Sim.OnFixedUpdate();
 
 			foreach (VesselData vd in DB.VesselDatas)
 			{

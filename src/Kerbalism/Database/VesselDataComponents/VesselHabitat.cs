@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Steamworks;
 using static KERBALISM.HabitatHandler;
 
 namespace KERBALISM
@@ -16,8 +17,8 @@ namespace KERBALISM
 		/// <summary> livingVolume (m3) per kerbal</summary>
 		public double volumePerCrew = 0.0;
 
-		/// <summary> [0.0 : 1.0] factor : living volume per kerbal normalized against the ideal living space as defined in settings</summary>
-		public double livingSpaceFactor = 0.0;
+		/// <summary> volume (m3) of all habitats</summary>
+		public double totalVolume = 0.0;
 
 		/// <summary> surface (m2) of all pressurized habitats, enabled of not. Habitats using the outside air are ignored </summary>
 		public double pressurizedSurface = 0.0;
@@ -40,26 +41,66 @@ namespace KERBALISM
 		/// <summary> amount of shielding resource (1 unit = 1m2 of 20mm thick pb) for all enabled habitats, excluding depressurized habitats that aren't crewed</summary>
 		public double shieldingAmount = 0.0;
 
-		/// <summary> bitmask of available comforts (see Comfort enum) : comforts in disabled or depressurized habs are ignored</summary>
-		public int comfortMask = 0;
-
-		/// <summary> [0.0 ; 1.0] factor : sum of all enabled comfort bonuses</summary>
-		public double comfortFactor = 0.0;
-
 		/// <summary> in rad/s, radiation received by all considered habitats : non pressurized unmanned parts are ignored</summary>
 		public double radiationRate = 0.0;
 
+		/// <summary> average storm radiation protection, in % </summary>
+		public double sunRadiationFactor = 0.0;
+
+		public double radiationAmbiantOcclusion;
+
+		public double radiationEmittersOcclusion;
+
+		public double emittersRadiation = 0.0;
+
+		public double activeRadiationShielding = 0.0;
+
+		/// <summary> average artificial gravity in gees, from the vessel rotation or centrifuge habitats</summary>
+		public double artificialGravity = 0.0;
+
+		/// <summary> current gravity, artificial or from the main body if landed</summary>
+		public double gravity = 0.0;
+
+		public Dictionary<string, ComfortInfoBase> comforts = new Dictionary<string, ComfortInfoBase>();
+
+		/// <summary> active comforts count</summary>
+		public int comfortsActiveCount;
+
+		/// <summary> average of all comforts level</summary>
+		public double comfortsAverageLevel;
+
+		/// <summary> sum of all comforts bonuses</summary>
+		public double comfortsTotalBonus;
+
 		public List<HabitatHandler> Habitats { get; private set; } = new List<HabitatHandler>();
+
+		public HabitatVesselData()
+		{
+			foreach (KeyValuePair<string, ComfortDefinition> comfortDef in ComfortDefinition.definitions)
+			{
+				comforts.Add(comfortDef.Key, comfortDef.Value.GetComfortInfo());
+			}
+		}
+
+		public double LivingSpaceFactor(double idealLivingSpace)
+		{
+			return Math.Min(volumePerCrew / idealLivingSpace, 1.0);
+		}
+
+		public double ComfortBonusFactor()
+		{
+			return Math.Min(comfortsTotalBonus, 1.0);
+		}
 
 		public void ResetBeforeModulesUpdate(VesselDataBase vd)
 		{
-			livingVolume = volumePerCrew = livingSpaceFactor
+			livingVolume = volumePerCrew = totalVolume
 				= pressurizedSurface = pressurizedVolume = pressure
 				= pressureFactor = poisoningLevel = shieldingSurface
-				= shieldingAmount = comfortFactor
-				= radiationRate = 0.0;
+				= shieldingAmount = comfortsAverageLevel = comfortsTotalBonus = radiationAmbiantOcclusion = radiationEmittersOcclusion
+				= radiationRate = sunRadiationFactor = emittersRadiation = activeRadiationShielding = artificialGravity = gravity = 0.0;
 
-			comfortMask = 0;
+			comfortsActiveCount = 0;
 
 			// the list of habitats will iterated over by every radiation emitter/shield, so build the list once.
 			Habitats.Clear();
@@ -74,11 +115,20 @@ namespace KERBALISM
 			double pressurizedPartsAtmoAmount = 0.0; // for calculating pressure level : all pressurized parts, enabled or not
 			int pressurizedPartsCrewCount = 0; // crew in all pressurized parts, pressure modifier = pressurizedPartsCrewCount / totalCrewCount
 			int wasteConsideredPartsCount = 0;
-			int radiationConsideredPartsCount = 0;
+			double centrifugeVolume = 0;
+			double radiationConsideredPartVolume = 0.0;
+
+			foreach (ComfortInfoBase comfort in comforts.Values)
+			{
+				comfort.Reset();
+			}
+
 
 			for (int i = 0; i < Habitats.Count; i++)
 			{
 				HabitatHandler habitat = Habitats[i];
+				totalVolume += habitat.definition.volume;
+
 				if (habitat.isEnabled)
 				{
 					switch (habitat.pressureState)
@@ -88,13 +138,22 @@ namespace KERBALISM
 							shieldingSurface += habitat.definition.surface;
 							shieldingAmount += habitat.shieldingAmount;
 
-							comfortMask |= habitat.definition.baseComfortsMask;
-							if (habitat.IsRotationNominal)
-								comfortMask |= (int)Comfort.firmGround;
-
 							pressurizedPartsCrewCount += habitat.crewCount;
-							radiationRate += habitat.partData.radiationData.RadiationRate;
-							radiationConsideredPartsCount++;
+							radiationRate += habitat.partData.radiationData.RadiationRate * habitat.definition.volume;
+							sunRadiationFactor += habitat.partData.radiationData.SunRadiationFactor * habitat.definition.volume;
+							emittersRadiation += habitat.partData.radiationData.EmittersRadiation * habitat.definition.volume;
+							activeRadiationShielding += habitat.partData.radiationData.ActiveShielding * habitat.definition.volume;
+							radiationAmbiantOcclusion += habitat.partData.radiationData.AmbiantOcclusion * habitat.definition.volume;
+							radiationEmittersOcclusion += habitat.partData.radiationData.EmittersOcclusion * habitat.definition.volume;
+							radiationConsideredPartVolume += habitat.definition.volume;
+
+							artificialGravity += habitat.gravity * habitat.definition.volume;
+							centrifugeVolume += habitat.definition.volume;
+
+							foreach (ComfortValue comfort in habitat.definition.comforts)
+							{
+								((ComfortModuleInfo)comforts[comfort.Name]).AddComfortValue(comfort);
+							}
 
 							break;
 						case PressureState.Pressurized:
@@ -105,18 +164,28 @@ namespace KERBALISM
 							shieldingSurface += habitat.definition.surface;
 							shieldingAmount += habitat.shieldingAmount;
 
-							comfortMask |= habitat.definition.baseComfortsMask;
-							if (habitat.IsRotationNominal)
-								comfortMask |= (int)Comfort.firmGround | (int)Comfort.exercice;
-
 							pressurizedPartsAtmoAmount += habitat.atmoAmount;
 							pressurizedPartsCrewCount += habitat.crewCount;
 
 							// waste evaluation
 							poisoningLevel += habitat.wasteLevel;
 							wasteConsideredPartsCount++;
-							radiationRate += habitat.partData.radiationData.RadiationRate;
-							radiationConsideredPartsCount++;
+							radiationRate += habitat.partData.radiationData.RadiationRate * habitat.definition.volume;
+							sunRadiationFactor += habitat.partData.radiationData.SunRadiationFactor * habitat.definition.volume;
+							emittersRadiation += habitat.partData.radiationData.EmittersRadiation * habitat.definition.volume;
+							activeRadiationShielding += habitat.partData.radiationData.ActiveShielding * habitat.definition.volume;
+							radiationAmbiantOcclusion += habitat.partData.radiationData.AmbiantOcclusion * habitat.definition.volume;
+							radiationEmittersOcclusion += habitat.partData.radiationData.EmittersOcclusion * habitat.definition.volume;
+							radiationConsideredPartVolume += habitat.definition.volume;
+
+							artificialGravity += habitat.gravity * habitat.definition.volume;
+							centrifugeVolume += habitat.definition.volume ;
+
+							foreach (ComfortValue comfort in habitat.definition.comforts)
+							{
+								((ComfortModuleInfo)comforts[comfort.Name]).AddComfortValue(comfort);
+							}
+
 							break;
 						case PressureState.AlwaysDepressurized:
 						case PressureState.Depressurized:
@@ -128,8 +197,16 @@ namespace KERBALISM
 								shieldingAmount += habitat.shieldingAmount;
 								poisoningLevel += habitat.wasteLevel;
 								wasteConsideredPartsCount++;
-								radiationRate += habitat.partData.radiationData.RadiationRate;
-								radiationConsideredPartsCount++;
+								radiationRate += habitat.partData.radiationData.RadiationRate * habitat.definition.volume;
+								sunRadiationFactor += habitat.partData.radiationData.SunRadiationFactor * habitat.definition.volume;
+								emittersRadiation += habitat.partData.radiationData.EmittersRadiation * habitat.definition.volume;
+								activeRadiationShielding += habitat.partData.radiationData.ActiveShielding * habitat.definition.volume;
+								radiationAmbiantOcclusion += habitat.partData.radiationData.AmbiantOcclusion * habitat.definition.volume;
+								radiationEmittersOcclusion += habitat.partData.radiationData.EmittersOcclusion * habitat.definition.volume;
+								radiationConsideredPartVolume += habitat.definition.volume;
+
+								artificialGravity += habitat.gravity * habitat.definition.volume;
+								centrifugeVolume += habitat.definition.volume;
 							}
 							// waste in suits evaluation
 							break;
@@ -161,27 +238,48 @@ namespace KERBALISM
 
 			int crewCount = vd.CrewCount;
 			volumePerCrew = crewCount > 0 ? livingVolume / crewCount : 0.0;
-			livingSpaceFactor = Math.Min(volumePerCrew / PreferencesComfort.Instance.livingSpace, 1.0);
 			pressure = pressurizedVolume > 0.0 ? pressurizedPartsAtmoAmount / pressurizedVolume : 0.0;
 
 			pressureFactor = crewCount > 0 ? ((double)pressurizedPartsCrewCount / (double)crewCount) : 0.0; // 0.0 when pressurized, 1.0 when depressurized
 
 			poisoningLevel = wasteConsideredPartsCount > 0 ? poisoningLevel / wasteConsideredPartsCount : 0.0;
 
-			if (vd.EnvLanded) comfortMask |= (int)Comfort.firmGround | (int)Comfort.exercice;
-			if (crewCount > 0) comfortMask |= (int)Comfort.notAlone;
 
-			if (vd.ConnectionInfo.Linked && vd.ConnectionInfo.DataRate > 0.0)
-				comfortMask |= (int)Comfort.callHome;
 
-			comfortFactor = HabitatLib.GetComfortFactor(comfortMask);
-
-			if (radiationConsideredPartsCount > 1)
+			if (radiationConsideredPartVolume > 0.0)
 			{
-				radiationRate /= radiationConsideredPartsCount;
+				radiationRate /= radiationConsideredPartVolume;
+				sunRadiationFactor /= radiationConsideredPartVolume;
+				emittersRadiation /= radiationConsideredPartVolume;
+				activeRadiationShielding /= radiationConsideredPartVolume;
+				radiationAmbiantOcclusion /= radiationConsideredPartVolume;
+				radiationEmittersOcclusion /= radiationConsideredPartVolume;
 			}
-			
-		}
 
+			if (centrifugeVolume > 0.0)
+			{
+				artificialGravity = artificialGravity / centrifugeVolume;
+			}
+
+			if (vd.EnvLanded)
+				gravity = vd.Gravity;
+			else
+				gravity = 0.0;
+
+			foreach (ComfortInfoBase comfort in comforts.Values)
+			{
+				comfort.ComputeLevel(vd);
+				if (comfort.Level > 0.0)
+				{
+					comfortsActiveCount++;
+				}
+
+				comfortsAverageLevel += comfort.Level;
+
+				comfortsTotalBonus += comfort.Bonus;
+			}
+
+			comfortsAverageLevel /= comforts.Count;
+		}
 	}
 }

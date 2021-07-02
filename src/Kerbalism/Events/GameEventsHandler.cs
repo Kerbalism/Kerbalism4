@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Harmony;
+using HarmonyLib;
 using KSP.UI.Screens;
 using UnityEngine;
 using KSP.Localization;
@@ -48,6 +48,7 @@ namespace KERBALISM.Events
 
 			// EDITOR
 			GameEvents.onEditorShipModified.Add(editorLifecycle.OnEditorShipModified);
+			GameEvents.onEditorPartEvent.Add(editorLifecycle.OnEditorPartEvent);
 
 			// UI
 			GameEvents.onGUIEditorToolbarReady.Add(gameEventsUI.AddEditorCategory);

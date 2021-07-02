@@ -14,6 +14,8 @@ namespace KERBALISM
 		public const string NODENAME_SUPPLY = "SUPPLY";
 		public const string NODENAME_VIRTUAL_RESOURCE = "VIRTUAL_RESOURCE";
 		public const string NODENAME_RESOURCE_HVL = "RESOURCE_HVL";
+		public const string NODENAME_COMFORT = "COMFORT";
+
 
 		public static List<KerbalRuleDefinition> rules;
 		public static List<Supply> supplies;          // supplies in the profile
@@ -101,6 +103,38 @@ namespace KERBALISM
 				catch (Exception e)
 				{
 					Lib.Log("failed to load process\n" + e.ToString(), Lib.LogLevel.Warning);
+				}
+			}
+
+			foreach (ConfigNode process_node in profile_node.GetNodes(NODENAME_PROCESS))
+			{
+				try
+				{
+					// parse process
+					Process process = new Process(process_node);
+
+					// ignore duplicates
+					if (processes.Find(k => k.name == process.name) == null)
+					{
+						// add the process
+						processes.Add(process);
+					}
+				}
+				catch (Exception e)
+				{
+					Lib.Log("failed to load process\n" + e.ToString(), Lib.LogLevel.Warning);
+				}
+			}
+
+			foreach (ConfigNode comfortNode in profile_node.GetNodes(NODENAME_COMFORT))
+			{
+				try
+				{
+					ComfortDefinition.Load(comfortNode);;
+				}
+				catch (Exception e)
+				{
+					Lib.Log("failed to load comfort\n" + e.ToString(), Lib.LogLevel.Warning);
 				}
 			}
 		}

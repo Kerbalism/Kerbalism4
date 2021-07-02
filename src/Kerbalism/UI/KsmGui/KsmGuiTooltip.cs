@@ -11,7 +11,7 @@ namespace KERBALISM.KsmGui
 		public virtual string Text => string.Empty;
 		protected TextAlignmentOptions textAlignement;
 		protected float width;
-		protected KsmGuiBase content;
+		protected Func<KsmGuiBase> content;
 
 		public void OnPointerEnter(PointerEventData eventData)
 		{
@@ -30,7 +30,7 @@ namespace KERBALISM.KsmGui
 		private string tooltipText;
 		public override string Text => tooltipText;
 
-		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
+		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
 		{
 			this.textAlignement = textAlignement;
 			this.width = width;
@@ -46,7 +46,7 @@ namespace KERBALISM.KsmGui
 
 		public override string Text => textFunc();
 
-		public void SetTooltipText(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
+		public void SetTooltipText(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
 		{
 			this.textAlignement = textAlignement;
 			this.width = width;

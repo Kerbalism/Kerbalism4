@@ -1,4 +1,4 @@
-﻿using Harmony;
+﻿using HarmonyLib;
 using KSP.UI;
 using KSP.UI.Screens.DebugToolbar;
 using System;
@@ -201,7 +201,7 @@ namespace KERBALISM
 		// So to have our options at the end of the list, we are using a patch on DebugScreenConsole.Start(), choosen because it seems to
 		// be called quite late in the DebugScreen initialization.
 
-		public static void SetupPatches(HarmonyInstance harmony)
+		public static void SetupPatches(Harmony harmony)
 		{
 			MethodInfo debugScreenConsole_Start = typeof(DebugScreenConsole).GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic);
 			MethodInfo postfix = typeof(ErrorManager).GetMethod(nameof(DebugScreenConsole_Start_Postfix), BindingFlags.Static | BindingFlags.NonPublic);

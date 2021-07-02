@@ -321,10 +321,17 @@ namespace KERBALISM
 			loadedHandlersByModuleInstanceId[module.GetInstanceID()] = moduleHandler;
 
 			moduleHandler.partData = partData;
+			
 			moduleHandler.SetModuleReferences(partData.PartPrefab.Modules[moduleIndex], module);
 			partData.modules.Add(moduleHandler);
 
 			((IPersistentModuleHandler)moduleHandler).Load(handlerNode);
+
+			// handlerFlightIdsByModuleInstanceId is populated in the PartModule.Load() PostFix harmony patch
+			if (handlerFlightIdsByModuleInstanceId.TryGetValue(module.GetInstanceID(), out int flightId))
+			{
+				((IPersistentModuleHandler) moduleHandler).FlightId = flightId; // populated in 
+			}
 
 			Lib.LogDebug($"Instantiated persisted {moduleHandler} for {partData} on {partData.vesselData}");
 		}

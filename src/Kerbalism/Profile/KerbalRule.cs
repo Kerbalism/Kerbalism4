@@ -2,6 +2,7 @@
 using Flee.PublicTypes;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace KERBALISM
@@ -9,6 +10,7 @@ namespace KERBALISM
 	public class KerbalRule
 	{
 		public const string TOPNODENAME = "KERBAL_RULES";
+		private static StringBuilder sb = new StringBuilder();
 
 		private KerbalData kerbalData;
 		public KerbalRuleDefinition Definition { get; private set; }
@@ -19,6 +21,11 @@ namespace KERBALISM
 		public double Value { get; private set; } // serialized
 		public double MaxValue { get; private set; } // not serialized, recalculated on loads and kerbals level up
 		public double Level { get; private set; } // convenience property
+		public double ChangeRate { get; private set; } = 0.0;
+		public double LevelChangeRate { get; private set; } = 0.0;
+		public List<string[]> MaxValueInfo { get; private set; } = new List<string[]>();
+
+		public override string ToString() => Definition.name + " " + Level.ToString("P2") + " (" + LevelChangeRate.ToString("P2") + ") : " + Value.ToString("F5") + "/" + MaxValue.ToString("F5");
 
 		public KerbalRule(KerbalData kerbalData, KerbalRuleDefinition ruleDefinition, bool initialize)
 		{
@@ -107,17 +114,53 @@ namespace KERBALISM
 
 		public double GetMaxValue()
 		{
-			double value = Definition.maxValue;
+			double baseValue = Definition.maxValue;
+			double variance = 0.0;
 			// variance is deterministic, using a seed derived from the kerbal name and the rule name
 			if (Definition.maxValueVariance != 0.0)
-				value += Lib.RandomDeterministic(kerbalData.stockKerbal.name + Definition.name, Definition.maxValueVariance * -0.5, Definition.maxValueVariance * 0.5);
+				variance = Lib.RandomDeterministic(kerbalData.stockKerbal.name + Definition.name, Definition.maxValueVariance * -0.5, Definition.maxValueVariance * 0.5);
 
-			value += kerbalData.stockKerbal.stupidity * Definition.maxValueStupidityBonus;
-			value += kerbalData.stockKerbal.courage * Definition.maxValueCourageBonus;
-			value += kerbalData.stockKerbal.isBadass ? Definition.maxValueBadassBonus : 0.0;
-			value += kerbalData.stockKerbal.experienceLevel * Definition.maxValueLevelBonus;
+			double stupidityBonus = kerbalData.stockKerbal.stupidity * Definition.maxValueStupidityBonus;
+			double courageBonus = kerbalData.stockKerbal.courage * Definition.maxValueCourageBonus;
+			double badassBonus = kerbalData.stockKerbal.isBadass ? Definition.maxValueBadassBonus : 0.0;
+			double levelBonus = kerbalData.stockKerbal.experienceLevel * Definition.maxValueLevelBonus;
 
-			return value;
+			double maxValue = baseValue + variance + stupidityBonus + courageBonus + badassBonus + levelBonus;
+
+			MaxValueInfo.Clear();
+
+			if (variance != 0.0)
+			{
+				MaxValueInfo.Add(new []{"Base", (variance / baseValue).ToString("+0.0 %;-0.0 %") });
+			}
+
+			if (stupidityBonus != 0.0)
+			{
+				MaxValueInfo.Add(new[] { "Stupidity", (stupidityBonus / baseValue).ToString("+0.0 %;-0.0 %") });
+			}
+
+			if (courageBonus != 0.0)
+			{
+				MaxValueInfo.Add(new[] { "Courage", (courageBonus / baseValue).ToString("+0.0 %;-0.0 %") });
+			}
+
+			if (badassBonus != 0.0)
+			{
+				MaxValueInfo.Add(new[] { "Badass", (badassBonus / baseValue).ToString("+0.0 %;-0.0 %") });
+			}
+
+			if (levelBonus != 0.0)
+			{
+				MaxValueInfo.Add(new[] { "Level", (levelBonus / baseValue).ToString("+0.0 %;-0.0 %") });
+			}
+
+			double totalBonus = (maxValue / baseValue) - baseValue;
+			if (totalBonus != 0.0)
+			{
+				MaxValueInfo.Add(new[] { "Total bonus", totalBonus.ToString("P1") });
+			}
+
+			return maxValue;
 		}
 
 		public void OnFixedUpdate(VesselDataBase vesselData, double elapsedSec)
@@ -125,14 +168,47 @@ namespace KERBALISM
 			if (kerbalData.evaDead || kerbalData.stockKerbal.rosterStatus != ProtoCrewMember.RosterStatus.Assigned)
 				return;
 
+			ChangeRate = 0.0;
 			foreach (KerbalRuleModifier modifier in Modifiers)
 			{
 				modifier.Evaluate(vesselData);
-				Value += modifier.currentRate * elapsedSec;
+
+				if (modifier.currentRate != 0.0 && modifier.Definition.cancelRateMode)
+				{
+					if (ChangeRate > 0.0)
+					{
+						if (modifier.currentRate < 0.0)
+						{
+							modifier.currentRate = Math.Max(modifier.currentRate, -ChangeRate);
+						}
+						else
+						{
+							modifier.currentRate = 0.0;
+						}
+					}
+					else if (ChangeRate < 0.0)
+					{
+						if (modifier.currentRate < 0.0)
+						{
+							modifier.currentRate = 0.0;
+						}
+						else
+						{
+							modifier.currentRate = Math.Min(modifier.currentRate, -ChangeRate);
+						}
+					}
+					else
+					{
+						modifier.currentRate = 0.0;
+					}
+				}
+
+				ChangeRate += modifier.currentRate;
 			}
 
-			Value = Lib.Clamp(Value, 0.0, MaxValue);
+			Value = Lib.Clamp(Value + (ChangeRate * elapsedSec), 0.0, MaxValue);
 			Level = Value / MaxValue;
+			LevelChangeRate = ChangeRate / MaxValue;
 
 			foreach (KerbalRuleEffect effect in effects)
 			{
@@ -170,6 +246,13 @@ namespace KERBALISM
 				if (!waitForOtherEffectCooldown)
 				{
 					effect.definition.ApplyEffect(vesselData, kerbalData, effect);
+					if (effect.definition.HasRuleRecovery)
+					{
+						
+						Value = Math.Max(Value * (1.0 - effect.definition.RuleRecovery), 0.0);
+						Level = Value / MaxValue;
+						LevelChangeRate = ChangeRate / MaxValue;
+					}
 				}
 			}
 		}
@@ -247,22 +330,22 @@ namespace KERBALISM
 
 	public class KerbalRuleModifier
 	{
-		KerbalRuleModifierDefinition definition;
+		public KerbalRuleModifierDefinition Definition { get; private set; }
 		public double currentRate;
 
 		public KerbalRuleModifier(KerbalRuleModifierDefinition modifierDefinition)
 		{
-			definition = modifierDefinition;
-			currentRate = definition.baseRate;
+			Definition = modifierDefinition;
+			currentRate = Definition.baseRate;
 		}
 
 		public void Evaluate(VesselDataBase vesselData)
 		{
-			if (!definition.hasModifier)
+			if (!Definition.hasModifier)
 				return;
 
-			definition.rateModifier.Owner = vesselData;
-			currentRate = definition.baseRate * definition.rateModifier.Evaluate();
+			Definition.rateModifier.Owner = vesselData;
+			currentRate = Definition.baseRate * Definition.rateModifier.Evaluate();
 		}
 	}
 
@@ -272,8 +355,7 @@ namespace KERBALISM
 
 		[CFGValue] public string name;
 		[CFGValue] public string title;
-		[CFGValue] public bool showAsPercentage = false;
-		[CFGValue] public bool showMinAsMax = false;
+		[CFGValue] public string description;
 
 		[CFGValue] public double maxValue = 1.0;
 		[CFGValue] public double maxValueVariance = 0.0;
@@ -286,17 +368,15 @@ namespace KERBALISM
 		// if false, the value is never reset
 		[CFGValue] public bool resetOnRecovery;
 
-		[CFGValue] public double warningThreshold;
-		[CFGValue] public double dangerThreshold;
+		[CFGValue] public double warningThreshold = 0.7;
+		[CFGValue] public double dangerThreshold = 0.9;
 
 		[CFGValue] public string warningMessage;
 		[CFGValue] public string dangerMessage;
 		[CFGValue] public string fatalMessage;
 		[CFGValue] public string relaxMessage;
 
-		public Texture2D normalIcon;
-		public Texture2D warningIcon;
-		public Texture2D dangerIcon;
+		public Texture2D icon;
 
 		// primary rules are shown in the kerbal summary UI ?
 		// non-primary rules are only shown in the kerbal detailed state UI
@@ -304,6 +384,8 @@ namespace KERBALISM
 
 		public List<KerbalRuleModifierDefinition> modifiers = new List<KerbalRuleModifierDefinition>();
 		public List<KerbalRuleEffectDefinition> effects = new List<KerbalRuleEffectDefinition>();
+
+		public override string ToString() => name;
 
 		public KerbalRuleDefinition(ConfigNode definitionNode)
 		{
@@ -313,17 +395,9 @@ namespace KERBALISM
 				title = name;
 
 			string texturePath = string.Empty;
-			if (definitionNode.TryGetValue(nameof(normalIcon), ref texturePath))
+			if (definitionNode.TryGetValue(nameof(icon), ref texturePath))
 			{
-				normalIcon = Lib.GetTexture(texturePath);
-			}
-			if (definitionNode.TryGetValue(nameof(warningIcon), ref texturePath))
-			{
-				warningIcon = Lib.GetTexture(texturePath);
-			}
-			if (definitionNode.TryGetValue(nameof(dangerIcon), ref texturePath))
-			{
-				dangerIcon = Lib.GetTexture(texturePath);
+				icon = Lib.GetTexture(texturePath);
 			}
 
 			foreach (ConfigNode childNode in definitionNode.nodes)
@@ -341,6 +415,56 @@ namespace KERBALISM
 						effects.Add(effectDefinition);
 				}
 			}
+
+			// put modifiers with affectRateOnly = true at the end of the list
+			modifiers.Sort((a, b) => a.cancelRateMode.CompareTo(b.cancelRateMode));
+		}
+
+		private static StringBuilder sb = new StringBuilder();
+
+		public string TooltipText()
+		{
+			sb.Clear();
+			sb.AppendAlignement(Lib.Color(title, Lib.Kolor.Yellow, true), TextAlignment.Center);
+			sb.AppendKSPNewLine();
+			if (!string.IsNullOrEmpty(description))
+			{
+				sb.Append(description);
+				sb.AppendKSPNewLine();
+			}
+
+			sb.AppendKSPNewLine();
+
+			if (!resetOnRecovery)
+			{
+				sb.AppendAlignement(Lib.Color("Doesn't reset on recovery", Lib.Kolor.Orange, true), TextAlignment.Center);
+				sb.AppendKSPNewLine();
+			}
+
+			foreach (KerbalRuleEffectDefinition effect in effects)
+			{
+				sb.AppendColor(Lib.BuildString("Effect", " : ", effect.title), Lib.Kolor.Yellow, true);
+				sb.AppendKSPNewLine();
+
+				if (effect.reputationPenalty > 0.0)
+				{
+					sb.AppendInfo("Reputation penality", effect.reputationPenalty.ToString("F0"));
+				}
+
+				if (effect.thresholdCurve != null)
+				{
+					sb.AppendInfo("Effect threshold", Lib.BuildString((effect.thresholdCurve.Evaluate(0f) * 100f).ToString("F0"), " - ", effect.thresholdCurve.Evaluate(1f).ToString("P0")));
+				}
+				else
+				{
+					sb.AppendInfo("Effect threshold", effect.threshold.ToString("P0"));
+				}
+				sb.AppendKSPNewLine();
+
+			}
+
+			return sb.ToString();
+
 		}
 	}
 
@@ -351,8 +475,15 @@ namespace KERBALISM
 		[CFGValue] public string name;
 		[CFGValue] public string title;
 		[CFGValue] public double baseRate = 1.0;
+
+		// If set to true, the sum of all other modifiers will be evaluated first
+		// Then the result of that modifier will be added, but only if the result is
+		// nearer from zero. Use this to prevent modifiers from "regenerating" a rule.
+		[CFGValue] public bool cancelRateMode = false;
 		public bool hasModifier = false;
 		public IGenericExpression<double> rateModifier;
+
+		public override string ToString() => name;
 
 		public static KerbalRuleModifierDefinition Parse(ConfigNode modifierDefinitionNode, KerbalRuleDefinition ruleDefinition)
 		{
@@ -418,10 +549,18 @@ namespace KERBALISM
 		// set to 0.0 for the effect to never expire.
 		public double cooldown;
 
-		// max random variance on `duration` (positive or negative modifier : total variance is twice that)
+		// max random variance on `cooldown` (positive or negative modifier : total variance is twice that)
 		public double cooldownVariance;
 
 		[CFGValue] public float reputationPenalty = 0f;
+
+		[CFGValue] protected double ruleRecovery = 0.0;
+		[CFGValue] protected double ruleRecoveryVariance = 0.0;
+
+		public bool HasRuleRecovery => ruleRecovery > 0.0;
+		public double RuleRecovery => ruleRecoveryVariance > 0.0 ? ruleRecovery + Lib.RandomDouble(-ruleRecoveryVariance, ruleRecoveryVariance) : ruleRecovery;
+
+		public override string ToString() => name.ToString();
 
 		public static KerbalRuleEffectDefinition Parse(ConfigNode effectDefinitionNode, string kerbalValueName)
 		{
@@ -454,6 +593,7 @@ namespace KERBALISM
 					return null;
 			}
 
+			instance.name = type; 
 			instance.Parse(effectDefinitionNode);
 			return instance;
 		}
@@ -472,9 +612,15 @@ namespace KERBALISM
 				cooldownVariance = 0.0;
 			}
 
+			if (ruleRecovery > 0.0 && (ruleRecoveryVariance > ruleRecovery || ruleRecovery + ruleRecoveryVariance > 1.0))
+			{
+				ErrorManager.AddError(false, $"Error in EFFECT '{name}' configuration", $"ruleRecovery ({ruleRecovery}) +/- ruleRecoveryVariance ({ruleRecoveryVariance}) must be in the [0, 1] range");
+				ruleRecovery = 0.0;
+			}
+
 			if (cooldown > 0.0 && cooldownVariance > cooldown)
 			{
-				ErrorManager.AddError(false, $"Error in EFFECT '{name}' configuration", $"cooldownVariance of {cooldownVariance} is equal or larger than cooldown of {cooldown}");
+				ErrorManager.AddError(false, $"Error in EFFECT '{name}' configuration", $"cooldownVariance ({cooldownVariance}) must be less than cooldown ({cooldown})");
 				cooldownVariance = 0.0;
 			}
 

@@ -276,7 +276,7 @@ namespace KERBALISM
 
 		public override string ToString()
 		{
-			return $"{Name} : {Lib.HumanReadableStorage(Amount, Capacity)} ({Rate.ToString("+0.#######/s;-0.#######/s")})";
+			return $"{Name} : {Lib.HumanReadableStorage(Amount, Capacity)} ({Rate:+0.#######/s;-0.#######/s})";
 		}
 
 		public string BrokersListTooltip(bool showSummary = true)

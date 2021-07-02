@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Harmony;
+using HarmonyLib;
 using KSP.Localization;
 
 namespace KERBALISM
 {
-    /*
+	/*
 		Fix for sample taking from a ModuleAsteroid / ModuleComet.
 		The module search for a ModuleScienceContainer to store the data into, it won't find it with Kerbalism
 		See issue : https://github.com/Kerbalism/Kerbalism/issues/458
@@ -33,7 +33,7 @@ namespace KERBALISM
 		```
 	 */
 
-    [HarmonyPatch(typeof(ModuleAsteroid))]
+	[HarmonyPatch(typeof(ModuleAsteroid))]
 	[HarmonyPatch("TakeSampleEVAEvent")]
 	class AsteroidSurfaceSample
 	{
@@ -81,8 +81,6 @@ namespace KERBALISM
             return false;
 		}
 	}
-
-#if !KSP15_16 && !KSP17 && !KSP18
 
 	[HarmonyPatch(typeof(ModuleComet))]
 	[HarmonyPatch("TakeSampleEVAEvent")]
@@ -132,7 +130,4 @@ namespace KERBALISM
 			return false;
 		}
 	}
-
-#endif
-
 }

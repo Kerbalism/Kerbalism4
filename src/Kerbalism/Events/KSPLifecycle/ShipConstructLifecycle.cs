@@ -1,4 +1,4 @@
-﻿using Harmony;
+﻿using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +13,21 @@ namespace KERBALISM.Events
 		{
 			ModuleKsmExperiment.CheckEditorExperimentMultipleRun();
 			Planner.Planner.EditorShipModifiedEvent(data);
+		}
+
+		// fix for B9PS disabled modules being re-enabled when the part is placed in the editor
+		public void OnEditorPartEvent(ConstructionEventType data0, Part data1)
+		{
+			if (data0 == ConstructionEventType.PartAttached)
+			{
+				foreach (PartModule module in data1.Modules)
+				{
+					if (module is KsmPartModule ksmModule && !ksmModule.switchLastModuleEnabled && ksmModule.enabled)
+					{
+						ksmModule.enabled = false;
+					}
+				}
+			}
 		}
 	}
 

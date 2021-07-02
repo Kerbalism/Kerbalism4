@@ -12,6 +12,8 @@ namespace KERBALISM.KsmGui
 
 		public override RectTransform ParentTransformForChilds => Content;
 
+		private Image scrollRectBackground;
+
 		public KsmGuiVerticalScrollView(KsmGuiBase parent, int contentSpacing = 5, int contentPaddingLeft = 5, int contentPaddingRight = 5, int contentPaddingTop = 5, int contentPaddingBottom = 5) : base (parent)
 		{
 			ScrollRect scrollRect = TopObject.AddComponent<ScrollRect>();
@@ -25,7 +27,7 @@ namespace KERBALISM.KsmGui
 			scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
 			scrollRect.verticalScrollbarSpacing = -3f;
 
-			Image scrollRectBackground = TopObject.AddComponent<Image>();
+			scrollRectBackground = TopObject.AddComponent<Image>();
 			scrollRectBackground.color = KsmGuiStyle.boxColor;
 
 			// viewport object (child of top object)
@@ -128,6 +130,15 @@ namespace KERBALISM.KsmGui
 			handleImage.color = new Color(0.4f, 0.4f, 0.4f);
 			handleTransform.SetParentFixScale(slidingAreaTransform);
 			scrollbarComponent.targetGraphic = handleImage;
+		}
+
+		public void SetBackgroundColor(bool enabled, Color color = default)
+		{
+			if (color == default)
+				color = KsmGuiStyle.boxColor;
+
+			scrollRectBackground.enabled = enabled;
+			scrollRectBackground.color = color;
 		}
 	}
 }

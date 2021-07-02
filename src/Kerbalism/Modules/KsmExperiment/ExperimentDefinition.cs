@@ -13,7 +13,7 @@ namespace KERBALISM
 		public ExperimentInfo ExpInfo { get; private set; }
 
 		/// <summary> Id of the EXPERIMENT_DEFINITION </summary>
-		[CFGValue] private string ExperimentId { get; set; }
+		[CFGValue] protected string ExperimentId { get; set; }
 
 		/// <summary> EC requirement (units/second) </summary>
 		[CFGValue] public double RequiredEC { get; private set; } = 0.01;

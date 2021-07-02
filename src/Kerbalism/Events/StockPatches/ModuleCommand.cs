@@ -1,5 +1,6 @@
 ﻿using CommNet;
-using Harmony;
+using HarmonyLib;
+using UnityEngine;
 using static ModuleCommand;
 
 namespace KERBALISM

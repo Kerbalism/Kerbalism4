@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -197,6 +198,21 @@ namespace KERBALISM
 		/// <summary> The current radiation rate received in rad/s. Only updated on receivers </summary>
 		public double RadiationRate { get; private set; }
 
+		/// <summary> The current radiation rate received in rad/s. Only updated on receivers </summary>
+		public double EmittersRadiation { get; private set; }
+
+		/// <summary> The current radiation rate received in rad/s. Only updated on receivers </summary>
+		public double EmittersOcclusion { get; private set; }
+
+		/// <summary> The current radiation rate received in rad/s. Only updated on receivers </summary>
+		public double AmbiantOcclusion { get; private set; }
+
+		/// <summary> The current radiation rate received in rad/s. Only updated on receivers </summary>
+		public double ActiveShielding { get; private set; }
+
+		/// <summary> % of storm / solar wind radiation getting trough</summary>
+		public double SunRadiationFactor => sunRaycastTask?.sunRadiationFactor ?? 1.0;
+
 		/// <summary>
 		/// Should the part should be considered for occlusion in raycasting tasks.
 		/// Only available for parts whose surface/volume stats have been computed (see PartVolumeAndSurface.EvaluatePrefabAtCompilation())
@@ -364,11 +380,22 @@ namespace KERBALISM
 
 			if (IsReceiver)
 			{
+				EmittersRadiation = 0.0;
+				ActiveShielding = 0.0;
+
+				EmittersOcclusion = 0.0;
+
 				stormRadiationDbg = 0.0;
 				emittersRadiationDbg = 0.0;
 
 				// add "ambiant" radiation (background, belts, bodies...)
-				RadiationRate = PartData.vesselData.EnvRadiation * OcclusionFactor(false, true, false);
+				// TODO : apply sunRadiationFactor to solar wind component (vd.EnvRadiationSolar)
+				// also : maybe we could raycast to nearby bodies emitting significant radiation
+				// also : we should scale up radiation from raycasted bodies when the vessel is on or close to the surface
+
+				AmbiantOcclusion = OcclusionFactor(false, true, false);
+				RadiationRate = PartData.vesselData.EnvRadiation * AmbiantOcclusion;
+				AmbiantOcclusion = 1.0 - AmbiantOcclusion;
 
 				// add storm radiation, if there is a storm
 				stormRadiationFactorDbg = sunRaycastTask.sunRadiationFactor;
@@ -400,9 +427,15 @@ namespace KERBALISM
 							emitterRaycastTasks[i].CheckEmitterHasChanged(PartData.vesselData.Synchronizer.RadiationEmitterAtIndex(i));
 						}
 
-						RadiationRate += emitterRaycastTasks[i].Radiation();
-						emittersRadiationDbg += emitterRaycastTasks[i].Radiation();
+						EmittersRadiation += emitterRaycastTasks[i].Radiation();
+						EmittersOcclusion += emitterRaycastTasks[i].ReductionFactor;
 					}
+
+					EmittersOcclusion /= vesselEmittersCount;
+					EmittersOcclusion = 1.0 - EmittersOcclusion;
+
+					RadiationRate += EmittersRadiation;
+					emittersRadiationDbg = EmittersRadiation;
 
 					int coilsCount = coilArrays.Count;
 					int coilIndex = 0;
@@ -421,10 +454,12 @@ namespace KERBALISM
 								coilArrays[coilIndex].CheckChangedAndUpdate(coilData, protectionFactor);
 							}
 
-							RadiationRate -= coilArrays[coilIndex].RadiationRemoved;
+							ActiveShielding += coilArrays[coilIndex].RadiationRemoved;
 							coilIndex++;
 						}
 					}
+
+					RadiationRate -= ActiveShielding;
 
 					if (coilsCount > coilIndex + 1)
 					{
@@ -441,14 +476,18 @@ namespace KERBALISM
 					// apply coil arrays protection
 					for (int i = 0; i < emitterRaycastTasks.Count; i++)
 					{
-						RadiationRate += emitterRaycastTasks[i].Radiation();
+						EmittersRadiation += emitterRaycastTasks[i].Radiation();
 					}
 
+					RadiationRate += EmittersRadiation;
+
 					// apply coil arrays protection
-					foreach (CoilArrayShielding arrayData in coilArrays)
+					for (int i = 0; i < coilArrays.Count; i++)
 					{
-						RadiationRate -= arrayData.RadiationRemoved;
+						ActiveShielding += coilArrays[i].RadiationRemoved;
 					}
+
+					RadiationRate -= ActiveShielding;
 				}
 
 				// Lib.LogDebug($"{PartData.vesselData.VesselName} - {PartData} - vesselEmitters:{vesselEmittersCount} - emitters:{emitterRaycastTasks.Count} - shields:{coilArrays.Count}");
@@ -552,6 +591,7 @@ namespace KERBALISM
 			return 1.0 - rad;
 		}
 
+		[Conditional("DEBUG_RADIATION")]
 		private void SetupDebugPAWInfo()
 		{
 			if (PartData.vesselData.VesselName == null)
@@ -605,6 +645,6 @@ namespace KERBALISM
 			}
 		}
 
-		#endregion
+#endregion
 	}
 }

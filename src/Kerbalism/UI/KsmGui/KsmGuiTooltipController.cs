@@ -12,7 +12,10 @@ namespace KERBALISM.KsmGui
 		public static KsmGuiTooltipController Instance { get; private set; }
 
 		private GameObject tooltipObject;
+		private VerticalLayoutGroup backgroundLayout;
+		private RectTransform textTransform;
 		private TextMeshProUGUI textComponent;
+		private ContentSizeFitter topFitter;
 		public RectTransform TopTransform { get; private set; }
 		public RectTransform ContentTransform { get; private set; }
 		public bool IsVisible { get; private set; }
@@ -52,6 +55,10 @@ namespace KERBALISM.KsmGui
 
 			tooltipObject.AddComponent<CanvasRenderer>();
 
+			CanvasGroup group = tooltipObject.AddComponent<CanvasGroup>();
+			group.interactable = false;
+			group.blocksRaycasts = false;
+
 			VerticalLayoutGroup toplayout = tooltipObject.AddComponent<VerticalLayoutGroup>();
 			toplayout.childAlignment = TextAnchor.UpperLeft;
 			toplayout.childControlHeight = true;
@@ -59,7 +66,7 @@ namespace KERBALISM.KsmGui
 			toplayout.childForceExpandHeight = false;
 			toplayout.childForceExpandWidth = false;
 
-			ContentSizeFitter topFitter = tooltipObject.AddComponent<ContentSizeFitter>();
+			topFitter = tooltipObject.AddComponent<ContentSizeFitter>();
 			topFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 			topFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
@@ -87,7 +94,7 @@ namespace KERBALISM.KsmGui
 			backgroundTranform.SetParentFixScale(ContentTransform);
 			background.AddComponent<CanvasRenderer>();
 
-			VerticalLayoutGroup backgroundLayout = background.AddComponent<VerticalLayoutGroup>();
+			backgroundLayout = background.AddComponent<VerticalLayoutGroup>();
 			backgroundLayout.padding = new RectOffset(5, 5, 2, 2);
 			backgroundLayout.childAlignment = TextAnchor.UpperLeft;
 			backgroundLayout.childControlHeight = true;
@@ -101,7 +108,7 @@ namespace KERBALISM.KsmGui
 
 			// last child : text
 			GameObject textObject = new GameObject("KsmGuiTooltipText");
-			RectTransform textTransform = textObject.AddComponent<RectTransform>();
+			textTransform = textObject.AddComponent<RectTransform>();
 			textTransform.SetParentFixScale(backgroundTranform);
 			textObject.AddComponent<CanvasRenderer>();
 
@@ -118,24 +125,43 @@ namespace KERBALISM.KsmGui
 			IsVisible = false;
 		}
 
-		public void ShowTooltip(KsmGuiTooltipBase tooltip, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase tooltipContent = null)
+		public void ShowTooltip(KsmGuiTooltipBase tooltip, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float maxWidth = -1f, Func<KsmGuiBase> tooltipContent = null)
 		{
 			currentTooltip = tooltip;
 
-			if (width == -1f)
-				width = KsmGuiStyle.tooltipMaxWidth;
+			if (string.IsNullOrEmpty(currentTooltip.Text) && tooltipContent == null)
+			{
+				HideTooltip();
+				return;
+			}
 
-			TopTransform.sizeDelta = new Vector2(width, 0f);
+			if (maxWidth == -1f)
+			{
+				topFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+				
+			}
+			else if (maxWidth == 0f)
+			{
+				topFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+				maxWidth = KsmGuiStyle.tooltipMaxWidth;
+				TopTransform.sizeDelta = new Vector2(maxWidth, TopTransform.sizeDelta.y);
+			}
+			else
+			{
+				topFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+				TopTransform.sizeDelta = new Vector2(maxWidth, TopTransform.sizeDelta.y);
+			}
 
 			textComponent.enabled = true;
 			textComponent.alignment = textAlignement;
 			textComponent.SetText(currentTooltip.Text);
 
-				content?.TopObject.DestroyGameObject();
+			content?.TopObject.DestroyGameObject();
 
-			if (content != null)
+			if (tooltipContent != null)
 			{
-				content = tooltipContent;
+				topFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+				content = tooltipContent();
 				content.TopTransform.SetParentFixScale(backgroundTranform);
 			}
 
@@ -146,6 +172,7 @@ namespace KERBALISM.KsmGui
 
 		public void HideTooltip()
 		{
+			content?.TopObject.DestroyGameObject();
 			currentTooltip = null;
 			tooltipObject.SetActive(false);
 			IsVisible = false;

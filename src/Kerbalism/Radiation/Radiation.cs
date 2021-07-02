@@ -637,11 +637,18 @@ namespace KERBALISM
 
 			// accumulate radiation
 			double radiation = 0.0;
+			double mainBodyRadiation = 0.0;
 			CelestialBody body = vd.Vessel.mainBody;
+
+			vd.radiationInnerBelt = 0.0;
+			vd.radiationOuterBelt = 0.0;
+			vd.radiationMagnetopause = 0.0;
+			vd.radiationBodies = 0.0;
+			vd.radiationSolar = 0.0;
+			
 			while (body != null)
 			{
 				// Compute radiation values from overlapping 3d fields (belts + magnetospheres)
-
 				RadiationBody rb = Info(body);
 				RadiationModel mf = rb.model;
 
@@ -668,7 +675,8 @@ namespace KERBALISM
 						// allow for radiation field to grow/shrink with solar activity
 						D -= activity * 0.25 / mf.inner_radius;
 						r = RadiationInBelt(D, mf.inner_radius, rb.radiation_inner_gradient);
-						radiation += r * rb.radiation_inner * (1 + activity * 0.3);
+						vd.radiationInnerBelt += r * rb.radiation_inner * (1 + activity * 0.3);
+						
 					}
 					if (mf.has_outer)
 					{
@@ -678,7 +686,8 @@ namespace KERBALISM
 						// allow for radiation field to grow/shrink with solar activity
 						D -= activity * 0.25 / mf.outer_radius;
 						r = RadiationInBelt(D, mf.outer_radius, rb.radiation_outer_gradient);
-						radiation += r * rb.radiation_outer * (1 + activity * 0.3);
+						vd.radiationOuterBelt += r * rb.radiation_outer * (1 + activity * 0.3);
+						
 					}
 					if (mf.has_pause)
 					{
@@ -686,28 +695,36 @@ namespace KERBALISM
 						p = gsm.TransformIn(scaled_position);
 						D = mf.PauseFunc(p);
 
-						radiation += Lib.Clamp(D / -0.1332f, 0.0f, 1.0f) * rb.RadiationPause();
+						vd.radiationMagnetopause += Lib.Clamp(D / -0.1332f, 0.0f, 1.0f) * rb.RadiationPause();
+						
 
 						magnetosphere |= D < 0.0f && !Sim.IsStar(rb.body); //< ignore heliopause
 						interstellar |= D > 0.0f && Sim.IsStar(rb.body); //< outside heliopause
 					}
 				}
 
-				if (rb.radiation_surface > 0 && body != vd.Vessel.mainBody)
+				if (rb.radiation_surface > 0)
 				{
-					Vector3d direction;
-					double distance;
-					
-					if (Sim.IsBodyVisible(vd.Vessel, position, body, vd.VisibleBodies, out direction, out distance))
+					if (Sim.IsBodyVisible(vd.Vessel, position, body, vd.VisibleBodies, out _, out double distance))
 					{
 						var r0 = RadiationR0(rb);
 						var r1 = DistanceRadiation(r0, distance);
 
-						// clamp to max. surface radiation. when loading on a rescaled system, the vessel can appear to be within the sun for a few ticks
-						radiation += Math.Min(r1, rb.radiation_surface);
-#if DEBUG_RADIATION
-						if (v.loaded) Lib.Log("Radiation " + v + " from surface of " + body + ": " + Lib.HumanReadableRadiation(radiation) + " gamma: " + Lib.HumanReadableRadiation(r1));
-#endif
+						// clamp to max. surface radiation.
+						// when loading on a rescaled system, the vessel can appear to be within the sun for a few ticks
+						var rad = Math.Min(r1, rb.radiation_surface);
+
+						if (Sim.IsStar(body))
+						{
+							vd.radiationSolar += rad;
+						}
+						else
+						{
+							if (body == vd.MainBody)
+								mainBodyRadiation += rad; // TODO : this should be affected by the body gamma transparency, but the other way around
+							else
+								vd.radiationBodies += rad;
+						}
 					}
 				}
 
@@ -715,34 +732,29 @@ namespace KERBALISM
 				body = (body.referenceBody != null && body.referenceBody.referenceBody == body) ? null : body.referenceBody;
 			}
 
+			// add all sources and apply gamma transparency if inside atmosphere
+			vd.radiationInnerBelt *= gammaTransparency;
+			vd.radiationOuterBelt *= gammaTransparency;
+			vd.radiationMagnetopause *= gammaTransparency;
+			vd.radiationSolar *= gammaTransparency;
+			vd.radiationBodies *= gammaTransparency;
+
+			radiation += vd.radiationInnerBelt;
+			radiation += vd.radiationOuterBelt;
+			radiation += vd.radiationMagnetopause;
+			radiation += vd.radiationSolar;
+			radiation += vd.radiationBodies;
+
 			// add extern radiation
-			radiation += Settings.ExternRadiation;
+			radiation += Settings.ExternRadiation * gammaTransparency;
 
-#if DEBUG_RADIATION
-			if (v.loaded) Lib.Log("Radiation " + v + " extern: " + Lib.HumanReadableRadiation(radiation) + " gamma: " + Lib.HumanReadableRadiation(Settings.ExternRadiation));
-#endif
-
-			// apply gamma transparency if inside atmosphere
-			radiation *= gammaTransparency;
+			// main body surface radiation is unaffected by gamma transparency
+			radiation += mainBodyRadiation;
+			vd.radiationBodies += mainBodyRadiation;
 
 #if DEBUG_RADIATION
 			if (v.loaded) Lib.Log("Radiation " + v + " after gamma: " + Lib.HumanReadableRadiation(radiation) + " transparency: " + gamma_transparency);
 #endif
-			// add surface radiation of the body itself
-			if (Sim.IsStar(vd.Vessel.mainBody) && vd.Vessel.altitude < vd.Vessel.mainBody.Radius) // ???!!???
-			{
-				if (vd.Vessel.altitude > vd.Vessel.mainBody.Radius) // ??!??!???
-				{
-					radiation += DistanceRadiation(RadiationR0(Info(vd.Vessel.mainBody)), vd.Vessel.altitude);
-
-				}
-			}
-
-#if DEBUG_RADIATION
-			if (v.loaded) Lib.Log("Radiation " + v + " from current main body: " + Lib.HumanReadableRadiation(radiation) + " gamma: " + Lib.HumanReadableRadiation(DistanceRadiation(RadiationR0(Info(v.mainBody)), v.altitude)));
-#endif
-
-
 			//var passiveShielding = PassiveShield.Total(v);
 			//shieldedRadiation -= passiveShielding;
 

@@ -67,6 +67,9 @@
   <!-- ///////////////////////////////////////////////////// -->
   <ItemGroup>
     <!-- Nuget packages -->
+    <Reference Include="0Harmony, Version=2.0.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Lib.Harmony.2.0.4\lib\net45\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Flee.Net45, Version=1.0.0.0, Culture=neutral, PublicKeyToken=951a102ce2413032, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Flee.1.2.2\lib\net45\Flee.Net45.dll</HintPath>
     </Reference>
@@ -82,11 +85,6 @@
       <Private>False</Private>
     </Reference>
     <!-- Harmony reference, from the repo gamedata folder -->
-    <Reference Include="$(GameDataKerbalismPathPR)\Lib\0Harmony.1.2.0.1.dll">
-      <Name>Harmony</Name>
-      <HintPath>$(GameDataKerbalismPathPR)\0Harmony.1.2.0.1.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <!-- System Dlls from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
     <Reference Include="$(EffectiveKSPDllPath)\System.dll">
       <Name>System</Name>
@@ -176,6 +174,7 @@
     <Compile Include="Modules\KsmExperiment\ExperimentDefinition.cs" />
     <Compile Include="Modules\KsmGreenhouse\GreenhouseHandler.cs" />
     <Compile Include="Modules\KsmGreenhouse\GreenhouseDefinition.cs" />
+    <Compile Include="Modules\KsmHabitat\HabitatComfort.cs" />
     <Compile Include="Modules\KsmHabitat\HabitatDefinition.cs" />
     <Compile Include="Modules\KsmProcessController\ProcessControllerHandler.cs" />
     <Compile Include="Modules\KsmProcessController\ProcessControllerDefinition.cs" />
@@ -256,7 +255,6 @@
     <Compile Include="Modules\KsmHabitat\ModuleKsmHabitat.cs" />
     <Compile Include="Radiation\RadiationBody.cs" />
     <Compile Include="Radiation\RadiationModel.cs" />
-    <Compile Include="API\BackgroundDelegate.cs" />
     <Compile Include="API\ResourceAPI.cs" />
     <Compile Include="API\ResourceUpdateDelegate.cs" />
     <Compile Include="ResourceSim\ResourceBroker.cs" />
@@ -272,7 +270,6 @@
     <Compile Include="Modules\Harvester.cs" />
     <Compile Include="Modules\KsmDrive\ModuleKsmDrive.cs" />
     <Compile Include="Modules\Laboratory.cs" />
-    <Compile Include="Modules\Sensor.cs" />
     <Compile Include="Modules\KsmExperiment\ModuleKsmExperiment.cs" />
     <Compile Include="Modules\Reliability.cs" />
     <Compile Include="Modules\SolarPanelFixer.cs" />

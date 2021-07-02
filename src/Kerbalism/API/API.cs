@@ -441,24 +441,6 @@ namespace KERBALISM
 			return vd.Habitat.poisoningLevel;
 		}
 
-		// return living space factor
-		public static double LivingSpace(Vessel v)
-		{
-			if (!Features.LifeSupport || !v.TryGetVesselDataTemp(out VesselData vd))
-				return 0.0;
-
-			return vd.Habitat.livingSpaceFactor;
-		}
-
-		// return comfort factor
-		public static double Comfort(Vessel v)
-		{
-			if (!Features.LifeSupport || !v.TryGetVesselDataTemp(out VesselData vd))
-				return 0.0;
-
-			return vd.Habitat.comfortFactor;
-		}
-
 		#endregion
 
 		#region RESOURCE SIM

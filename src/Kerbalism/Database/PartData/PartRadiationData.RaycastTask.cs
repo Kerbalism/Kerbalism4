@@ -404,9 +404,11 @@ namespace KERBALISM
 				Direction direction = PrimaryDirection(sunDirection);
 				Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
 
-				//DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
-				//DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
-				//DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
+#if DEBUG_RADIATION
+				DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, sunDirection, Color.red, 50f, 50));
+#endif
 
 				// Explaination :
 				// When high energy charged particules from CME events hit a solid surface, three things happen :
@@ -434,8 +436,10 @@ namespace KERBALISM
 
 					prd.AnalyzeRaycastHit();
 
-					//Vector3 midPoint = prd.toHit.point + ((prd.fromHit.point - prd.toHit.point) * 0.5f);
-					//DebugDrawer.Draw(new DebugDrawer.Point(midPoint, Color.green, 30));
+#if DEBUG_RADIATION
+					Vector3 midPoint = prd.toHit.point + ((prd.fromHit.point - prd.toHit.point) * 0.5f);
+					DebugDrawer.Draw(new DebugDrawer.Point(midPoint, Color.green, 30));
+#endif
 
 					Bounds occluderBounds = GetPartBounds(prd);
 					Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
@@ -455,15 +459,17 @@ namespace KERBALISM
 					double sqrDistance = (prd.toHit.point - origin.PartData.LoadedPart.WCoM).sqrMagnitude;
 					bremsstrahlung += partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
 
-					//DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
-					//DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
-					//DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
+#if DEBUG_RADIATION
+					DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
 
 					prd.lastRaycastDbg = $"sun-{Time.frameCount}";
 					prd.rayPenetrationDbg = prd.hitPenetration;
 					prd.crossSectionFactorDbg = sectionRatio;
 					prd.blockedRadDbg = partBremsstrahlung;
 					prd.bremsstrahlungDbg = partBremsstrahlung / Math.Max(1.0, 0.222 * Math.PI * sqrDistance);
+#endif
 
 					prd.ResetRaycastHit();
 				}
@@ -472,7 +478,7 @@ namespace KERBALISM
 				cmeRadiation -= cmeRadiation * origin.OcclusionFactor(true, true, false);
 				bremsstrahlung -= bremsstrahlung * origin.OcclusionFactor(false, true, false);
 
-				sunRadiationFactor = Math.Max(cmeRadiation + bremsstrahlung, 0.0);
+				sunRadiationFactor = Math.Max(cmeRadiation + bremsstrahlung, minFactor);
 			}
 		}
 
@@ -480,7 +486,7 @@ namespace KERBALISM
 		{
 			private PartRadiationData emitter;
 
-			private double reductionFactor = 0.0;
+			public double ReductionFactor { get; private set; } = 0.0;
 			private uint emitterId;
 
 			public EmitterRaycastTask(PartRadiationData origin, PartRadiationData emitter) : base(origin)
@@ -492,7 +498,7 @@ namespace KERBALISM
 			public EmitterRaycastTask(PartRadiationData origin, ConfigNode.Value value) : base(origin)
 			{
 				emitterId = Lib.Parse.ToUInt(value.name);
-				reductionFactor = Lib.Parse.ToDouble(value.value);
+				ReductionFactor = Lib.Parse.ToDouble(value.value);
 			}
 
 			public static void OnUnloadedPostInstantiate(List<EmitterRaycastTask> emitters)
@@ -522,7 +528,7 @@ namespace KERBALISM
 					if (emitterTask.emitter.PartData.vesselData != vd && (!vd.EnvLanded || !emitterTask.emitter.PartData.vesselData.EnvLanded))
 						continue;
 
-					emittersNode.AddValue(emitterTask.emitterId.ToString(), emitterTask.reductionFactor);
+					emittersNode.AddValue(emitterTask.emitterId.ToString(), emitterTask.ReductionFactor);
 				}
 
 				if (emittersNode.CountValues > 0)
@@ -555,7 +561,7 @@ namespace KERBALISM
 				{
 					emitter = otherEmitter;
 					emitterId = otherEmitter.PartData.flightId;
-					reductionFactor = 0.0;
+					ReductionFactor = 0.0;
 				}
 				else if (emitter == null)
 				{
@@ -576,7 +582,7 @@ namespace KERBALISM
 					if (emitterModule.IsActive)
 						radiation += emitterModule.RadiationRate;
 				}
-				return radiation * reductionFactor;
+				return radiation * ReductionFactor;
 			}
 
 			public override void Raycast(RaycastTask nextTask)
@@ -587,22 +593,40 @@ namespace KERBALISM
 				float distance = rayDir.magnitude;
 
 				// compute initial radiation strength according to the emitter distance
-				reductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
+				ReductionFactor = KERBALISM.Radiation.DistanceRadiation(1.0, distance);
 				rayDir /= distance;
 
-				// DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
+#if DEBUG_RADIATION
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.yellow, 50f, 50));
+#endif
 
 				OcclusionRaycast(origin.PartData.LoadedPart.WCoM, rayDir);
 
-				Bounds originBounds = GetPartBounds(origin);
-				Direction direction = PrimaryDirection(rayDir);
-				Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
+				// TODO : the whole section things isn't very good at giving stable values. This is an issue for emitters, resulting in sudden radiation rate jumps depending on the vessel orientation
+				// I don't see a solution beside doing more advanced stuff (custom camera + shaders ?), so maybe just disable it ? 
+
+				//Bounds originBounds = GetPartBounds(origin);
+				//Direction direction = PrimaryDirection(rayDir);
+				//Section originSection = new Section(origin.PartData.LoadedPart.WCoM, originBounds, direction);
+
+#if DEBUG_RADIATION
+				//DebugDrawer.Draw(new DebugDrawer.Bounds(originBounds, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Point(origin.PartData.LoadedPart.WCoM, Color.green, 50));
+				DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, rayDir, Color.red, 50f, 50));
+
+				//switch (direction)
+				//{
+				//	case Direction.X: DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, new Vector3(1f, 0f, 0f), Color.black, 50f, 50)); break;
+				//	case Direction.Y: DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, new Vector3(0f, 1f, 0f), Color.black, 50f, 50)); break;
+				//	case Direction.Z: DebugDrawer.Draw(new DebugDrawer.Line(origin.PartData.LoadedPart.WCoM, new Vector3(0f, 0f, 1f), Color.black, 50f, 50)); break;
+				//}
+#endif
 
 				foreach (PartRadiationData prd in hittedParts)
 				{
 					// optimization to avoid keeping computing radiation levels that don't matter
 					// also make sure we ignore the origin and emitter parts
-					if (reductionFactor < minFactor || prd == origin || prd == emitter)
+					if (ReductionFactor < minFactor || prd == origin || prd == emitter)
 					{
 						prd.ResetRaycastHit();
 						continue;
@@ -610,23 +634,32 @@ namespace KERBALISM
 
 					prd.AnalyzeRaycastHit();
 
-					Bounds occluderBounds = GetPartBounds(prd);
-					Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
-					double sectionRatio = originSection.OccluderFactor(occluderSection);
+					//Bounds occluderBounds = GetPartBounds(prd);
+					//Section occluderSection = new Section(prd.fromHit.point, occluderBounds, direction);
+					//double sectionRatio = originSection.OccluderFactor(occluderSection);
 
-					prd.blockedRadDbg = reductionFactor * prd.OcclusionFactor(false) * sectionRatio;
-					reductionFactor -= prd.blockedRadDbg;
+					//DebugDrawer.Draw(new DebugDrawer.Bounds(occluderBounds, Color.yellow, 50));
+
+#if DEBUG_RADIATION
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.toHit.point, Color.blue, 50));
+					DebugDrawer.Draw(new DebugDrawer.Point(prd.fromHit.point, Color.red, 50));
+#endif
+					prd.blockedRadDbg = ReductionFactor * prd.OcclusionFactor(false); // * sectionRatio;
+					ReductionFactor -= prd.blockedRadDbg;
 					//reductionFactor -= reductionFactor * prd.OcclusionFactor(false);
 					prd.ResetRaycastHit();
 
+#if DEBUG_RADIATION
 					prd.lastRaycastDbg = $"emt-{Time.frameCount}";
 					prd.rayPenetrationDbg = prd.hitPenetration;
-					prd.crossSectionFactorDbg = sectionRatio;
+					prd.crossSectionFactorDbg = 1.0; //sectionRatio;
 					prd.bremsstrahlungDbg = 0.0;
+#endif
 				}
 
 				// factor in the origin part wall shielding
-				reductionFactor -= reductionFactor * origin.OcclusionFactor(false, true, false);
+				ReductionFactor -= ReductionFactor * origin.OcclusionFactor(false, true, false);
+				ReductionFactor = Math.Max(ReductionFactor, minFactor);
 			}
 		}
 	}

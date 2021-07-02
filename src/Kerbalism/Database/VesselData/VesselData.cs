@@ -172,6 +172,8 @@ namespace KERBALISM
 
 		public override double Longitude => Vessel.longitude;
 
+		public override double Gravity => gravity; double gravity;
+
 		public override double AngularVelocity => Vessel.angularVelocityD.magnitude;
 
 		/// <summary> [environment] true if inside ocean</summary>
@@ -201,11 +203,26 @@ namespace KERBALISM
         /// <summary> [environment] difference between environment temperature and survival temperature</summary>// 
         public override double EnvTempDiff => tempDiff; double tempDiff;
 
-        /// <summary> [environment] radiation at vessel position</summary>
-        public override double EnvRadiation => radiation; double radiation;
+        /// <summary> [environment] total radiation at vessel position</summary>
+        public override double EnvRadiation => radiation; public double radiation;
 
-        /// <summary> [environment] true if vessel is inside a magnetopause (except the heliosphere)</summary>
-        public bool EnvMagnetosphere => magnetosphere;
+		/// <summary> [environment] radiation from the inner belt, excluding gamma transparency</summary>
+		public override double EnvRadiationInnerBelt => radiationInnerBelt; public double radiationInnerBelt;
+
+		/// <summary> [environment] radiation from the outer belt, excluding gamma transparency</summary>
+		public override double EnvRadiationOuterBelt => radiationOuterBelt; public double radiationOuterBelt;
+
+		/// <summary> [environment] radiation from the magnetopause, excluding gamma transparency</summary>
+		public override double EnvRadiationMagnetopause => radiationMagnetopause; public double radiationMagnetopause;
+
+        /// <summary> [environment] radiation from the nearby bodies</summary>
+        public override double EnvRadiationBodies => radiationBodies; public double radiationBodies;
+
+        /// <summary> [environment] radiation from the surface</summary>
+        public override double EnvRadiationSolar => radiationSolar; public double radiationSolar;
+
+		/// <summary> [environment] true if vessel is inside a magnetopause (except the heliosphere)</summary>
+		public bool EnvMagnetosphere => magnetosphere;
 
 		bool magnetosphere;
 
@@ -269,14 +286,12 @@ namespace KERBALISM
         /// <summary>true if vessel is powered</summary>
         public bool Powered => powered; bool powered;
 
-        /// <summary>free data storage available data capacity of all public drives</summary>
-        public double DrivesFreeSpace => drivesFreeSpace; double drivesFreeSpace = 0.0;
-
-        /// <summary>data capacity of all public drives</summary>
-        public double DrivesCapacity => drivesCapacity; double drivesCapacity = 0.0;
-
-        /// <summary>evaluated on loaded vessels based on the data pushed by SolarPanelFixer. This doesn't change for unloaded vessel, so the value is persisted</summary>
-        public double SolarPanelsAverageExposure => solarPanelsAverageExposure; double solarPanelsAverageExposure = -1.0;
+		/// <summary>
+		/// Evaluated on loaded vessels based on the data pushed by SolarPanelFixer.<br/>
+		/// This doesn't change for unloaded vessel, so the value is persisted<br/>
+		/// Negative if there is no solar panel on the vessel
+		/// </summary>
+		public double SolarPanelsAverageExposure => solarPanelsAverageExposure; double solarPanelsAverageExposure = -1.0;
         private List<double> solarPanelsExposure = new List<double>(); // values are added by SolarPanelFixer, then cleared by VesselData once solarPanelsAverageExposure has been computed
         public void SaveSolarPanelExposure(double exposure) => solarPanelsExposure.Add(exposure); // meant to be called by SolarPanelFixer
 
@@ -820,8 +835,6 @@ namespace KERBALISM
             if (Hibernating)
                 deviceTransmit = false;
 
-            DriveHandler.GetCapacity(this, out drivesFreeSpace, out drivesCapacity);
-
             // solar panels data
             if (Vessel.loaded)
             {
@@ -841,7 +854,7 @@ namespace KERBALISM
 			landed = Lib.Landed(Vessel);
 			altitude = Vessel.altitude;
 			mainBody = Vessel.mainBody;
-				
+
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep");
 
 
@@ -953,6 +966,8 @@ namespace KERBALISM
 
 
 			// situation
+			gravity = Math.Abs(FlightGlobals.getGeeForceAtPosition(position, mainBody).magnitude * PhysicsGlobals.GraviticForceMultiplier) / PhysicsGlobals.GravitationalAcceleration;
+
 			underwater = Sim.Underwater(Vessel);
             envStaticPressure = Sim.StaticPressureAtm(Vessel);
             inAtmosphere = Vessel.mainBody.atmosphere && Vessel.altitude < Vessel.mainBody.atmosphereDepth;
@@ -1113,6 +1128,9 @@ namespace KERBALISM
 		// where an unloaded vessel is destroyed,
 		public void OnVesselWillDie()
 		{
+			if (!IsPersisted)
+				return;
+
 			resourceUpdateDelegates = null;
 			VesselParts.OnAllPartsWillDie();
 			CommHandler.ResetPartTransmitters();

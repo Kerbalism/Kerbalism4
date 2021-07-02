@@ -52,24 +52,6 @@ namespace KERBALISM
 			// don't show env panel in eva kerbals
 			if (v.isEVA) return;
 
-			// get all sensor readings
-			HashSet<string> readings = new HashSet<string>();
-			if (v.loaded)
-			{
-				foreach (var s in Lib.FindModules<Sensor>(v))
-				{
-					readings.Add(s.type);
-				}
-			}
-			else
-			{
-				foreach (ProtoPartModuleSnapshot m in Lib.FindModules(v.protoVessel, "Sensor"))
-				{
-					readings.Add(Lib.Proto.GetString(m, "type"));
-				}
-			}
-			readings.Remove(string.Empty);
-
 			p.AddSection(Local.TELEMETRY_ENVIRONMENT);//"ENVIRONMENT"
 
 			//p.AddContent("exposure", (vd.timeInSunlight / vd.timeEvaluated).ToString("P2"));
@@ -80,12 +62,6 @@ namespace KERBALISM
 				if (vd.SolarPanelsAverageExposure < 0.2) exposureString = Lib.Color(exposureString, Lib.Kolor.Orange);
 				p.AddContent(Local.TELEMETRY_SolarPanelsAverageExposure, exposureString, "<b>"+Local.TELEMETRY_Exposureignoringbodiesocclusion +"</b>\n<i>"+Local.TELEMETRY_Exposureignoringbodiesocclusion_desc +"</i>");//"solar panels average exposure""Exposure ignoring bodies occlusion""Won't change on unloaded vessels\nMake sure to optimize it before switching
 			}
-
-			foreach (string type in readings)
-			{
-				p.AddContent(type.Replace('_', ' '), Sensor.Telemetry_content(v, vd, type), Sensor.Telemetry_tooltip(v, vd, type));
-			}
-			if (readings.Count == 0) p.AddContent("<i>"+Local.TELEMETRY_nosensorsinstalled +"</i>");//no sensors installed
 		}
 
 		static void Render_habitat(Panel p, Vessel v, VesselData vd)
@@ -104,7 +80,6 @@ namespace KERBALISM
 
 			p.AddContent("livingVolume", vd.Habitat.livingVolume.ToString("0.00 m3"));
 			p.AddContent("volumePerCrew", vd.Habitat.volumePerCrew.ToString("0.00 m3"));
-			p.AddContent("livingSpaceModifier", vd.Habitat.livingSpaceFactor.ToString("F2"));
 			p.AddContent("pressurizedSurface", vd.Habitat.pressurizedSurface.ToString("0.00 m2"));
 			p.AddContent("pressurizedVolume", vd.Habitat.pressurizedVolume.ToString("0.00 m3"));
 			p.AddContent("pressureAtm", vd.Habitat.pressure.ToString("0.00 atm"));
@@ -113,8 +88,6 @@ namespace KERBALISM
 			p.AddContent("shieldingSurface", vd.Habitat.shieldingSurface.ToString("0.00 m2"));
 			p.AddContent("shieldingAmount", vd.Habitat.shieldingAmount.ToString("F2"));
 			p.AddContent("poisoningLevel", vd.Habitat.poisoningLevel.ToString("F2"));
-
-			p.AddContent("comfortModifier", vd.Habitat.comfortFactor.ToString("F2"), HabitatLib.ComfortTooltip(vd.Habitat.comfortMask, vd.Habitat.comfortFactor));
 
 
 			//p.AddContent("volume-debug", Lib.HumanReadableVolume(vd.Volume));

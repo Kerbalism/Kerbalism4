@@ -149,7 +149,10 @@ namespace KERBALISM
 
 			foreach (PartModule module in loadedPart.Modules)
 			{
-				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(module.GetInstanceID());
+				int instanceID = module.GetInstanceID();
+				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
+				ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
+				ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
 			}
 
 			loadedPart = null;
@@ -173,6 +176,8 @@ namespace KERBALISM
 				return;
 
 			Started = true;
+
+			radiationData.PostInstantiateSetup(); // TODO : this shouldn't be here
 
 			foreach (ModuleHandler handler in modules)
 			{

@@ -20,6 +20,7 @@ namespace KERBALISM
 		[CFGValue] public double deployECRate = 1.0;              // EC/s consumed while deploying / inflating
 		[CFGValue] public double accelerateECRate = 5.0;         // EC/s consumed while accelerating a centrifuge (note : decelerating is free)
 		[CFGValue] public double rotateECRate = 2.0;              // EC/s consumed to sustain the centrifuge rotation
+		[CFGValue] public double centrifugeGravity = 0.3;
 
 		// volume / surface config
 		[CFGValue] public double volume = 0.0;  // habitable volume in m^3, deduced from model if not specified
@@ -53,6 +54,8 @@ namespace KERBALISM
 		// ModuleDockingNode handling
 		[CFGValue] public bool controlModuleDockingNode = false;     // should all ModuleDockingNode on the part be controlled by us and made dependant on the deployed state
 
+		public List<ComfortValue> comforts = new List<ComfortValue>();
+
 		// fixed caracteristics (some determined at prefab compilation from the module OnLoad())
 		public bool isDeployable = false;
 		public bool isCentrifuge = false;
@@ -63,16 +66,15 @@ namespace KERBALISM
 		public override void OnLoad(ConfigNode node)
 		{
 			// Parse comforts
-			if (node.HasValue("comfort"))
+
+			foreach (ConfigNode comfort in node.GetNodes("COMFORT"))
 			{
-				baseComfortsMask = 0;
-				foreach (string comfortString in node.GetValues("comfort"))
-				{
-					if (Enum.TryParse(comfortString, out Comfort comfort))
-						baseComfortsMask |= (int)comfort;
-					else
-						Lib.Log($"Unrecognized comfort `{comfortString}` in ModuleKsmHabitat definition {DefinitionId}");
-				}
+				ComfortValue instance = ComfortValue.Load(comfort);
+
+				if (instance == null)
+					continue;
+
+				comforts.Add(instance);
 			}
 
 			if (node.HasValue("depressurizationDuration"))

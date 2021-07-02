@@ -74,6 +74,9 @@ namespace KERBALISM
 		/// <summary> used to know when to consume ec for deploy/retract and accelerate/decelerate centrifuges</summary>
 		public float animTimer = 0f;
 
+		/// <summary> artifical gravity from the centrifuge, or from the vessel rotation</summary>
+		public double gravity;
+
 		private PartResourceWrapper atmoRes;
 		private PartResourceWrapper wasteRes;
 		private PartResourceWrapper shieldRes;
@@ -359,6 +362,7 @@ namespace KERBALISM
 			wasteLevel = Lib.ConfigValue(node, "wasteLevel", wasteLevel);
 			shieldingAmount = Lib.ConfigValue(node, "shieldingAmount", shieldingAmount);
 			animTimer = Lib.ConfigValue(node, "animTimer", animTimer);
+			gravity = Lib.ConfigValue(node, "gravity", gravity);
 		}
 
 		public override void OnSave(ConfigNode node)
@@ -371,6 +375,7 @@ namespace KERBALISM
 			node.AddValue("wasteLevel", wasteLevel);
 			node.AddValue("shieldingAmount", shieldingAmount);
 			node.AddValue("animTimer", animTimer);
+			node.AddValue("gravity", gravity);
 		}
 
 		#endregion
@@ -383,6 +388,23 @@ namespace KERBALISM
 			AnimationsUpdate(elapsedSec);
 			PressureUpdate(elapsedSec);
 			shieldingAmount = definition.hasShielding ? shieldRes.Amount : 0.0;
+
+			if (definition.isCentrifuge)
+			{
+				if (IsLoaded)
+				{
+					gravity = definition.centrifugeGravity * (loadedModule.rotateAnimator.CurrentSpeed / loadedModule.rotateAnimator.NominalSpeed);
+				}
+				else
+				{
+					gravity = IsRotationNominal ? definition.centrifugeGravity : 0.0;
+				}
+			}
+			else if (IsLoaded)
+			{
+				Rigidbody rb = partData.LoadedPart.rb;
+				gravity = rb == null ? 0.0 : (rb.angularVelocity.magnitude * rb.velocity.magnitude) / PhysicsGlobals.GravitationalAcceleration;
+			}
 		}
 
 		private void AnimationsUpdate(double elapsed_s)

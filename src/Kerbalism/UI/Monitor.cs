@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KSP.Localization;
+using KERBALISM.KsmGui;
 
 namespace KERBALISM
 {
@@ -47,6 +48,11 @@ namespace KERBALISM
 			GameEvents.onVesselChange.Add((Vessel v) => { if (selected_id != Guid.Empty) selected_id = v.id; });
 		}
 
+		// TEMPORARY :
+		private Vessel current_v;
+		private KsmGuiWindow currentWindow;
+
+
 		public void Update()
 		{
 			// reset panel
@@ -62,6 +68,10 @@ namespace KERBALISM
 
 			if (selected_v == null || !selected_v.TryGetVesselDataTemp(out VesselData vd) || !vd.IsSimulated)
 			{
+				currentWindow?.Close();
+				currentWindow = null;
+				current_v = null;
+
 				// forget the selected vessel, if any
 				selected_id = Guid.Empty;
 
@@ -95,6 +105,13 @@ namespace KERBALISM
 			{
 				// header act as title
 				Render_vessel(panel, selected_v, true);
+
+				if (current_v != selected_v)
+				{
+					currentWindow = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
+					new VesselSummaryUI(currentWindow, false, vd);
+					current_v = selected_v;
+				}
 
 				// update page content
 				switch (page)

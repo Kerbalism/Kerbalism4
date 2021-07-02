@@ -1,4 +1,4 @@
-﻿using Harmony;
+﻿using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace KERBALISM
 		// 2.15-
 		private static MethodInfo moduleModifierFindModuleMethod;
 
-		public static void Init(HarmonyInstance harmony)
+		public static void Init(Harmony harmony)
 		{
 			foreach (var a in AssemblyLoader.loadedAssemblies)
 			{

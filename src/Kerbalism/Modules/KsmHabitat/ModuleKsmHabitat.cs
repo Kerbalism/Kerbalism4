@@ -1,4 +1,4 @@
-﻿using Harmony;
+﻿using HarmonyLib;
 using KERBALISM.Planner;
 using System;
 using System.Collections;
@@ -74,6 +74,9 @@ namespace KERBALISM
 		{
 			if (Definition.isDeployable)
 				deployAnimator.Still(1f);
+
+
+			
 		}
 
 		// IVolumeAndSurfaceModule
@@ -316,17 +319,8 @@ namespace KERBALISM
 			return false;
 		}
 
-
-
-		int uCount = 1;
 		public void Update()
 		{
-			if (uCount <= 10)
-			{
-				Lib.LogDebug($"UPDATE N°{uCount}");
-				uCount++;
-			}
-
 			if (vessel != null && vessel.isEVA)
 				return;
 
@@ -503,15 +497,8 @@ namespace KERBALISM
 			return string.Empty;
 		}
 
-		int fuCount = 1;
 		public void FixedUpdate()
 		{
-			if (fuCount <= 3)
-			{
-				Lib.LogDebug($"FIXEDUPDATE N°{fuCount}");
-				fuCount++;
-			}
-
 			// TODO : temporary, waiting for an implementation of the ModuleData.OnFixedUpdate() in-editor automatic invocation
 			if (Lib.IsEditor)
 			{
@@ -839,11 +826,14 @@ namespace KERBALISM
 				specs.Add("Steady state", Lib.Color(Lib.HumanReadableRate(Definition.rotateECRate, "F3", ecAbbr), Lib.Kolor.NegRate));
 			}
 
-			if (Definition.baseComfortsMask > 0)
+			if (Definition.comforts.Count > 0)
 			{
 				specs.Add("");
-				specs.Add(Lib.Color("Comfort", Lib.Kolor.Cyan), ComfortCommaList(Definition.baseComfortsMask));
-				specs.Add("Bonus", GetComfortFactor(Definition.baseComfortsMask).ToString("P0"));
+				specs.Add(Lib.Color("Comfort", Lib.Kolor.Cyan));
+				foreach (ComfortValue comfort in Definition.comforts)
+				{
+					specs.Add(comfort.Title, Lib.BuildString(comfort.seats.ToString(), " ", "seats", ", ", "quality", " ", comfort.quality.ToString("P0")));
+				}
 			}
 
 			return specs;
@@ -888,92 +878,6 @@ namespace KERBALISM
 		public static double M3ToL(double cubicMeters) => cubicMeters * 1000.0;
 
 		public static double LToM3(double liters) => liters * 0.001;
-
-		public static double GetComfortFactor(int comfortMask)
-		{
-			double factor = 0.0;
-
-			if (PreferencesComfort.Instance != null)
-			{
-				if ((comfortMask & (int)Comfort.firmGround) != 0) factor += PreferencesComfort.Instance.firmGround;
-				if ((comfortMask & (int)Comfort.notAlone) != 0) factor += PreferencesComfort.Instance.notAlone;
-				if ((comfortMask & (int)Comfort.callHome) != 0) factor += PreferencesComfort.Instance.callHome;
-				if ((comfortMask & (int)Comfort.exercice) != 0) factor += PreferencesComfort.Instance.exercise;
-				if ((comfortMask & (int)Comfort.panorama) != 0) factor += PreferencesComfort.Instance.panorama;
-				if ((comfortMask & (int)Comfort.plants) != 0) factor += PreferencesComfort.Instance.plants;
-			}
-			else
-			{
-				if ((comfortMask & (int)Comfort.firmGround) != 0) factor += Settings.ComfortFirmGround;
-				if ((comfortMask & (int)Comfort.notAlone) != 0) factor += Settings.ComfortNotAlone;
-				if ((comfortMask & (int)Comfort.callHome) != 0) factor += Settings.ComfortCallHome;
-				if ((comfortMask & (int)Comfort.exercice) != 0) factor += Settings.ComfortExercise;
-				if ((comfortMask & (int)Comfort.panorama) != 0) factor += Settings.ComfortPanorama;
-				if ((comfortMask & (int)Comfort.plants) != 0) factor += Settings.ComfortPlants;
-			}
-
-			return Math.Min(factor, 1.0);
-		}
-
-		public static string ComfortCommaList(int comfortMask)
-		{
-			string[] comforts = new string[6];
-			if ((comfortMask & (int)Comfort.firmGround) != 0) comforts[0] = Local.Comfort_firmground;
-			if ((comfortMask & (int)Comfort.notAlone) != 0) comforts[1] = Local.Comfort_notalone;
-			if ((comfortMask & (int)Comfort.callHome) != 0) comforts[2] = Local.Comfort_callhome;
-			if ((comfortMask & (int)Comfort.exercice) != 0) comforts[3] = Local.Comfort_exercise;
-			if ((comfortMask & (int)Comfort.panorama) != 0) comforts[4] = Local.Comfort_panorama;
-			if ((comfortMask & (int)Comfort.plants) != 0) comforts[5] = Local.Comfort_plants;
-
-			string list = string.Empty;
-			for (int i = 0; i < 6; i++)
-			{
-				if (!string.IsNullOrEmpty(comforts[i]))
-				{
-					if (list.Length > 0) list += ", ";
-					list += comforts[i];
-				}
-			}
-			return list;
-		}
-
-		public static string ComfortTooltip(int comfortMask, double comfortFactor)
-		{
-			string yes = Lib.BuildString("<b><color=#00ff00>", Local.Generic_YES, " </color></b>");
-			string no = Lib.BuildString("<b><color=#ffaa00>", Local.Generic_NO, " </color></b>");
-			return Lib.BuildString
-			(
-				"<align=left />",
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_firmground, (comfortMask & (int)Comfort.firmGround) != 0 ? yes : no),
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_exercise, (comfortMask & (int)Comfort.exercice) != 0 ? yes : no),
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_notalone, (comfortMask & (int)Comfort.notAlone) != 0 ? yes : no),
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_callhome, (comfortMask & (int)Comfort.callHome) != 0 ? yes : no),
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_panorama, (comfortMask & (int)Comfort.panorama) != 0 ? yes : no),
-				String.Format("{0,-14}\t{1}\n", Local.Comfort_plants, (comfortMask & (int)Comfort.plants) != 0 ? yes : no),
-				String.Format("<i>{0,-14}</i>\t{1}", Local.Comfort_factor, Lib.HumanReadablePerc(comfortFactor))
-			);
-		}
-
-		public static string ComfortSummary(double comfortFactor)
-		{
-			if (comfortFactor >= 0.99) return Local.Module_Comfort_Summary1;//"ideal"
-			else if (comfortFactor >= 0.66) return Local.Module_Comfort_Summary2;//"good"
-			else if (comfortFactor >= 0.33) return Local.Module_Comfort_Summary3;//"modest"
-			else if (comfortFactor > 0.1) return Local.Module_Comfort_Summary4;//"poor"
-			else return Local.Module_Comfort_Summary5;//"none"
-		}
-
-
-
-		// traduce living space value to string
-		public static string LivingSpaceFactorToString(double livingSpaceFactor)
-		{
-			if (livingSpaceFactor >= 0.99) return Local.Habitat_Summary1;//"ideal"
-			else if (livingSpaceFactor >= 0.75) return Local.Habitat_Summary2;//"good"
-			else if (livingSpaceFactor >= 0.5) return Local.Habitat_Summary3;//"modest"
-			else if (livingSpaceFactor >= 0.25) return Local.Habitat_Summary4;//"poor"
-			else return Local.Habitat_Summary5;//"cramped"
-		}
 	}
 	#endregion
 }

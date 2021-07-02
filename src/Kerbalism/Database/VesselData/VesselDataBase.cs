@@ -63,6 +63,9 @@ namespace KERBALISM
 		/// <summary>in degree</summary>
 		public virtual double Longitude { get; }
 
+		/// <summary>in gees</summary>
+		public virtual double Gravity { get; }
+
 		/// <summary>in rad/s</summary>
 		public virtual double AngularVelocity { get; }
 
@@ -102,8 +105,23 @@ namespace KERBALISM
 		/// <summary> [environment] radiation at vessel position</summary>
 		public virtual double EnvRadiation  { get; }
 
+		/// <summary> [environment] radiation from the inner belt</summary>
+		public virtual double EnvRadiationInnerBelt { get; }
+
+		/// <summary> [environment] radiation from the outer belt</summary>
+		public virtual double EnvRadiationOuterBelt { get; }
+
+		/// <summary> [environment] radiation from the magnetopause</summary>
+		public virtual double EnvRadiationMagnetopause { get; }
+
+		/// <summary> [environment] radiation from the surface</summary>
+		public virtual double EnvRadiationBodies { get; }
+
+		/// <summary> [environment] radiation from the sun(s)</summary>
+		public virtual double EnvRadiationSolar { get; }
+
 		/// <summary> [environment] radiation effective for habitats/EVAs</summary>
-		public virtual double EnvHabitatRadiation  { get; }
+		public virtual double EnvRadiationHabitat { get; }
 
 		public bool EnvStorm => EnvStormRadiation > 0.0;
 

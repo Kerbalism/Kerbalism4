@@ -1,15 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using KERBALISM.KsmGui;
+using KSP.Localization;
+using KSP.UI;
+using KSP.UI.TooltipTypes;
+using Steamworks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KERBALISM
 {
 	public class VesselSummaryUI : KsmGuiVerticalLayout
 	{
+		private const int contentWidth = 360;
+		private const int crewNameColumnWidth = 100;
+		
+
 		private StringBuilder sb = new StringBuilder();
 
 		private bool isPopup;
@@ -20,7 +30,7 @@ namespace KERBALISM
 		private KsmGuiHorizontalLayout summmarySpace;
 
 		private KsmGuiText signal; // "45 %, x.xx kB/s", tooltip : current distance, max distance, control path list
-		private KsmGuiText transmit; // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
+		private KsmGuiTextButton transmit; // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
 		private KsmGuiText storedData; // "X/X Mb", tooltip : science value
 		private KsmGuiText samples; // "X/X", tooltip : science value, weight
 
@@ -31,61 +41,267 @@ namespace KERBALISM
 
 
 		private KsmGuiVerticalLayout crewSpace;
+		private KsmGuiVerticalScrollView crewScrollView;
 		private List<KerbalEntry> kerbalEntries = new List<KerbalEntry>();
 
-		private class KerbalEntry : KsmGuiHorizontalLayout
+		private KsmGuiVerticalLayout vesselSpace;
+		private KsmGuiBase solarExposure;
+		private KsmGuiText solarExposureText;
+		private KsmGuiHorizontalLayout habitatSpace;
+
+		private KsmGuiText habLivingSpace; // living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
+		private KsmGuiText habGravity; // gravity comfort % -> tooltip : planetary G, gravity rings G, gravity rings seats
+		private KsmGuiText habExercice; // exercice comfort % -> tooltip : available seats
+		private KsmGuiText habRadiation; // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
+		private KsmGuiText habStormProtection;
+		private KsmGuiText habComforts; // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
+		private KsmGuiText habCO2; // hab CO2
+		private KsmGuiText habPressure; // hab pressure
+
+		private KsmGuiTextButton habRadShelterToggle; // button : toggle auto-radiation shelters
+		private KsmGuiTextButton habRadShelterConfigure; // buttons : configure radiation shelters
+
+
+		private KsmGuiVerticalLayout suppliesSpace;
+		private KsmGuiVerticalScrollView suppliesScrollView;
+		private List<SupplyEntry> suppliesEntries = new List<SupplyEntry>();
+
+
+		private class KerbalEntry : KsmGuiBase
 		{
 			private class RuleEntry : KsmGuiText
 			{
 				private StringBuilder sb = new StringBuilder();
 				private KerbalRule rule;
-				public RuleEntry(KsmGuiBase parent, KerbalRule rule) : base(parent, rule.Definition.title)
+				public RuleEntry(KsmGuiBase parent, KerbalRule rule) : base(parent, rule.Definition.title, null, TextAlignmentOptions.Center, false, TextOverflowModes.Truncate)
 				{
 					this.rule = rule;
 					SetUpdateAction(Update);
-					SetTooltipText(UpdateTooltip);
+					SetTooltipText(string.Empty, TextAlignmentOptions.TopLeft, -1f, CreateTooltip);
 				}
 
 				private void Update()
 				{
-					Text = rule.Definition.title + ": " + rule.Level.ToString("P2");
-				}
-
-				private string UpdateTooltip()
-				{
 					sb.Clear();
 
-					sb.AppendKSPLine(rule.Value.ToString("F2") + "/" + rule.MaxValue.ToString("F2"));
-					for (int i = 0; i < rule.Modifiers.Count; i++)
+					if (rule.Level > rule.Definition.dangerThreshold)
+						sb.Append(Lib.Color(rule.Level.ToString("P1"), Lib.Kolor.Red));
+					else if (rule.Level > rule.Definition.warningThreshold)
+						sb.Append(Lib.Color(rule.Level.ToString("P1"), Lib.Kolor.Yellow));
+					else
+						sb.Append(rule.Level.ToString("P1"));
+
+
+					if (rule.LevelChangeRate > 0.01)
+						sb.Append(Lib.Color(" (++)", Lib.Kolor.Red, true));
+					else if (rule.LevelChangeRate > 0.0)
+						sb.Append(Lib.Color(" (+)", Lib.Kolor.Yellow, true));
+					else if (rule.LevelChangeRate < 0.0)
+						sb.Append(Lib.Color(" (-)", Lib.Kolor.Green, true));
+
+					Text = sb.ToString();
+				}
+
+				private KsmGuiBase CreateTooltip()
+				{
+					return new RuleEntryTooltip(rule);
+				}
+
+				private class RuleEntryTooltip : KsmGuiVerticalLayout
+				{
+					private List<KsmGuiText> modifiers = new List<KsmGuiText>();
+					private KsmGuiText currentRate;
+
+					private KerbalRule rule;
+
+					public RuleEntryTooltip(KerbalRule rule) : base(null)
 					{
-						sb.AppendKSPLine(rule.Definition.modifiers[i].title + ": " + rule.Modifiers[i].currentRate.ToString("F5"));
+						this.rule = rule;
+						SetUpdateAction(Update);
+
+						// todo : parametrized localization string
+						new KsmGuiText(this, Lib.BuildString(Lib.Color(rule.Definition.title, Lib.Kolor.Yellow, true), " ", "for", " ", Lib.Color(rule.KerbalData.stockKerbal.name, Lib.Kolor.Yellow, true)), null, TextAlignmentOptions.Top);
+						
+						currentRate = new KsmGuiText(this, string.Empty, null, TextAlignmentOptions.Top);
+
+						new KsmGuiText(this, "\n" + Lib.Color("Modifiers", Lib.Kolor.Yellow, true), null, TextAlignmentOptions.Top);
+						KsmGuiHorizontalLayout modifiersTable = new KsmGuiHorizontalLayout(this, 5);
+						KsmGuiVerticalLayout modifiersNameColumn = new KsmGuiVerticalLayout(modifiersTable);
+						KsmGuiVerticalLayout modifiersValueColumn = new KsmGuiVerticalLayout(modifiersTable);
+						for (int i = 0; i < rule.Modifiers.Count; i++)
+						{
+							double rate = rule.Modifiers[i].currentRate / rule.MaxValue;
+							new KsmGuiText(modifiersNameColumn, rule.Definition.modifiers[i].title, null, TextAlignmentOptions.TopRight);
+							modifiers.Add(new KsmGuiText(modifiersValueColumn, string.Empty));
+						}
+
+						if (rule.MaxValueInfo.Count > 0)
+						{
+							new KsmGuiText(this, "\n" + Lib.Color("Kerbal bonuses", Lib.Kolor.Yellow), null, TextAlignmentOptions.Top);
+							KsmGuiHorizontalLayout bonusTable = new KsmGuiHorizontalLayout(this, 5);
+							KsmGuiVerticalLayout bonusNameColumn = new KsmGuiVerticalLayout(bonusTable);
+							KsmGuiVerticalLayout bonusValueColumn = new KsmGuiVerticalLayout(bonusTable);
+							foreach (string[] entry in rule.MaxValueInfo)
+							{
+								new KsmGuiText(bonusNameColumn, entry[0], null, TextAlignmentOptions.TopRight);
+								new KsmGuiText(bonusValueColumn, entry[1]);
+							}
+						}
 					}
 
-					return sb.ToString();
+					private void Update()
+					{
+						currentRate.Text = Lib.BuildString(
+							"Rate of change : ", Lib.Color(rule.LevelChangeRate >= 0.0, Lib.HumanReadableRate(rule.LevelChangeRate, "P1", "", true), Lib.Kolor.NegRate, Lib.Kolor.PosRate), "\n",
+							"100% reached in ", Lib.Color(Lib.HumanReadableDuration((rule.MaxValue - rule.Value) / rule.ChangeRate), Lib.Kolor.Green));
+
+						for (int i = 0; i < modifiers.Count; i++)
+						{
+							double rate = rule.Modifiers[i].currentRate / rule.MaxValue;
+							modifiers[i].Text = Lib.Color(rate > 0.0, Lib.HumanReadableRate(rate, "P1", "", true), Lib.Kolor.NegRate, Lib.Kolor.PosRate);
+						}
+					}
 				}
 			}
 
 
-			private KerbalData kd;
+			public KerbalData kd;
 			private KsmGuiText name;
 			private List<RuleEntry> rules = new List<RuleEntry>();
+			private Image backgroundColor;
 
-			public KerbalEntry(KsmGuiBase parent, KerbalData kd) : base(parent, 0, 0, 0, 0, 0, TextAnchor.UpperLeft)
+			public KerbalEntry(KsmGuiBase parent, KerbalData kd) : base(parent)
 			{
 				this.kd = kd;
-				name = new KsmGuiText(this, kd.stockKerbal.displayName);
 
-				foreach (KerbalRule rule in kd.rules)
+				SetLayoutElement(true, false, -1, 18);
+				backgroundColor = TopObject.AddComponent<Image>();
+
+				name = new KsmGuiText(this, kd.stockKerbal.displayName, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				name.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 0);
+				name.TopTransform.SetSizeDelta(crewNameColumnWidth, 16);
+
+				name.SetTooltipText(string.Empty, TextAlignmentOptions.Top, -1f, () => new KerbalStockTooltip(kd.stockKerbal));
+
+				int ruleEntryWidth = (contentWidth - crewNameColumnWidth) / kd.rules.Count;
+
+				for (int i = 0; i < kd.rules.Count; i++)
 				{
-					rules.Add(new RuleEntry(this, rule));
+					KerbalRule rule = kd.rules[i];
+					RuleEntry entry = new RuleEntry(this, rule);
+					rules.Add(entry);
+					entry.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, crewNameColumnWidth + i * ruleEntryWidth, 0);
+					entry.TopTransform.SetSizeDelta(ruleEntryWidth, 16);
+				}
+			}
+
+			private class KerbalStockTooltip : KsmGuiText
+			{
+				private static StringBuilder sb = new StringBuilder();
+
+				public KerbalStockTooltip(ProtoCrewMember pcm) : base(null)
+				{
+					TooltipController_CrewAC stockController = TopObject.AddComponent<TooltipController_CrewAC>();
+					stockController.SetTooltip(pcm);
+					stockController.enabled = false;
+
+					sb.Clear();
+					sb.AppendAlignement(Lib.Color(stockController.titleString, Lib.Kolor.Yellow, true), TextAlignment.Center, false);
+					sb.AppendKSPNewLine();
+					sb.AppendInfo(Localizer.Format("#autoLOC_6002246"), Lib.BuildString(pcm.experienceLevel.ToString(), " / 5"));
+					sb.AppendInfo(Localizer.Format("#autoLOC_900297"), pcm.courage.ToString("P0")); // courage
+					sb.AppendInfo(Localizer.Format("#autoLOC_900298"), pcm.stupidity.ToString("P0")); // stupidity
+					sb.Append(stockController.descriptionString);
+					Text = sb.ToString();
 				}
 			}
 		}
 
-
-		public VesselSummaryUI(KsmGuiBase parent, bool isPopup, VesselDataBase vd) : base(parent, 0, 0, 0, 0, 0, TextAnchor.UpperLeft)
+		private class SupplyEntry : KsmGuiHorizontalLayout
 		{
-			this.vdBase = vd;
+			private static StringBuilder sb = new StringBuilder();
+			public VesselKSPResource Resource { get; private set; }
+			public Supply Supply { get; private set; }
+			private KsmGuiText textComponent;
+			private Image backgroundColor;
+
+			public SupplyEntry(KsmGuiBase parent, VesselKSPResource resource, Supply supply = null) : base(parent)
+			{
+				this.Resource = resource;
+				this.Supply = supply;
+				SetLayoutElement(true, false, -1, -1, -1, 18);
+				SetUpdateAction(Update);
+				textComponent = new KsmGuiText(this, "", null, TextAlignmentOptions.Left);
+				textComponent.SetLayoutElement(true, false, -1, -1, -1, 18);
+				backgroundColor = TopObject.AddComponent<Image>();
+
+			}
+
+			private void Update()
+			{
+				sb.Clear();
+				sb.Append(Resource.Title);
+				sb.Append("<pos=100px>", Lib.HumanReadableAmountCompact(Resource.Amount));
+				sb.Append("<pos=160px>", Resource.Level.ToString("P1"));
+
+				sb.Append("<pos=220px>");
+				bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
+
+				if (showAvailabilityFactor)
+				{
+					sb.AppendColor(Resource.AvailabilityFactor.ToString("P1"), Lib.Kolor.Red, true);
+					sb.Append(" ", "availability");
+				}
+				else
+				{
+					if (Resource.Rate > -1e-09 && Resource.Rate < 1e-09)
+					{
+						if (Resource.ResourceBrokers.Count == 0)
+						{
+							sb.Append("none");
+						}
+						else
+						{
+							sb.AppendColor("stable", Lib.Kolor.Green);
+						}
+					}
+					else
+					{
+						sb.AppendColor(Resource.Rate > 0.0, Lib.HumanReadableRate(Resource.Rate, "F3", string.Empty, true), Lib.Kolor.PosRate, Lib.Kolor.NegRate);
+					}
+				}
+
+				if (!showAvailabilityFactor)
+				{
+					sb.Append("<pos=280px>");
+					double depletion = Resource.Depletion;
+					if (depletion > Lib.SecondsInYearExact * 100.0) // more than 100 years = perpetual
+					{
+						sb.Append(Lib.Color(Local.Generic_PERPETUAL, Lib.Kolor.Green));
+					}
+					else if (depletion == 0.0)
+					{
+						sb.Append(Lib.Color(Local.Monitor_depleted, Lib.Kolor.Orange));
+					}
+					else
+					{
+						if (Supply != null && Resource.Level < Supply.levelThreshold)
+							sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Orange));
+						else
+							sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Green));
+					}
+				}
+
+				textComponent.Text = sb.ToString();
+
+				SetTooltipText(Resource.BrokerListTooltipTMP(false));
+			}
+		}
+
+		public VesselSummaryUI(KsmGuiBase parent, bool isPopup, VesselDataBase vesselDataBase) : base(parent, 5, 0, 0, 0, 0, TextAnchor.UpperLeft)
+		{
+
+			this.vdBase = vesselDataBase;
 			this.isPopup = isPopup;
 
 			if (vdBase is VesselData)
@@ -98,58 +314,485 @@ namespace KERBALISM
 				isEditor = true;
 			}
 
-			KsmGuiHeader topHeader = new KsmGuiHeader(this, vd.VesselName);
+			KsmGuiHeader topHeader = new KsmGuiHeader(this, vesselDataBase.VesselName);
 			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => ((KsmGuiWindow) parent).Close(), Local.SCIENCEARCHIVE_closebutton); //"close"
-			topHeader.Enabled = isPopup;
+			//topHeader.Enabled = isPopup;
 
 			summmarySpace = new KsmGuiHorizontalLayout(this, 10);
+			summmarySpace.SetLayoutElement(true, false, contentWidth);
 			summmarySpace.SetUpdateAction(UpdateSummary);
 
-			KsmGuiVerticalLayout commsAndScience = new KsmGuiVerticalLayout(summmarySpace);
+			KsmGuiVerticalLayout commsAndScience = new KsmGuiVerticalLayout(summmarySpace, 5);
+			commsAndScience.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
 			new KsmGuiHeader(commsAndScience, "COMMS & SCIENCE");
-			signal = new KsmGuiText(commsAndScience, "Signal"); // "45 %, x.xx kB/s", tooltip : current distance, max distance, control path list
+			KsmGuiVerticalLayout commsAndScienceContent = new KsmGuiVerticalLayout(commsAndScience, 0, 3);
+			commsAndScienceContent.SetColor();
+
+			signal = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis);  // "45 %, x.xx kB/s", tooltip : current distance, max distance, control path list
 			signal.SetTooltipText(SignalTooltip, TextAlignmentOptions.TopLeft, 350f);
-			transmit = new KsmGuiText(commsAndScience, "Upload"); // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
+			transmit = new KsmGuiTextButton(commsAndScienceContent, null, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
 			transmit.SetTooltipText(TransmitTooltip);
-			storedData = new KsmGuiText(commsAndScience, "Data"); // "X/X Mb", tooltip : science value
-			samples = new KsmGuiText(commsAndScience, "Samples"); // "X/X", tooltip : science value, weight
+			transmit.SetButtonOnClick(() => vd.deviceTransmit = !vd.deviceTransmit);
+			storedData = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X Mb", tooltip : science value
+			samples = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X", tooltip : science value, weight
 
-			KsmGuiVerticalLayout environment = new KsmGuiVerticalLayout(summmarySpace);
+			KsmGuiVerticalLayout environment = new KsmGuiVerticalLayout(summmarySpace, 5);
+			environment.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
 			new KsmGuiHeader(environment, "ENVIRONMENT");
-			bodyAndBiome = new KsmGuiText(environment, "Location"); // "Kerbin Highlands", tooltip : full biome name
-			situations = new KsmGuiText(environment, "Situation"); // "Space high (+2)", tooltip : other situations
-			situations.SetTooltipText(SituationTooltip);
-			temperature = new KsmGuiText(environment, "Temperature"); // "326 K", tooltip : flux details
-			radiation = new KsmGuiText(environment, "Radiation"); // "1.2 rad", tooltip : rad sources details
+			KsmGuiVerticalLayout environmentContent = new KsmGuiVerticalLayout(environment, 0, 3);
+			environmentContent.SetColor();
 
-			crewSpace = new KsmGuiVerticalLayout(this, 10);
+			bodyAndBiome = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Kerbin Highlands", tooltip : full biome name
+			situations = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Space high (+2)", tooltip : other situations
+			situations.SetTooltipText(SituationTooltip);
+			temperature = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "326 K", tooltip : flux details
+			temperature.SetTooltipText(TemperatureTooltip, TextAlignmentOptions.TopLeft);
+			radiation = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "1.2 rad", tooltip : rad sources details
+			radiation.SetTooltipText(string.Empty, TextAlignmentOptions.Top, -1f, () => new RadiationTooltip(this.vd));
+
+			// CREW SPACE
+
+			crewSpace = new KsmGuiVerticalLayout(this, 5);
+			crewSpace.SetLayoutElement(true);
 			crewSpace.SetUpdateAction(UpdateCrew);
+			
 			new KsmGuiHeader(crewSpace, "CREW");
+
+			KsmGuiVerticalLayout crewSpaceContent = new KsmGuiVerticalLayout(crewSpace, 0, 3);
+			crewSpaceContent.SetColor();
+
+			KsmGuiHorizontalLayout crewHeader = new KsmGuiHorizontalLayout(crewSpaceContent);
+			KsmGuiBase titlespacer = new KsmGuiBase(crewHeader);
+			titlespacer.SetLayoutElement(false, false, crewNameColumnWidth);
+			foreach (KerbalRuleDefinition rule in Profile.rules)
+			{
+				KsmGuiBase spacer = new KsmGuiBase(crewHeader);
+				spacer.SetLayoutElement(true, false, -1, 24);
+				KsmGuiIcon icon = new KsmGuiIcon(spacer, rule.icon, null, 24, 24);
+				icon.SetTooltipText(rule.TooltipText(), TextAlignmentOptions.Left, 250f);
+				icon.TopTransform.anchorMin = new Vector2(0.5f, 0.5f);
+				icon.TopTransform.anchorMax = new Vector2(0.5f, 0.5f);
+				icon.TopTransform.sizeDelta = new Vector2(24f, 24f);
+			}
+
+			crewScrollView = new KsmGuiVerticalScrollView(crewSpaceContent, 0, 0, 0, 0, 0);
+			crewScrollView.SetLayoutElement(true, false, -1, 200);
+			crewScrollView.SetBackgroundColor(false);
+
+			// VESSEL SPACE
+
+			new KsmGuiHeader(this, "VESSEL");
+
+			vesselSpace = new KsmGuiVerticalLayout(this, 5);
+			vesselSpace.SetLayoutElement(true);
+			vesselSpace.SetUpdateAction(UpdateVessel);
+
+			// "solar panels average exposure"
+			solarExposure = new KsmGuiBase(vesselSpace);
+			solarExposure.SetLayoutElement(true, false, -1, -1, -1, 18);
+			solarExposure.SetColor();
+
+			solarExposureText = new KsmGuiText(solarExposure, string.Empty, null, TextAlignmentOptions.Center, false, TextOverflowModes.Ellipsis);
+			solarExposureText.NoLayoutStretchInParent();
+			// Tooltip : "Exposure ignoring bodies occlusion" + "Won't change on unloaded vessels\nMake sure to optimize it before switching"
+			solarExposureText.SetTooltipText(Lib.Bold(Local.TELEMETRY_Exposureignoringbodiesocclusion) + "\n" + Lib.Italic(Local.TELEMETRY_Exposureignoringbodiesocclusion_desc));
+
+			// todo : solar storm average protection %
+
+			// habitat space :
+			// living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
+			// gravity comfort % -> tooltip : planetary G, gravity rings G, gravity rings seats
+			// exercice comfort % -> tooltip : available seats
+			// habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
+			// extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
+			// hab CO2
+			// hab pressure
+			// buttons : enable auto-radiation shelters / configure radiation shelters
+			habitatSpace = new KsmGuiHorizontalLayout(vesselSpace, 5);
+			habitatSpace.SetLayoutElement(true);
+
+			KsmGuiVerticalLayout habCol1 = new KsmGuiVerticalLayout(habitatSpace, 0, 3);
+			habCol1.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
+			habCol1.SetColor();
+			KsmGuiVerticalLayout habCol2 = new KsmGuiVerticalLayout(habitatSpace, 0, 3);
+			habCol2.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
+			habCol2.SetColor();
+
+			habRadiation = new KsmGuiText(habCol1, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
+			habRadiation.SetTooltipText(HabRadiationTooltip, TextAlignmentOptions.TopLeft);
+			habStormProtection = new KsmGuiText(habCol1, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate);
+			habStormProtection.SetTooltipText(Lib.BuildString("Storm radiation blocked at current vessel orientation", "\n", Lib.Italic("Won't change on unloaded vessels\nMake sure to optimize it before leaving the vessel.")));
+			habPressure = new KsmGuiText(habCol1, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate);
+			habPressure.SetTooltipText(HabPressureTooltip);
+			habCO2 = new KsmGuiText(habCol1, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // hab CO2
+			habCO2.SetTooltipText(HabCO2Tooltip);
+
+			habLivingSpace = new KsmGuiText(habCol2, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
+			habLivingSpace.SetTooltipText(HabLivingSpaceTooltip);
+			habGravity = new KsmGuiText(habCol2, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // gravity comfort % -> tooltip : planetary G, gravity rings G, gravity rings seats
+			habExercice = new KsmGuiText(habCol2, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // exercice comfort % -> tooltip : available seats
+			habComforts = new KsmGuiText(habCol2, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
+			habComforts.SetTooltipText(() => ComfortInfoBase.GetComfortsInfo(vesselDataBase.Habitat.comforts.Values), TextAlignmentOptions.TopLeft);
+
+			KsmGuiHorizontalLayout shelterConfig = new KsmGuiHorizontalLayout(vesselSpace);
+			shelterConfig.SetLayoutElement(true, false, -1, -1, -1, 18);
+			shelterConfig.SetColor();
+			new KsmGuiText(shelterConfig, "Radiation shelter");
+			new KsmGuiTextButton(shelterConfig, "Enabled", null);
+			new KsmGuiTextButton(shelterConfig, "Auto", null);
+			new KsmGuiTextButton(shelterConfig, "Configure", null);
+
+
+
+			// SUPPLIES SPACE
+
+			suppliesSpace = new KsmGuiVerticalLayout(this, 5);
+			suppliesSpace.SetLayoutElement(true);
+			suppliesSpace.SetUpdateAction(UpdateSupplies);
+			suppliesSpace.SetColor();
+			new KsmGuiHeader(suppliesSpace, "SUPPLIES");
+			KsmGuiVerticalLayout suppliesSpaceContent = new KsmGuiVerticalLayout(suppliesSpace, 0, 3);
+
+
+			KsmGuiBase suppliesHeader = new KsmGuiBase(suppliesSpaceContent);
+			suppliesHeader.SetLayoutElement(true, false, -1, -1, -1, 16);
+			KsmGuiText supplyName = new KsmGuiText(suppliesHeader, Lib.Bold("Resource"));
+			supplyName.TopTransform.SetAnchorsAndPosition(TextAnchor.UpperLeft, TextAnchor.UpperLeft, 0);
+			supplyName.TopTransform.sizeDelta = new Vector2(100f, 16f);
+			KsmGuiText supplyAmount = new KsmGuiText(suppliesHeader, Lib.Bold("Amount"));
+			supplyAmount.TopTransform.SetAnchorsAndPosition(TextAnchor.UpperLeft, TextAnchor.UpperLeft, 100);
+			supplyAmount.TopTransform.sizeDelta = new Vector2(60f, 16f);
+			KsmGuiText supplyFull = new KsmGuiText(suppliesHeader, Lib.Bold("Level"));
+			supplyFull.TopTransform.SetAnchorsAndPosition(TextAnchor.UpperLeft, TextAnchor.UpperLeft, 160);
+			supplyFull.TopTransform.sizeDelta = new Vector2(60f, 16f);
+			KsmGuiText supplyChange = new KsmGuiText(suppliesHeader, Lib.Bold("Rate"));
+			supplyChange.TopTransform.SetAnchorsAndPosition(TextAnchor.UpperLeft, TextAnchor.UpperLeft, 220);
+			supplyChange.TopTransform.sizeDelta = new Vector2(60f, 16f);
+			KsmGuiText supplyETA = new KsmGuiText(suppliesHeader, Lib.Bold("Depletion"));
+			supplyETA.TopTransform.SetAnchorsAndPosition(TextAnchor.UpperLeft, TextAnchor.UpperLeft, 280);
+			supplyETA.TopTransform.sizeDelta = new Vector2(80f, 16f);
+
+			suppliesScrollView = new KsmGuiVerticalScrollView(suppliesSpaceContent, 0, 0, 0, 0, 0);
+			suppliesScrollView.SetLayoutElement(true, false, -1, 200);
+			suppliesScrollView.SetBackgroundColor(false);
+		}
+
+		private void UpdateVessel()
+		{
+			if (vd.SolarPanelsAverageExposure >= 0.0)
+			{
+				if (!solarExposure.Enabled)
+				{
+					solarExposure.Enabled = true;
+				}
+
+				sb.Clear();
+				sb.Append(Local.TELEMETRY_SolarPanelsAverageExposure, " : ");
+				sb.AppendColor(vd.SolarPanelsAverageExposure < 0.2, vd.SolarPanelsAverageExposure.ToString("P1"), Lib.Kolor.Orange);
+				solarExposureText.Text = sb.ToString();
+			}
+			else if (solarExposure.Enabled == true)
+			{
+				solarExposure.Enabled = false;
+			}
+
+			if (vd.Habitat.totalVolume == 0.0 && habitatSpace.Enabled)
+			{
+				habitatSpace.Enabled = false;
+			}
+			else if (vd.Habitat.totalVolume > 0.0 && !habitatSpace.Enabled)
+			{
+				habitatSpace.Enabled = true;
+			}
+
+			if (habitatSpace.Enabled)
+			{
+				habRadiation.Text = Lib.BuildString("Hab radiation", "<pos=50%>", Lib.HumanReadableRadiation(vd.Habitat.radiationRate, false, true)); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
+				habStormProtection.Text = Lib.BuildString("Sun shielding", "<pos=50%>", (1.0 - vd.Habitat.sunRadiationFactor).ToString("P1"));
+				habPressure.Text = Lib.BuildString("Avg. pressure", "<pos=50%>", vd.Habitat.pressure.ToString("P1"));
+				habCO2.Text = Lib.BuildString("CO2 level", "<pos=50%>", vd.Habitat.poisoningLevel.ToString("P2"));
+
+				habLivingSpace.Text = Lib.BuildString("Living space", "<pos=50%>", Lib.HumanReadableVolume(vd.Habitat.volumePerCrew), " / kerbal"); // living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
+				habGravity.Text = Lib.BuildString("Gravity", "<pos=50%>", Math.Max(vd.Habitat.gravity, vd.Habitat.artificialGravity).ToString("0.00 g"));
+				habExercice.Text = Lib.BuildString("Exercise", "<pos=50%>", vd.Habitat.comforts["exercise"].Level.ToString("P0")); // exercice comfort % -> tooltip : available seats
+				habComforts.Text = Lib.BuildString("Comforts", "<pos=50%>", vd.Habitat.comfortsTotalBonus.ToString("P1"), " (", vd.Habitat.comfortsActiveCount.ToString(), ")"); // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
+			}
+		}
+
+		private string HabRadiationTooltip()
+		{
+			sb.Clear();
+
+			sb.AppendAlignement(Lib.Color("Habitat radiation protection", Lib.Kolor.Yellow, true), TextAlignment.Center);
+			sb.AppendKSPNewLine();
+			sb.AppendInfo("Shielding level", (vd.Habitat.shieldingAmount / vd.Habitat.shieldingSurface).ToString("P0"));
+			sb.AppendInfo("Ambiant radiation occlusion", vd.Habitat.radiationAmbiantOcclusion.ToString("P1"));
+			if (vd.Habitat.radiationEmittersOcclusion > 0.0)
+			{
+				sb.AppendInfo("Emitters radiation occlusion", vd.Habitat.radiationEmittersOcclusion.ToString("P1"));
+			}
+			
+			sb.AppendKSPNewLine();
+			sb.AppendAlignement(Lib.Color("Radiation sources", Lib.Kolor.Yellow, true), TextAlignment.Center);
+			sb.AppendKSPNewLine();
+			sb.AppendInfo("External radiation", Lib.HumanReadableRadiation(vd.EnvRadiation * (1.0 - vd.Habitat.radiationAmbiantOcclusion), false, true));
+			if (vd.Habitat.emittersRadiation > 0.0)
+				sb.AppendInfo("Local emitters", Lib.HumanReadableRadiation(vd.Habitat.emittersRadiation, false, true));
+			if (vd.Habitat.activeRadiationShielding > 0.0)
+				sb.AppendInfo("Active shielding", "-" + Lib.HumanReadableRadiation(vd.Habitat.activeRadiationShielding, false, false));
+
+			return sb.ToString();
+		}
+
+		private string HabPressureTooltip()
+		{
+			sb.Clear();
+			sb.AppendInfo("Pressurized volume", Lib.HumanReadableVolume(vd.Habitat.pressurizedVolume));
+			if (vd.ResHandler.TryGetResource(Settings.HabitatAtmoResource, out VesselKSPResource atmoResource))
+			{
+				sb.AppendKSPNewLine();
+				sb.Append(atmoResource.BrokerListTooltipTMP());
+			}
+			return sb.ToString();
+		}
+
+		private string HabCO2Tooltip()
+		{
+			if (vd.ResHandler.TryGetResource(Settings.HabitatWasteResource, out VesselKSPResource wasteResource))
+			{
+				return wasteResource.BrokerListTooltipTMP();
+			}
+
+			return string.Empty;
+		}
+
+		private string HabLivingSpaceTooltip()
+		{
+			sb.Clear();
+			sb.AppendInfo("Total volume", Lib.HumanReadableVolume(vd.Habitat.totalVolume));
+			sb.AppendInfo("Enabled and pressurized volume", Lib.HumanReadableVolume(vd.Habitat.livingVolume));
+			return sb.ToString();
+		}
+
+		private void UpdateSupplies()
+		{
+			int resCount = 0;
+			bool changed = false;
+			foreach (VesselResource handlerResource in vd.ResHandler.Resources)
+			{
+				if (handlerResource is VesselKSPResource resource && resource.Capacity > 0.0 && resource.Visible)
+				{
+					Supply supply = Profile.supplies.Find(s => s.resource == resource.Name);
+
+					if (suppliesEntries.Count < resCount + 1)
+					{
+						changed = true;
+						SupplyEntry entry = new SupplyEntry(suppliesScrollView, resource, supply);
+						suppliesEntries.Add(entry);
+					}
+					else if (suppliesEntries[resCount].Resource.Name != resource.Name)
+					{
+						changed = true;
+						suppliesEntries[resCount].TopObject.DestroyGameObject();
+						SupplyEntry entry = new SupplyEntry(suppliesScrollView, resource, supply);
+						suppliesEntries[resCount] = entry;
+					}
+
+					resCount++;
+				}
+			}
+
+			while (suppliesEntries.Count > resCount)
+			{
+				changed = true;
+				int index = suppliesEntries.Count - 1;
+				suppliesEntries[index].TopObject.DestroyGameObject();
+				suppliesEntries.RemoveAt(suppliesEntries.Count - 1);
+			}
+
+			if (changed)
+			{
+				foreach (SupplyEntry entry in suppliesEntries)
+				{
+					if (entry.Supply == null)
+					{
+						entry.MoveAsLastChild();
+					}
+				}
+
+				suppliesScrollView.LayoutElement.preferredHeight = Math.Min(resCount * 18f + 5f, 165f);
+
+				for (int i = 0; i < suppliesScrollView.ParentTransformForChilds.childCount; i++)
+				{
+					suppliesScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
+				}
+			}
 		}
 
 		private void UpdateCrew()
 		{
+			bool changed = false;
 			for (int i = 0; i < vd.Crew.Count; i++)
 			{
-				if (kerbalEntries.Count - 1 < i)
+				if (kerbalEntries.Count < i + 1)
 				{
-					kerbalEntries.Add(new KerbalEntry(crewSpace, vd.Crew[i]));
+					changed = true;
+					kerbalEntries.Add(new KerbalEntry(crewScrollView, vd.Crew[i]));
 				}
+				else if (kerbalEntries[i].kd != vd.Crew[i])
+				{
+					changed = true;
+					kerbalEntries[i].TopObject.DestroyGameObject();
+					kerbalEntries[i] = new KerbalEntry(crewScrollView, vd.Crew[i]);
+				}
+			}
+
+			while (kerbalEntries.Count > vd.Crew.Count)
+			{
+				changed = true;
+				int index = kerbalEntries.Count - 1;
+				kerbalEntries[index].TopObject.DestroyGameObject();
+				kerbalEntries.RemoveAt(kerbalEntries.Count - 1);
+			}
 
 
+			if (changed)
+			{
+				crewScrollView.LayoutElement.preferredHeight = Math.Min(vd.Crew.Count * 18f + 5f, 105f);
 
+				for (int i = 0; i < crewScrollView.ParentTransformForChilds.childCount; i++)
+				{
+					crewScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
+				}
 			}
 		}
 
 		private void UpdateSummary()
 		{
+			if (vd.Crew.Count == 0)
+			{
+				if (crewSpace.Enabled)
+				{
+					crewSpace.Enabled = false;
+				}
+			}
+			else if (!crewSpace.Enabled)
+			{
+				crewSpace.Enabled = true;
+			}
 
-			signal.Text = "Signal<pos=20em>" + vd.Connection.strength.ToString("P1") + " (" + Lib.HumanReadableDataRate(vd.Connection.DataRate) + ")";
-			transmit.Text = "Upload<pos=20em>" + vd.filesTransmitted.Count + " files" + " (" + Lib.HumanReadableDataRate(vd.filesTransmitted.Sum(i => i.transmitRate)) + ")";
-			storedData.Text = "Data<pos=20em>" + Lib.HumanReadableDataSize(vd.DrivesCapacity - vd.DrivesFreeSpace) + "/" + Lib.HumanReadableDataSize(vd.DrivesCapacity);
-			samples.Text = "Samples<pos=20em>";
+			if (!vd.Connection.linked)
+			{
+				signal.Text = Lib.BuildString("Signal", "<pos=20em>", Lib.Color("No connecton", Lib.Kolor.Orange, true));
+			}
+			else
+			{
+				sb.Clear();
+				sb.Append("Signal");
+				sb.Append("<pos=20em>");
+				if (vd.Connection.strength < 0.05)
+				{
+					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Red, true));
+				}
+				else if (vd.Connection.strength < 0.2)
+				{
+					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Orange, true));
+				}
+				else
+				{
+					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Green, true));
+				}
 
-			bodyAndBiome.Text = "Location<pos=25em>" + vd.VesselSituations.BodyTitle + " (" + vd.VesselSituations.BiomeTitle + ")";
+				if (vd.Connection.DataRate > 0.0)
+				{
+					sb.Append(" (");
+					sb.Append(Lib.HumanReadableDataRate(vd.Connection.DataRate));
+					sb.Append(")");
+				}
+
+				signal.Text = sb.ToString();
+			}
+
+			if (!vd.deviceTransmit)
+			{
+				transmit.Text = Lib.BuildString("Upload", "<pos=20em>", Lib.Color("Disabled", Lib.Kolor.Orange, true));
+			}
+			else
+			{
+				if (vd.Connection.DataRate > 0.0)
+				{
+					transmit.Text = Lib.BuildString("Upload", "<pos=20em>", vd.filesTransmitted.Count.ToString(), " ", "files", " (", Lib.HumanReadableDataRate(vd.filesTransmitted.Sum(i => i.transmitRate)), ")");
+				}
+				else
+				{
+					transmit.Text = Lib.BuildString("Upload", "<pos=20em>", Lib.Color("No data link", Lib.Kolor.Orange));
+				}
+			}
+
+
+
+			DriveHandler.GetDrivesInfo(vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
+				out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass);
+
+			sb.Clear();
+			sb.Append("Data", "<pos=20em>");
+			if (filesCapacity == 0.0)
+			{
+				sb.AppendColor("no drive", Lib.Kolor.Orange);
+				
+			}
+			else
+			{
+				sb.Append(Lib.HumanReadableDataSize(filesSize), "/");
+				sb.AppendCondition(filesCapacity < 0.0, "unlimited", Lib.HumanReadableDataSize(filesCapacity));
+
+			}
+
+			storedData.Text = sb.ToString();
+
+			if (filesCount > 0)
+				storedData.SetTooltipText(Lib.BuildString(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)));
+			else
+				storedData.SetTooltipText(string.Empty);
+
+
+			sb.Clear();
+			sb.Append("Samples", "<pos=20em>");
+			if (slotsCapacity == 0.0)
+			{
+				sb.AppendColor("no storage", Lib.Kolor.Orange);
+			}
+			else
+			{
+				sb.Append(samplesSlots.ToString(), "/");
+				sb.AppendCondition(slotsCapacity < 0.0, "unlimited", slotsCapacity.ToString());
+				sb.Append(" ", "slots");
+
+				if (samplesMass > 0.0)
+				{
+					sb.Append(" (", Lib.HumanReadableMass(samplesMass),")");
+				}
+			}
+
+			samples.Text = sb.ToString();
+
+			if (samplesCount > 0)
+				samples.SetTooltipText(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
+			else
+				samples.SetTooltipText(string.Empty);
+
+			sb.Clear();
+			sb.Append("Body", "<pos=25em>", vd.VesselSituations.BodyTitle);
+			if (!string.IsNullOrEmpty(vd.VesselSituations.BiomeTitle))
+			{
+				sb.Append(" (", vd.VesselSituations.BiomeTitle, ")");
+			}
+
+			bodyAndBiome.Text = sb.ToString();
+			if (bodyAndBiome.TextComponent.isTextTruncated)
+				bodyAndBiome.SetTooltipText(sb.ToString());
+			else
+				bodyAndBiome.SetTooltipText(string.Empty);
 
 			sb.Clear();
 			sb.Append("Situation<pos=25em>" + vd.VesselSituations.FirstSituation.ScienceSituationTitle);
@@ -164,6 +807,9 @@ namespace KERBALISM
 
 		private string SignalTooltip()
 		{
+			if (vd.Connection.control_path.Count == 0)
+				return string.Empty;
+
 			sb.Clear();
 			sb.AppendKSPLine("<align=center>Control path :</align>");
 			sb.AppendKSPLine("<pos=5em>Strength<pos=25em>Target<pos=50em>Details");
@@ -178,14 +824,23 @@ namespace KERBALISM
 		private string TransmitTooltip()
 		{
 			sb.Clear();
-			sb.AppendKSPLine("Total science transmitted : " + Lib.HumanReadableScience(vd.scienceTransmitted, true, true));
+
+			if (vd.deviceTransmit)
+				sb.AppendKSPLine(Lib.Italic("Click to disable data transmissions"));
+			else
+				sb.AppendKSPLine(Lib.Italic("Click to enable data transmissions"));
+
+			if (vd.scienceTransmitted > 0.0)
+			{
+				sb.AppendKSPLine("Total science transmitted : " + Lib.HumanReadableScience(vd.scienceTransmitted, true, true));
+			}
 
 			if (vd.filesTransmitted.Count > 0)
 			{
 				sb.AppendKSPLine("Transmitting :");
 				for (int i = 0; i < vd.filesTransmitted.Count; i++)
 				{
-					sb.AppendKSPLine("> " + Lib.HumanReadableDataRate(vd.filesTransmitted[i].transmitRate) + "<pos=20em>" + Lib.Ellipsis(vd.filesTransmitted[i].subjectData.FullTitle, 20));
+					sb.AppendKSPLine("> " + Lib.HumanReadableDataRate(vd.filesTransmitted[i].transmitRate) + "<pos=20em>" + Lib.Ellipsis(vd.filesTransmitted[i].subjectData.FullTitle, 30));
 				}
 			}
 
@@ -203,6 +858,167 @@ namespace KERBALISM
 			}
 
 			return sb.ToString();
+		}
+
+		private string TemperatureTooltip()
+		{
+			sb.Clear();
+			sb.AppendAlignement("Black body temperature at vessel position", TextAlignment.Center);
+			sb.AppendKSPNewLine();
+			sb.AppendInfo("Total irradiance", Lib.HumanReadableIrradiance(vd.IrradianceTotal), 100f);
+			sb.AppendInfo("Sun irradiance", Lib.HumanReadableIrradiance(vd.IrradianceStarTotal), 100f);
+			sb.AppendInfo("Bodies albedo", Lib.HumanReadableIrradiance(vd.IrradianceAlbedo), 100f);
+			sb.AppendInfo("Bodies core", Lib.HumanReadableIrradiance(vd.IrradianceBodiesCore), 100f);
+			sb.AppendInfo("Bodies emissive", Lib.HumanReadableIrradiance(vd.IrradianceBodiesEmissive), 100f);
+			return sb.ToString();
+		}
+
+		private class RadiationTooltip : KsmGuiVerticalLayout
+		{
+			private VesselData vd;
+
+			private KsmGuiText atmoProtectionLabel;
+			private KsmGuiText atmoProtectionValue;
+
+			private KsmGuiText stormLabel;
+			private KsmGuiText stormValue;
+
+			private KsmGuiText innerLabel;
+			private KsmGuiText innerValue;
+
+			private KsmGuiText outerLabel;
+			private KsmGuiText outerValue;
+
+			private KsmGuiText pauseLabel;
+			private KsmGuiText pauseValue;
+
+			private KsmGuiText bodiesLabel;
+			private KsmGuiText bodiesValue;
+
+			private KsmGuiText starsLabel;
+			private KsmGuiText starsValue;
+
+			private KsmGuiText backgroundValue;
+
+			public RadiationTooltip(VesselData vd) : base(null)
+			{
+				SetUpdateAction(Update);
+				this.vd = vd;
+
+				new KsmGuiText(this, Lib.Color("Radiation sources", Lib.Kolor.Yellow, true), null, TextAlignmentOptions.Top);
+
+				KsmGuiHorizontalLayout table = new KsmGuiHorizontalLayout(this, 5);
+				KsmGuiVerticalLayout namesColumn = new KsmGuiVerticalLayout(table);
+				KsmGuiVerticalLayout valuesColumn = new KsmGuiVerticalLayout(table);
+
+				bodiesLabel = new KsmGuiText(namesColumn, "Nearby bodies", null, TextAlignmentOptions.TopRight);
+				bodiesValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				starsLabel = new KsmGuiText(namesColumn, "Solar wind", null, TextAlignmentOptions.TopRight);
+				starsValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				stormLabel = new KsmGuiText(namesColumn, "Solar storm", null, TextAlignmentOptions.TopRight);
+				stormValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				innerLabel = new KsmGuiText(namesColumn, "Inner belt", null, TextAlignmentOptions.TopRight);
+				innerValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				outerLabel = new KsmGuiText(namesColumn, "Outer belt", null, TextAlignmentOptions.TopRight);
+				outerValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				new KsmGuiText(namesColumn, "Background", null, TextAlignmentOptions.TopRight);
+				backgroundValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				pauseLabel = new KsmGuiText(namesColumn, "Magnetosphere", null, TextAlignmentOptions.TopRight);
+				pauseValue = new KsmGuiText(valuesColumn, string.Empty);
+
+				atmoProtectionLabel = new KsmGuiText(namesColumn, Lib.Color("Atmosphere protection", Lib.Kolor.Yellow), null, TextAlignmentOptions.TopRight);
+				atmoProtectionValue = new KsmGuiText(valuesColumn, string.Empty);
+			}
+
+			private void Update()
+			{
+				if ((vd.EnvGammaTransparency < 1.0) != atmoProtectionLabel.Enabled)
+				{
+					atmoProtectionLabel.Enabled = !atmoProtectionLabel.Enabled;
+					atmoProtectionValue.Enabled = !atmoProtectionValue.Enabled;
+				}
+
+				if (vd.EnvGammaTransparency < 1.0)
+				{
+					atmoProtectionValue.Text = (1.0 - vd.EnvGammaTransparency).ToString("P2");
+				}
+
+				if (vd.EnvStorm != stormLabel.Enabled)
+				{
+					stormLabel.Enabled = !stormLabel.Enabled;
+					stormValue.Enabled = !stormValue.Enabled;
+				}
+
+				if (vd.EnvStorm)
+				{
+					stormValue.Text = Lib.HumanReadableRadiation(vd.EnvStormRadiation, false);
+				}
+
+				if (vd.EnvInnerBelt != innerLabel.Enabled)
+				{
+					innerLabel.Enabled = !innerLabel.Enabled;
+					innerValue.Enabled = !innerValue.Enabled;
+				}
+
+				if (vd.EnvInnerBelt)
+				{
+					innerValue.Text = Lib.HumanReadableRadiation(vd.EnvRadiationInnerBelt, false);
+				}
+
+				if (vd.EnvOuterBelt != outerLabel.Enabled)
+				{
+					outerLabel.Enabled = !outerLabel.Enabled;
+					outerValue.Enabled = !outerValue.Enabled;
+				}
+
+				if (vd.EnvOuterBelt)
+				{
+					outerValue.Text = Lib.HumanReadableRadiation(vd.EnvRadiationOuterBelt, false);
+				}
+
+				if ((vd.EnvRadiationMagnetopause < 0.0) != pauseLabel.Enabled)
+				{
+					pauseLabel.Enabled = !pauseLabel.Enabled;
+					pauseValue.Enabled = !pauseValue.Enabled;
+				}
+
+				if (vd.EnvRadiationMagnetopause < 0.0)
+				{
+					pauseValue.Text = Lib.Color(Lib.BuildString("-", Lib.HumanReadableRadiation(Math.Abs(vd.EnvRadiationMagnetopause), false, false)), Lib.Kolor.Green);
+				}
+
+				if ((vd.EnvRadiationBodies > 0.0) != bodiesLabel.Enabled)
+				{
+					bodiesLabel.Enabled = !bodiesLabel.Enabled;
+					bodiesValue.Enabled = !bodiesValue.Enabled;
+				}
+
+				if (vd.EnvRadiationBodies > 0.0)
+				{
+					bodiesValue.Text = Lib.HumanReadableRadiation(vd.EnvRadiationBodies, false);
+				}
+
+				if ((vd.EnvRadiationSolar > 0.0) != starsLabel.Enabled)
+				{
+					starsLabel.Enabled = !starsLabel.Enabled;
+					starsValue.Enabled = !starsValue.Enabled;
+				}
+
+				if (vd.EnvRadiationSolar > 0.0)
+				{
+					starsValue.Text = Lib.HumanReadableRadiation(vd.EnvRadiationSolar, false);
+				}
+
+				backgroundValue.Text = Lib.HumanReadableRadiation(Settings.ExternRadiation * vd.EnvGammaTransparency, false);
+
+			}
+
 		}
 	}
 }

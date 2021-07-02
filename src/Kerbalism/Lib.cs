@@ -6,13 +6,11 @@ using System.Reflection;
 using System.Text;
 using System.Linq;
 using UnityEngine;
-using CommNet;
-using KSP.Localization;
 using KSP.UI.Screens;
 using KSP.UI;
 using KSP.UI.Screens.Flight;
 using System.Collections;
-using System.Linq.Expressions;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
@@ -1045,12 +1043,31 @@ namespace KERBALISM
 		}
 
 		/// <summary> Format to "label: <b>value</b>\n" (match the format of Specifics)</summary>
-		public static void AppendInfo(this StringBuilder sb, string label, string value)
+		public static void AppendInfo(this StringBuilder sb, string label, string value, float valuePos = -1f, TextPos unit = TextPos.pixel)
 		{
 			sb.Append(label);
-			sb.Append(": <b>");
-			sb.Append(value);
-			sb.Append("</b>\n");
+
+			if (valuePos >= 0f)
+			{
+				sb.Append("<pos=");
+				sb.Append(valuePos.ToString(CultureInfo.InvariantCulture));
+				switch (unit)
+				{
+					case TextPos.pixel: sb.Append("px"); break;
+					case TextPos.percentage: sb.Append("%"); break;
+					case TextPos.fontUnit: sb.Append("em"); break;
+				}
+				sb.Append(">");
+				sb.Append("<b>");
+				sb.Append(value);
+				sb.Append("</b>\n");
+			}
+			else
+			{
+				sb.Append(": <b>");
+				sb.Append(value);
+				sb.Append("</b>\n");
+			}
 		}
 
 		/// <summary> Append "• value\n"</summary>
@@ -1059,6 +1076,308 @@ namespace KERBALISM
 			sb.Append("• ");
 			sb.Append(value);
 			sb.Append("\n");
+		}
+
+		public static void AppendBold(this StringBuilder sb, string value)
+		{
+			sb.Append("<b>");
+			sb.Append(value);
+			sb.Append("</b>");
+		}
+
+		public static void AppendItalic(this StringBuilder sb, string value)
+		{
+			sb.Append("<i>");
+			sb.Append(value);
+			sb.Append("</i>");
+		}
+
+		/// <summary>
+		/// Append the text, specifying the horizontal alignement
+		/// </summary>
+		/// <param name="value">text string</param>
+		/// <param name="alignment">horizontal alignement</param>
+		/// <param name="closed">should the tag be closed, preventing formatting to be applied to the next string(s)</param>
+		public static void AppendAlignement(this StringBuilder sb, string value, TextAlignment alignment, bool closed = true)
+		{
+			switch (alignment)
+			{
+				case TextAlignment.Left: sb.Append("<align=left>"); break;
+				case TextAlignment.Center: sb.Append("<align=center>"); break;
+				case TextAlignment.Right: sb.Append("<align=right>"); break;
+			}
+			sb.Append(value);
+			if (closed)
+			{
+				sb.Append("</align>");
+			}
+		}
+
+		public enum TextPos
+		{
+			pixel,
+			percentage,
+			fontUnit
+		}
+
+		/// <summary>
+		/// Append with a pos=x tag to specify the horizontal position of the text. For best results, use left aligned text.
+		/// </summary>
+		/// <param name="value">text string</param>
+		/// <param name="pos">horizontal position</param>
+		/// <param name="unit">is position in pixels (default), % of the parent width, or in font units (em)</param>
+		/// <param name="closed">should the tag be closed, preventing formatting to be applied to the next string(s)</param>
+		public static void AppendAtPos(this StringBuilder sb, string value, float pos, TextPos unit = TextPos.pixel, bool closed = false)
+		{
+			sb.Append("<pos=");
+			sb.Append(pos.ToString(CultureInfo.InvariantCulture));
+			switch (unit)
+			{
+				case TextPos.pixel: sb.Append("px"); break;
+				case TextPos.percentage: sb.Append("%"); break;
+				case TextPos.fontUnit: sb.Append("em"); break;
+			}
+			sb.Append(">");
+			sb.Append(value);
+			if (closed)
+			{
+				sb.Append("</pos>");
+			}
+			
+		}
+
+		public static void AppendColor(this StringBuilder sb, string value, Kolor color, bool bold = false)
+		{
+			sb.Append("<color=");
+			sb.Append(KolorToHex(color));
+			sb.Append(">");
+			if (bold)
+			{
+				sb.Append("<b>");
+				sb.Append(value);
+				sb.Append("</b>");
+			}
+			else
+			{
+				sb.Append(value);
+			}
+			sb.Append("</color>");
+		}
+
+		public static void AppendCondition(this StringBuilder sb, bool condition, string whenTrue, string whenFalse)
+		{
+			if (condition)
+			{
+				sb.Append(whenTrue);
+			}
+			else
+			{
+				sb.Append(whenFalse);
+			}
+		}
+
+		public static void AppendColor(this StringBuilder sb, bool condition, string sIfTrue, Kolor colorIfTrue, string sIfFalse, Kolor colorIfFalse = Kolor.None, bool bold = false)
+		{
+			sb.Append("<color=");
+			if (condition)
+			{
+				sb.Append(KolorToHex(colorIfTrue));
+				sb.Append(">");
+				if (bold)
+				{
+					sb.Append("<b>");
+					sb.Append(sIfTrue);
+					sb.Append("</b>");
+				}
+				else
+				{
+					sb.Append(sIfTrue);
+				}
+			}
+			else
+			{
+				sb.Append(KolorToHex(colorIfFalse));
+				sb.Append(">");
+				if (bold)
+				{
+					sb.Append("<b>");
+					sb.Append(sIfFalse);
+					sb.Append("</b>");
+				}
+				else
+				{
+					sb.Append(sIfFalse);
+				}
+			}
+
+			sb.Append("</color>");
+		}
+
+		// public static string Color(bool condition, string s, Kolor colorIfTrue, Kolor colorIfFalse = Kolor.None, bool bold = false)
+		public static void AppendColor(this StringBuilder sb, bool condition, string value, Kolor colorIfTrue, Kolor colorIfFalse = Kolor.None, bool bold = false)
+		{
+			sb.Append("<color=");
+			if (condition)
+			{
+				sb.Append(KolorToHex(colorIfTrue));
+			}
+			else
+			{
+				sb.Append(KolorToHex(colorIfFalse));
+			}
+			
+			sb.Append(">");
+			if (bold)
+			{
+				sb.Append("<b>");
+				sb.Append(value);
+				sb.Append("</b>");
+			}
+			else
+			{
+				sb.Append(value);
+			}
+			sb.Append("</color>");
+		}
+
+		public static void Append(this StringBuilder sb, string a, string b)
+		{
+			sb.Append(a);
+			sb.Append(b);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c, string d)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+			sb.Append(d);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+			sb.Append(d);
+			sb.Append(e);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+			sb.Append(d);
+			sb.Append(e);
+			sb.Append(f);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f, string g)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+			sb.Append(d);
+			sb.Append(e);
+			sb.Append(f);
+			sb.Append(g);
+		}
+		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f, string g, string h)
+		{
+			sb.Append(a);
+			sb.Append(b);
+			sb.Append(c);
+			sb.Append(d);
+			sb.Append(e);
+			sb.Append(f);
+			sb.Append(g);
+			sb.Append(h);
+		}
+
+		public static void Append(this string value, StringBuilder sb)
+		{
+			sb.Append(value);
+		}
+
+		public static void AppendLine(this string value, StringBuilder sb)
+		{
+			sb.Append(value);
+			sb.Append("\n");
+		}
+
+		public static void AppendList(this string value, StringBuilder sb)
+		{
+			sb.Append("• ");
+			sb.Append(value);
+			sb.Append("\n");
+		}
+
+		public static void AppendBold(this string value, StringBuilder sb)
+		{
+			sb.Append("<b>");
+			sb.Append(value);
+			sb.Append("</b>");
+		}
+
+		public static void AppendItalic(this string value, StringBuilder sb)
+		{
+			sb.Append("<i>");
+			sb.Append(value);
+			sb.Append("</i>");
+		}
+
+		public static void AppendAlignement(this string value, StringBuilder sb, TextAlignment alignment, bool closed = true)
+		{
+			switch (alignment)
+			{
+				case TextAlignment.Left: sb.Append("<align=left>"); break;
+				case TextAlignment.Center: sb.Append("<align=center>"); break;
+				case TextAlignment.Right: sb.Append("<align=right>"); break;
+			}
+			sb.Append(value);
+			if (closed)
+			{
+				sb.Append("</align>");
+			}
+		}
+
+		public static void AppendAtPos(this string value, StringBuilder sb, float pos, TextPos unit = TextPos.pixel, bool closed = false)
+		{
+			sb.Append("<pos=");
+			sb.Append(pos.ToString(CultureInfo.InvariantCulture));
+			switch (unit)
+			{
+				case TextPos.pixel: sb.Append("px"); break;
+				case TextPos.percentage: sb.Append("%"); break;
+				case TextPos.fontUnit: sb.Append("em"); break;
+			}
+			sb.Append(">");
+			sb.Append(value);
+			if (closed)
+			{
+				sb.Append("</pos>");
+			}
+		}
+
+		public static void AppendColor(this string value, StringBuilder sb, Kolor color, bool bold = false)
+		{
+			sb.Append("<color=");
+			sb.Append(KolorToHex(color));
+			sb.Append(">");
+			if (bold)
+			{
+				sb.Append("<b>");
+				sb.Append(value);
+				sb.Append("</b>");
+			}
+			else
+			{
+				sb.Append(value);
+			}
+			sb.Append("</color>");
 		}
 
 		// compose a set of strings together, without creating temporary objects
@@ -1466,7 +1785,7 @@ namespace KERBALISM
 			else if (value >= 1000.0)
 				return (value / 1000.0).ToString("0.00k");
 			else
-				return value.ToString("F0");
+				return value.ToString("F1");
 		}
 
 		///<summary> Format a value to 2 decimal places, or return 'none' </summary>
@@ -3008,6 +3327,13 @@ namespace KERBALISM
 			result = 0.0;
 
 			string str = durationString.ToLower();
+
+			if (str == "perpetual")
+			{
+				result = double.MaxValue;
+				return true;
+			}
+
 			int p = str.IndexOf('y');
 			if(p > 0)
 			{

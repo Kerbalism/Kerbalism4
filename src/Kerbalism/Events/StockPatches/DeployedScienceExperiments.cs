@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Harmony;
+using HarmonyLib;
 using Expansions.Serenity.DeployedScience.Runtime;
 
 namespace KERBALISM

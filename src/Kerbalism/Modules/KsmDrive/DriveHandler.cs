@@ -126,7 +126,7 @@ namespace KERBALISM
 			}
 		}
 
-		public override void OnStart()
+		public override void OnFirstSetup()
 		{
 			// modulePrefab will be null for transmit buffer drives
 			if (modulePrefab != null)
@@ -691,29 +691,45 @@ namespace KERBALISM
 			}
 		}
 
-		public static void GetCapacity(VesselDataBase vesseldata, out double free_capacity, out double total_capacity)
+		public static void GetDrivesInfo(VesselDataBase vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
+			out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass)
 		{
-			free_capacity = 0;
-			total_capacity = 0;
-			if (Features.Science)
+			filesCount = samplesCount = samplesSlots = slotsCapacity = 0;
+			filesSize = filesCapacity = samplesMass = filesScience = samplesScience = 0.0;
+
+			foreach (DriveHandler drive in GetDrives(vd, true))
 			{
-				foreach (var drive in GetDrives(vesseldata))
+				if (drive.dataCapacity < 0 || filesCapacity < 0)
 				{
-					if (drive.dataCapacity < 0 || free_capacity < 0)
-					{
-						free_capacity = -1;
-					}
-					else
-					{
-						free_capacity += drive.FileCapacityAvailable();
-						total_capacity += drive.dataCapacity;
-					}
+					filesCapacity = -1;
+				}
+				else
+				{
+					filesCapacity += drive.dataCapacity;
 				}
 
-				if (free_capacity < 0)
+				if (drive.sampleCapacity < 0 || slotsCapacity < 0)
 				{
-					free_capacity = double.MaxValue;
-					total_capacity = double.MaxValue;
+					slotsCapacity = -1;
+				}
+				else
+				{
+					slotsCapacity += drive.sampleCapacity;
+				}
+
+				foreach (File file in drive.files.Values)
+				{
+					filesCount++;
+					filesSize += file.size;
+					filesScience += file.subjectData.ScienceValue(file.size);
+				}
+
+				foreach (Sample sample in drive.samples.Values)
+				{
+					samplesCount++;
+					samplesSlots += Lib.SampleSizeToSlots(sample.size);
+					samplesMass += sample.mass;
+					samplesScience += sample.subjectData.ScienceValue(sample.size);
 				}
 			}
 		}

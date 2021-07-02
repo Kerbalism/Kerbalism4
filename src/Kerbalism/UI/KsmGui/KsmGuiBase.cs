@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Color = UnityEngine.Color;
 
 namespace KERBALISM.KsmGui
 {
@@ -83,7 +84,7 @@ namespace KERBALISM.KsmGui
 				UpdateHandler.ForceExecuteCoroutine(fromStart);
 		}
 
-		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
+		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
 		{
 			if (text == null)
 				return;
@@ -94,7 +95,7 @@ namespace KERBALISM.KsmGui
 			((KsmGuiTooltipStatic)tooltip).SetTooltipText(text, textAlignement, width, content);
 		}
 
-		public void SetTooltipText(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, KsmGuiBase content = null)
+		public void SetTooltipText(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
 		{
 			if (ReferenceEquals(tooltip, null))
 				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamic>();
@@ -118,14 +119,63 @@ namespace KERBALISM.KsmGui
 
 		public void RebuildLayout() => layoutOptimizer.RebuildLayout();
 
+		/// <summary>
+		/// Stretch the object transform to match its parent size and position. Only works the parent has no layout component
+		/// </summary>
+		public void NoLayoutStretchInParent()
+		{
+			TopTransform.anchorMin = Vector2.zero;
+			TopTransform.anchorMax = Vector2.one;
+			TopTransform.sizeDelta = Vector2.zero;
+		}
+
 		public void MoveAsFirstChild()
 		{
 			TopTransform.SetAsFirstSibling();
 		}
 
-		public void MoveAfter(KsmGuiBase afterThis)
+		public void MoveAsLastChild()
 		{
-			
+			TopTransform.SetAsLastSibling();
+		}
+
+
+
+		/// <summary>
+		/// Add a Color component with the specified color to the top GameObject, or change the existing color of the component.
+		/// The GameObject can't already have a graphic component (image, text...).
+		/// </summary>
+		/// <param name="color">If set to default, will add a black color with 20% transparency</param>
+		public void SetColor(Color color = default)
+		{
+			if (color == default)
+			{
+				color = KsmGuiStyle.boxColor;
+			}
+
+			Image image = null;
+
+			foreach (Graphic graphicComponent in TopObject.GetComponents<Graphic>())
+			{
+				if (graphicComponent is Image)
+				{
+					image = (Image) graphicComponent;
+					break;
+				}
+				else
+				{
+					Lib.LogDebugStack($"Can't set background color on {this}, it already has a graphic component", Lib.LogLevel.Warning);
+					return;
+				}
+
+			}
+
+			if (image == null)
+			{
+				image = TopObject.AddComponent<Image>();
+			}
+
+			image.color = color;
 		}
 	}
 }
