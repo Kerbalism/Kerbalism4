@@ -24,8 +24,8 @@ namespace KERBALISM
 
 		private bool isPopup;
 		private bool isEditor;
-		private VesselDataBase vdBase;
-		private VesselData vd;
+		private VesselDataBase vd;
+		private VesselData vdFlight;
 
 		private KsmGuiHorizontalLayout summmarySpace;
 
@@ -300,13 +300,12 @@ namespace KERBALISM
 
 		public VesselSummaryUI(KsmGuiBase parent, bool isPopup, VesselDataBase vesselDataBase) : base(parent, 5, 0, 0, 0, 0, TextAnchor.UpperLeft)
 		{
-
-			this.vdBase = vesselDataBase;
+			vd = vesselDataBase;
 			this.isPopup = isPopup;
 
-			if (vdBase is VesselData)
+			if (vd is VesselData)
 			{
-				this.vd = (VesselData) vdBase;
+				vdFlight = (VesselData)vd;
 				isEditor = false;
 			}
 			else
@@ -332,7 +331,7 @@ namespace KERBALISM
 			signal.SetTooltipText(SignalTooltip, TextAlignmentOptions.TopLeft, 350f);
 			transmit = new KsmGuiTextButton(commsAndScienceContent, null, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
 			transmit.SetTooltipText(TransmitTooltip);
-			transmit.SetButtonOnClick(() => vd.deviceTransmit = !vd.deviceTransmit);
+			transmit.SetButtonOnClick(() => vd.DeviceTransmit = !vd.DeviceTransmit);
 			storedData = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X Mb", tooltip : science value
 			samples = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X", tooltip : science value, weight
 
@@ -681,7 +680,7 @@ namespace KERBALISM
 				crewSpace.Enabled = true;
 			}
 
-			if (!vd.Connection.linked)
+			if (!vd.ConnectionInfo.Linked)
 			{
 				signal.Text = Lib.BuildString("Signal", "<pos=20em>", Lib.Color("No connecton", Lib.Kolor.Orange, true));
 			}
@@ -690,46 +689,57 @@ namespace KERBALISM
 				sb.Clear();
 				sb.Append("Signal");
 				sb.Append("<pos=20em>");
-				if (vd.Connection.strength < 0.05)
+				if (vd.ConnectionInfo.Strength < 0.05)
 				{
-					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Red, true));
+					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Red, true));
 				}
-				else if (vd.Connection.strength < 0.2)
+				else if (vd.ConnectionInfo.Strength < 0.2)
 				{
-					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Orange, true));
+					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Orange, true));
 				}
 				else
 				{
-					sb.Append(Lib.Color(vd.Connection.strength.ToString("P1"), Lib.Kolor.Green, true));
+					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Green, true));
 				}
 
-				if (vd.Connection.DataRate > 0.0)
+				if (vd.ConnectionInfo.DataRate > 0.0)
 				{
 					sb.Append(" (");
-					sb.Append(Lib.HumanReadableDataRate(vd.Connection.DataRate));
+					sb.Append(Lib.HumanReadableDataRate(vd.ConnectionInfo.DataRate));
 					sb.Append(")");
 				}
 
 				signal.Text = sb.ToString();
 			}
 
-			if (!vd.deviceTransmit)
+			sb.Clear();
+			sb.Append("Upload");
+			sb.AppendAtPos(null, 20f, Lib.TextPos.fontUnit);
+
+			if (!vd.DeviceTransmit)
 			{
-				transmit.Text = Lib.BuildString("Upload", "<pos=20em>", Lib.Color("Disabled", Lib.Kolor.Orange, true));
+				sb.AppendColor("Disabled", Lib.Kolor.Orange, true);
 			}
 			else
 			{
-				if (vd.Connection.DataRate > 0.0)
+				if (vd.ConnectionInfo.DataRate > 0.0)
 				{
-					transmit.Text = Lib.BuildString("Upload", "<pos=20em>", vd.filesTransmitted.Count.ToString(), " ", "files", " (", Lib.HumanReadableDataRate(vd.filesTransmitted.Sum(i => i.transmitRate)), ")");
+					if (isEditor)
+					{
+						sb.AppendColor("Enabled", Lib.Kolor.Green);
+					}
+					else
+					{
+						sb.Append(vdFlight.filesTransmitted.Count.ToString(), " ", "files", " (", Lib.HumanReadableDataRate(vdFlight.filesTransmitted.Sum(i => i.transmitRate)), ")");
+					}
 				}
 				else
 				{
-					transmit.Text = Lib.BuildString("Upload", "<pos=20em>", Lib.Color("No data link", Lib.Kolor.Orange));
+					sb.AppendColor("No data link", Lib.Kolor.Orange);
 				}
 			}
 
-
+			transmit.Text = sb.ToString();
 
 			DriveHandler.GetDrivesInfo(vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
 				out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass);
@@ -807,15 +817,18 @@ namespace KERBALISM
 
 		private string SignalTooltip()
 		{
-			if (vd.Connection.control_path.Count == 0)
-				return string.Empty;
+			if (isEditor)
+				return null;
+
+			if (vdFlight.Connection.control_path.Count == 0)
+				return null;
 
 			sb.Clear();
 			sb.AppendKSPLine("<align=center>Control path :</align>");
 			sb.AppendKSPLine("<pos=5em>Strength<pos=25em>Target<pos=50em>Details");
-			for (int i = 0; i < vd.Connection.control_path.Count; i++)
+			for (int i = 0; i < vdFlight.Connection.control_path.Count; i++)
 			{
-				sb.AppendKSPLine((i + 1) + ".<pos=5em>" + vd.Connection.control_path[i][1] + "<pos=25em>" + vd.Connection.control_path[i][0] + "<pos=50em>" + vd.Connection.control_path[i][2]);
+				sb.AppendKSPLine((i + 1) + ".<pos=5em>" + vdFlight.Connection.control_path[i][1] + "<pos=25em>" + vdFlight.Connection.control_path[i][0] + "<pos=50em>" + vdFlight.Connection.control_path[i][2]);
 			}
 
 			return sb.ToString();
@@ -823,24 +836,27 @@ namespace KERBALISM
 
 		private string TransmitTooltip()
 		{
+			if (isEditor)
+				return null;
+
 			sb.Clear();
 
-			if (vd.deviceTransmit)
+			if (vd.DeviceTransmit)
 				sb.AppendKSPLine(Lib.Italic("Click to disable data transmissions"));
 			else
 				sb.AppendKSPLine(Lib.Italic("Click to enable data transmissions"));
 
-			if (vd.scienceTransmitted > 0.0)
+			if (vdFlight.scienceTransmitted > 0.0)
 			{
-				sb.AppendKSPLine("Total science transmitted : " + Lib.HumanReadableScience(vd.scienceTransmitted, true, true));
+				sb.AppendKSPLine("Total science transmitted : " + Lib.HumanReadableScience(vdFlight.scienceTransmitted, true, true));
 			}
 
-			if (vd.filesTransmitted.Count > 0)
+			if (vdFlight.filesTransmitted.Count > 0)
 			{
 				sb.AppendKSPLine("Transmitting :");
-				for (int i = 0; i < vd.filesTransmitted.Count; i++)
+				for (int i = 0; i < vdFlight.filesTransmitted.Count; i++)
 				{
-					sb.AppendKSPLine("> " + Lib.HumanReadableDataRate(vd.filesTransmitted[i].transmitRate) + "<pos=20em>" + Lib.Ellipsis(vd.filesTransmitted[i].subjectData.FullTitle, 30));
+					sb.AppendKSPLine("> " + Lib.HumanReadableDataRate(vdFlight.filesTransmitted[i].transmitRate) + "<pos=20em>" + Lib.Ellipsis(vdFlight.filesTransmitted[i].subjectData.FullTitle, 30));
 				}
 			}
 
@@ -849,6 +865,9 @@ namespace KERBALISM
 
 		private string SituationTooltip()
 		{
+			if (isEditor)
+				return null;
+
 			sb.Clear();
 			sb.AppendKSPLine("Available situations :");
 
@@ -875,7 +894,7 @@ namespace KERBALISM
 
 		private class RadiationTooltip : KsmGuiVerticalLayout
 		{
-			private VesselData vd;
+			private VesselDataBase vd;
 
 			private KsmGuiText atmoProtectionLabel;
 			private KsmGuiText atmoProtectionValue;
@@ -900,7 +919,7 @@ namespace KERBALISM
 
 			private KsmGuiText backgroundValue;
 
-			public RadiationTooltip(VesselData vd) : base(null)
+			public RadiationTooltip(VesselDataBase vd) : base(null)
 			{
 				SetUpdateAction(Update);
 				this.vd = vd;

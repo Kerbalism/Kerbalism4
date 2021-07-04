@@ -20,20 +20,20 @@ namespace KERBALISM
 				{
 					return Lib.Color(Local.Generic_DISABLED, Lib.Kolor.Orange) + Lib.BuildString(" (", Localizer.Format("#autoLOC_217448"), ")"); // Hibernating
 				}
-				return Lib.Color(vesselData.deviceTransmit, Local.Generic_ENABLED, Lib.Kolor.Green, Local.Generic_DISABLED, Lib.Kolor.Yellow);
+				return Lib.Color(vesselData.DeviceTransmit, Local.Generic_ENABLED, Lib.Kolor.Green, Local.Generic_DISABLED, Lib.Kolor.Yellow);
 			}
 		}
 
 		public override void Ctrl(bool value)
 		{
 			if (!vesselData.Hibernating)
-				vesselData.deviceTransmit = value;
+				vesselData.DeviceTransmit = value;
 		}
 
 		public override void Toggle()
 		{
 			if (!vesselData.Hibernating)
-				vesselData.deviceTransmit = !vesselData.deviceTransmit;
+				vesselData.DeviceTransmit = !vesselData.DeviceTransmit;
 		}
 	}
 }

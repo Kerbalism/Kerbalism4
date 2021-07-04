@@ -138,11 +138,8 @@ namespace KERBALISM
 		public bool cfg_orbit;       // show/hide vessel orbit lines in map view
 		public Computer computer;     // store scripts
 
-        // vessel wide toggles
-        public bool deviceTransmit;   // vessel wide automation : enable/disable data transmission
-
-        // other persisted fields
-        public bool msg_signal;       // message flag: link status
+		// other persisted fields
+		public bool msg_signal;       // message flag: link status
         public bool msg_belt;         // message flag: crossing radiation belt
         public StormData stormData;   // store state of current/next solar storm
         public Dictionary<string, Supply.SupplyState> supplies; // supplies state data
@@ -222,15 +219,13 @@ namespace KERBALISM
         public override double EnvRadiationSolar => radiationSolar; public double radiationSolar;
 
 		/// <summary> [environment] true if vessel is inside a magnetopause (except the heliosphere)</summary>
-		public bool EnvMagnetosphere => magnetosphere;
-
-		bool magnetosphere;
+		public override bool EnvMagnetosphere => magnetosphere; bool magnetosphere;
 
         /// <summary> [environment] true if vessel is inside a radiation belt</summary>
-        public bool EnvInnerBelt => innerBelt; bool innerBelt;
+        public override bool EnvInnerBelt => innerBelt; bool innerBelt;
 
         /// <summary> [environment] true if vessel is inside a radiation belt</summary>
-        public bool EnvOuterBelt => outerBelt; bool outerBelt;
+        public override bool EnvOuterBelt => outerBelt; bool outerBelt;
 
         /// <summary> [environment] true if vessel is outside sun magnetopause</summary>
         public bool EnvInterstellar => interstellar; bool interstellar;
@@ -260,9 +255,7 @@ namespace KERBALISM
 		/// <summary> Angle of the main sun on the body surface over the vessel position</summary>
 		public double MainStarBodyAngle => sunBodyAngle; double sunBodyAngle;
 
-
-
-        public VesselSituations VesselSituations => vesselSituations; VesselSituations vesselSituations;
+        
 
 		#endregion
 
@@ -293,7 +286,7 @@ namespace KERBALISM
 		/// This doesn't change for unloaded vessel, so the value is persisted<br/>
 		/// Negative if there is no solar panel on the vessel
 		/// </summary>
-		public double SolarPanelsAverageExposure => solarPanelsAverageExposure; double solarPanelsAverageExposure = -1.0;
+		public override double SolarPanelsAverageExposure => solarPanelsAverageExposure; double solarPanelsAverageExposure = -1.0;
         private List<double> solarPanelsExposure = new List<double>(); // values are added by SolarPanelFixer, then cleared by VesselData once solarPanelsAverageExposure has been computed
         public void SaveSolarPanelExposure(double exposure) => solarPanelsExposure.Add(exposure); // meant to be called by SolarPanelFixer
 
@@ -536,7 +529,7 @@ namespace KERBALISM
 			cfg_showlink = true;
 			cfg_show = true;
 			cfg_orbit = true;
-			deviceTransmit = true;
+			DeviceTransmit = true;
 			// note : we check that at vessel creation and persist it, as the vesselType can be changed by the player
 			isSerenityGroundController = pv.vesselType == VesselType.DeployedScienceController;
 			stormData = new StormData(null);
@@ -547,7 +540,7 @@ namespace KERBALISM
 		{
 			simVessel = new SimVessel();
 			filesTransmitted = new List<File>();
-			vesselSituations = new VesselSituations(this);
+			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
 			CommHandler = CommHandler.GetHandler(this, isSerenityGroundController);
 			TransmitBuffer = new DriveHandler();
@@ -591,7 +584,7 @@ namespace KERBALISM
 			cfg_show = Lib.ConfigValue(node, "cfg_show", true);
 			cfg_orbit = Lib.ConfigValue(node, "cfg_orbits", true);
 
-			deviceTransmit = Lib.ConfigValue(node, "deviceTransmit", true);
+			
 
 			isSerenityGroundController = Lib.ConfigValue(node, "isSerenityGroundController", false);
 
@@ -616,8 +609,6 @@ namespace KERBALISM
 			node.AddValue("cfg_showlink", cfg_showlink);
 			node.AddValue("cfg_show", cfg_show);
 			node.AddValue("cfg_orbits", cfg_orbit);
-
-			node.AddValue("deviceTransmit", deviceTransmit);
 
 			node.AddValue("isSerenityGroundController", isSerenityGroundController);
 
@@ -845,14 +836,14 @@ namespace KERBALISM
             {
                 Hibernating = !hasNonHibernatingCommandModules;
                 if (!Hibernating)
-                    deviceTransmit = true;
+                    DeviceTransmit = true;
             }
 
             // this flag will be set by the ModuleCommand harmony patches / background update
             hasNonHibernatingCommandModules = false;
 
             if (Hibernating)
-                deviceTransmit = false;
+                DeviceTransmit = false;
 
             // solar panels data
             if (Vessel.loaded)
@@ -1034,7 +1025,7 @@ namespace KERBALISM
 
 			UnityEngine.Profiling.Profiler.EndSample();
 
-			vesselSituations.Update();
+			VesselSituations.Update();
 
             // other stuff
             gravioli = Sim.Graviolis(Vessel);

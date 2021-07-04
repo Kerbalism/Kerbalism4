@@ -31,6 +31,8 @@ namespace KERBALISM
 
 		public double DataRate => rate;
 
+		public double Strength => strength;
+
 		// ====================================================================
 		// VALUES SET BY KERBALISM (CommInfo API )
 		// ====================================================================

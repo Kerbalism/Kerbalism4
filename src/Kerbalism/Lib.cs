@@ -1138,7 +1138,12 @@ namespace KERBALISM
 				case TextPos.fontUnit: sb.Append("em"); break;
 			}
 			sb.Append(">");
-			sb.Append(value);
+
+			if (!string.IsNullOrEmpty(value))
+			{
+				sb.Append(value);
+			}
+			
 			if (closed)
 			{
 				sb.Append("</pos>");

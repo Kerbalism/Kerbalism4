@@ -94,7 +94,7 @@ namespace KERBALISM
 			if (!vd.CommHandler.IsReady
 				|| !vd.Connection.linked
 				|| vd.Connection.rate <= 0.0
-				|| !vd.deviceTransmit)
+				|| !vd.DeviceTransmit)
 			{
 				// reset all files transmit rate
 				foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))

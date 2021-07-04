@@ -52,7 +52,11 @@ namespace KERBALISM
 
 		public virtual IConnectionInfo ConnectionInfo { get; }
 
+		public virtual bool DeviceTransmit { get; set; }
+
 		public virtual CelestialBody MainBody { get; }
+
+		public VesselSituations VesselSituations { get; protected set; }
 
 		/// <summary>in meters</summary>
 		public virtual double Altitude { get; }
@@ -123,6 +127,15 @@ namespace KERBALISM
 		/// <summary> [environment] radiation from the sun(s)</summary>
 		public virtual double EnvRadiationSolar { get; }
 
+		/// <summary> [environment] true if vessel is inside a magnetopause (except the heliosphere)</summary>
+		public virtual bool EnvMagnetosphere { get; }
+
+		/// <summary> [environment] true if vessel is inside a radiation belt</summary>
+		public virtual bool EnvInnerBelt { get; }
+
+		/// <summary> [environment] true if vessel is inside a radiation belt</summary>
+		public virtual bool EnvOuterBelt { get; }
+
 		/// <summary> [environment] radiation effective for habitats/EVAs</summary>
 		public virtual double EnvRadiationHabitat { get; }
 
@@ -132,6 +145,8 @@ namespace KERBALISM
 
 		/// <summary> [environment] proportion of ionizing radiation not blocked by atmosphere</summary>
 		public virtual double EnvGammaTransparency  { get; }
+
+		public virtual double SolarPanelsAverageExposure => 0.0;
 
 		/// <summary> total irradiance from all sources (W/m²) at vessel position</summary>
 		public double IrradianceTotal => irradianceTotal; protected double irradianceTotal;
@@ -166,6 +181,8 @@ namespace KERBALISM
 		/// <summary> True if less than 10% of the current update was spent in the direct light of the main star</summary>
 		public bool InFullShadow => MainStar.sunlightFactor < 0.1;
 
+		
+
 		#endregion
 
 		#region LIFECYCLE
@@ -188,6 +205,8 @@ namespace KERBALISM
 		{
 			VesselProcesses.Load(vesselDataNode);
 
+			DeviceTransmit = Lib.ConfigValue(vesselDataNode, nameof(DeviceTransmit), true);
+
 			if (!isNewVessel)
 			{
 				OnLoad(vesselDataNode);
@@ -204,6 +223,9 @@ namespace KERBALISM
 			VesselProcesses.Save(vesselNode);
 			Parts.Save(vesselNode);
 			ModuleHandler.SavePersistentHandlers(Parts, vesselNode);
+
+			node.AddValue(nameof(DeviceTransmit), DeviceTransmit);
+
 			node.AddNode(vesselNode);
 		}
 

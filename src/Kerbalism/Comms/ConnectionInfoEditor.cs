@@ -13,6 +13,8 @@ namespace KERBALISM
 
 		public double DataRate => maxDistanceRate;
 
+		public double Strength => maxDistanceStrength;
+
 		// ====================================================================
 		// VALUES TO SET BY KERBALISM (API usage)
 		// ====================================================================

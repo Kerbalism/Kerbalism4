@@ -15,5 +15,7 @@ namespace KERBALISM
 		double EcIdle { get; }
 
 		double DataRate { get; }
+
+		double Strength { get; }
 	}
 }

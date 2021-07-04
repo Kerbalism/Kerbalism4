@@ -8,7 +8,9 @@ namespace KERBALISM
 {
 	public class VesselSituations
 	{
-		private VesselData vd;
+		private VesselDataBase vd;
+		private VesselData vdFlight;
+		private bool isEditor;
 		public CelestialBody body { get; private set; }
 		public int biomeIndex { get; private set; }
 		private CBAttributeMapSO.MapAttribute biome;
@@ -39,17 +41,31 @@ namespace KERBALISM
 			}
 		}
 
-		public VesselSituations(VesselData vd)
+		public VesselSituations(VesselDataBase vd)
 		{
 			this.vd = vd;
+			isEditor = !(vd is VesselData);
+			if (!isEditor)
+			{
+				vdFlight = (VesselData) vd;
+			}
 		}
 
 		/// <summary> Require EnvLanded, EnvInnerBelt and EnvOuterBelt to evaluated first </summary>
 		public void Update()
 		{
-			body = vd.Vessel.mainBody;
-			GetSituationsAndVirtualBiomes();
-			biomeIndex = GetBiomeIndex(vd.Vessel);
+			body = vd.MainBody;
+
+			if (isEditor)
+			{
+				biomeIndex = 0;
+			}
+			else
+			{
+				GetSituationsAndVirtualBiomes();
+				biomeIndex = GetBiomeIndex(vdFlight.Vessel);
+			}
+
 			if (biomeIndex >= 0)
 				biome = body.BiomeMap.Attributes[biomeIndex];
 			else
@@ -95,13 +111,13 @@ namespace KERBALISM
 			situations.Clear();
 			virtualBiomes.Clear();
 
-			if (vd.EnvLanded)
+			if (vdFlight.EnvLanded)
 			{
-				switch (vd.Vessel.situation)
+				switch (vdFlight.Vessel.situation)
 				{
 					case Vessel.Situations.PRELAUNCH:
 					case Vessel.Situations.LANDED:
-						if (body.ocean && vd.Vessel.altitude < -5.0)
+						if (body.ocean && vdFlight.Vessel.altitude < -5.0)
 							situations.Add(ScienceSituation.SrfSplashed);
 						else
 							situations.Add(ScienceSituation.SrfLanded);
@@ -113,10 +129,10 @@ namespace KERBALISM
 				situations.Add(ScienceSituation.Surface);
 				situations.Add(ScienceSituation.BodyGlobal);
 
-				if (vd.EnvStorm)
+				if (vdFlight.EnvStorm)
 					virtualBiomes.Add(VirtualBiome.Storm);
 
-				if ((vd.Vessel.latitude + 270.0) % 90.0 > 0.0)
+				if ((vdFlight.Vessel.latitude + 270.0) % 90.0 > 0.0)
 					virtualBiomes.Add(VirtualBiome.NorthernHemisphere);
 				else
 					virtualBiomes.Add(VirtualBiome.SouthernHemisphere);
@@ -125,17 +141,17 @@ namespace KERBALISM
 				return;
 			}
 
-			if (body.atmosphere && vd.Vessel.altitude < body.atmosphereDepth)
+			if (body.atmosphere && vdFlight.Vessel.altitude < body.atmosphereDepth)
 			{
-				if (vd.Vessel.altitude < body.scienceValues.flyingAltitudeThreshold)
+				if (vdFlight.Vessel.altitude < body.scienceValues.flyingAltitudeThreshold)
 				{
 					situations.Add(ScienceSituation.FlyingLow);
 				}
 				else
 				{
-					if (vd.Vessel.verticalSpeed < 100.0
-						&& (double.IsNaN(vd.Vessel.orbit.ApA) || vd.Vessel.orbit.ApA > body.atmosphereDepth)
-						&& vd.Vessel.srfSpeed > vd.Vessel.speedOfSound * 5.0)
+					if (vdFlight.Vessel.verticalSpeed < 100.0
+						&& (double.IsNaN(vdFlight.Vessel.orbit.ApA) || vdFlight.Vessel.orbit.ApA > body.atmosphereDepth)
+						&& vdFlight.Vessel.srfSpeed > vdFlight.Vessel.speedOfSound * 5.0)
 					{
 						virtualBiomes.Add(VirtualBiome.Reentry);
 					}
@@ -144,10 +160,10 @@ namespace KERBALISM
 				situations.Add(ScienceSituation.Flying);
 				situations.Add(ScienceSituation.BodyGlobal);
 
-				if (vd.EnvStorm)
+				if (vdFlight.EnvStorm)
 					virtualBiomes.Add(VirtualBiome.Storm);
 
-				if ((vd.Vessel.latitude + 270.0) % 90.0 > 0.0)
+				if ((vdFlight.Vessel.latitude + 270.0) % 90.0 > 0.0)
 					virtualBiomes.Add(VirtualBiome.NorthernHemisphere);
 				else
 					virtualBiomes.Add(VirtualBiome.SouthernHemisphere);
@@ -156,28 +172,28 @@ namespace KERBALISM
 				return;
 			}
 
-			if (vd.EnvStorm)
+			if (vdFlight.EnvStorm)
 				virtualBiomes.Add(VirtualBiome.Storm);
 
-			if (vd.EnvInterstellar)
+			if (vdFlight.EnvInterstellar)
 				virtualBiomes.Add(VirtualBiome.Interstellar);
 
-			if (vd.EnvInnerBelt)
+			if (vdFlight.EnvInnerBelt)
 				virtualBiomes.Add(VirtualBiome.InnerBelt);
-			else if (vd.EnvOuterBelt)
+			else if (vdFlight.EnvOuterBelt)
 				virtualBiomes.Add(VirtualBiome.OuterBelt);
 
-			if (vd.EnvMagnetosphere)
+			if (vdFlight.EnvMagnetosphere)
 				virtualBiomes.Add(VirtualBiome.Magnetosphere);
 
-			if (vd.Vessel.latitude > 0.0)
+			if (vdFlight.Vessel.latitude > 0.0)
 				virtualBiomes.Add(VirtualBiome.NorthernHemisphere);
 			else
 				virtualBiomes.Add(VirtualBiome.SouthernHemisphere);
 
 			virtualBiomes.Add(VirtualBiome.NoBiome);
 
-			if (vd.Vessel.altitude > body.scienceValues.spaceAltitudeThreshold)
+			if (vdFlight.Vessel.altitude > body.scienceValues.spaceAltitudeThreshold)
 				situations.Add(ScienceSituation.InSpaceHigh);
 			else
 				situations.Add(ScienceSituation.InSpaceLow);
