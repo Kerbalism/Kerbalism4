@@ -132,6 +132,14 @@ namespace KERBALISM.Events
 					return;
 				}
 
+				// We are loading a non-simulated vessel for the first time (rescue, asteroids, debris...)
+				if (!vd.IsSimulated )
+				{
+					Lib.LogDebug($"Non-simulated vessel {__instance.vessel.vesselName} is being loaded for the first time.");
+					vd.SimulatedCheck(__instance.vessel);
+					return;
+				}
+
 				if (!vd.Parts.TryGet(__instance, out PartData partData))
 				{
 					Lib.LogDebug($"Instantiating PartData for {__instance.name} on {__instance.vessel.vesselName}");

@@ -2092,7 +2092,7 @@ namespace KERBALISM
 		public static bool IsEVADead(Vessel v)
 		{
 			if (!v.isEVA) return false;
-			return DB.GetOrCreateKerbalData(CrewList(v)[0]).evaDead;
+			return DB.GetOrCreateKerbalData(CrewList(v)[0]).isEvaDead;
 		}
 
 

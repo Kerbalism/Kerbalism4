@@ -268,6 +268,8 @@ namespace KERBALISM
 
 		#region FIELDS/PROPERTIES : EVALUATED VESSEL STATE
 
+		public override int RulesEnabledCrewCount => rulesEnabledCrewCount; int rulesEnabledCrewCount;
+
 		/// <summary>number of crew on the vessel</summary>
 		public override int CrewCount => crewCount; int crewCount;
 
@@ -348,6 +350,10 @@ namespace KERBALISM
 
 			Vessel = vessel;
 			VesselId = Vessel.id;
+
+			// this can't be a rescue, but calling CheckRescueStatus is needed to initialize KerbalData.isRescue
+			// for Kerbals being launchd for the first time.
+			isRescue = CheckRescueStatus(Vessel, out _);
 
 			Synchronizer = new SynchronizerVessel(this);
 			resHandler = shipVd.ResHandler;
@@ -437,7 +443,7 @@ namespace KERBALISM
 		}
 
 		/// <summary>
-		/// This is called by Kerbalism.Start(), for all VesselData that were loaded from save after a scene load, using the previous ctor <br/>
+		/// This is called by Kerbalism.Start(), for all VesselData that were loaded from save for a scene load, using the previous ctor <br/>
 		/// Will instantatiate all PartDatas/ModuleHandlers/ResourceWrappers and set all the cross references with the stock objects <br/>
 		/// Note that the timing of that call is very constrained : <br/>
 		/// - We need to have access to the loaded Vessel/Parts/PartModules, which don't exist yet when we instantiate the VesselData from OnLoad() <br/>
@@ -719,8 +725,11 @@ namespace KERBALISM
 			// and also for freshly launched vessels
 			if (!IsSimulated && ShouldBeSimulated(out bool rescueJustLoaded))
 			{
+				bool wasPersisted = IsPersisted;
+				IsSimulated = true;
+
 				// simulated once vessels becomes permanently persisted
-				if (!IsPersisted)
+				if (!wasPersisted)
 					PersistedVesselSetup(false);
 				
 				Start();
@@ -795,14 +804,24 @@ namespace KERBALISM
 		{
 			// TODO : move all the synchronization things to the Synchronizer.Synchronize() method
 			Crew.Clear();
+			rulesEnabledCrewCount = 0;
+			crewCount = 0;
 			foreach (ProtoCrewMember stockCrew in Vessel.GetVesselCrew())
 			{
-				Crew.Add(DB.GetOrCreateKerbalData(stockCrew));
+				KerbalData kd = DB.GetOrCreateKerbalData(stockCrew);
+				Crew.Add(kd);
+				crewCount++;
+				if (kd.RulesEnabled)
+				{
+					rulesEnabledCrewCount++;
+				}
 			}
-			crewCount = Crew.Count;
-			crewCapacity = Lib.CrewCapacity(Vessel);
 
-			
+			// TODO : this currently use the prefab crewCapacity on unloaded vessels
+			// There are mods dynamically changing crew capacities, and we also want to
+			// be able to do that for deployable habitats. Add a persisted crewCapacity
+			// field to PartData for that purpose.
+			crewCapacity = Lib.CrewCapacity(Vessel);
 		}
 		
 		private void StateUpdate()

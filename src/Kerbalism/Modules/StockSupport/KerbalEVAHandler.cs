@@ -65,7 +65,7 @@ namespace KERBALISM
 			}
 
 			// set dead state if necessary, but wait until the fsm is properly initialized
-			if (!isDead && kerbal.evaDead && !string.IsNullOrEmpty(loadedModule.fsm.currentStateName))
+			if (!isDead && kerbal.isEvaDead && !string.IsNullOrEmpty(loadedModule.fsm.currentStateName))
 			{
 				SetDeadState(loadedModule);
 				isDead = true;

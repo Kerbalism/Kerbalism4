@@ -8,17 +8,25 @@ namespace KERBALISM
 	public class KerbalData
 	{
 		public ProtoCrewMember stockKerbal;
-		public bool rescue;         // used to deal with rescue mission kerbals
-		public bool disabled;       // a generic flag to disable resource consumption, for use by other mods
-		public bool evaDead;       // the eva kerbal died, and is now a floating body
+
+		/// <summary> Initialized to true, then set to false the first first time the Kerbal is a crew of a newly launched vessel</summary>
+		public bool isRescue;
+		/// <summary> A generic flag to disable rules, for API / mod support use</summary>
+		public bool disableRules;
+		/// <summary> the eva kerbal died, and is now a floating body</summary>
+		public bool isEvaDead;
+
+		/// <summary> Check if rules should be enabled for this Kerbal </summary>
+		public bool RulesEnabled => !isRescue && !disableRules && !isEvaDead;
+
 		public List<KerbalRule> rules = new List<KerbalRule>();
 
 		public KerbalData(ProtoCrewMember stockKerbal, bool initialize)
 		{
 			this.stockKerbal = stockKerbal;
-			rescue = true;
-			disabled = false;
-			evaDead = false;
+			isRescue = true;
+			disableRules = false;
+			isEvaDead = false;
 
 			foreach (KerbalRuleDefinition ruleDefinition in Profile.rules)
 			{
@@ -36,9 +44,9 @@ namespace KERBALISM
 
 			KerbalData kerbalData = new KerbalData(stockKerbal, false)
 			{
-				rescue = Lib.ConfigValue(kerbalNode, "rescue", true),
-				disabled = Lib.ConfigValue(kerbalNode, "disabled", false),
-				evaDead = Lib.ConfigValue(kerbalNode, "evaDead", false)
+				isRescue = Lib.ConfigValue(kerbalNode, "isRescue", true),
+				disableRules = Lib.ConfigValue(kerbalNode, "disableRules", false),
+				isEvaDead = Lib.ConfigValue(kerbalNode, "isEvaDead", false)
 			};
 
 			KerbalRule.Load(kerbalData, kerbalNode);
@@ -51,9 +59,9 @@ namespace KERBALISM
 			ConfigNode kerbalNode = parentNode.AddNode("KERBAL");
 
 			kerbalNode.AddValue("name", stockKerbal.name);
-			kerbalNode.AddValue("rescue", rescue);
-			kerbalNode.AddValue("disabled", disabled);
-			kerbalNode.AddValue("evaDead", evaDead);
+			kerbalNode.AddValue("isRescue", isRescue);
+			kerbalNode.AddValue("disableRules", disableRules);
+			kerbalNode.AddValue("isEvaDead", isEvaDead);
 
 			KerbalRule.Save(this, kerbalNode);
 		}
@@ -69,7 +77,7 @@ namespace KERBALISM
 		public void OnVesselRecovered()
 		{
 			// set roster status of eva dead kerbals
-			if (evaDead)
+			if (isEvaDead)
 			{
 				stockKerbal.Die();
 			}
@@ -86,7 +94,7 @@ namespace KERBALISM
 		/// </summary>
 		public void Kill()
 		{
-			if (evaDead || stockKerbal.rosterStatus == ProtoCrewMember.RosterStatus.Dead)
+			if (isEvaDead || stockKerbal.rosterStatus == ProtoCrewMember.RosterStatus.Dead)
 			{
 				return;
 			}
@@ -110,7 +118,7 @@ namespace KERBALISM
 				{
 					// if the kerbal is on EVA, flag it as dead (see Modules\StockModules\KerbalEVAHandler)
 					// ProtoCrewMember.Die() will be called if the kerbal is recovered.
-					evaDead = true;
+					isEvaDead = true;
 					vessel.vesselName += "'s body";
 					return;
 				}

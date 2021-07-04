@@ -27,10 +27,10 @@ namespace KERBALISM
 				// and KerbalData.rescue will stay at the default "true" value
 				if (v.situation == Vessel.Situations.PRELAUNCH)
 				{
-					kd.rescue = false;
+					kd.isRescue = false;
 				}
 
-				if (kd.rescue)
+				if (kd.isRescue)
 				{
 					if (!v.loaded)
 					{
@@ -44,7 +44,7 @@ namespace KERBALISM
 
 						// flag the kerbal as non-rescue
 						// note: enable life support mechanics for the kerbal
-						kd.rescue = false;
+						kd.isRescue = false;
 
 						// show a message
 						Message.Post(Lib.BuildString(Local.Rescuemission_msg1, " <b>", c.name, "</b>"), Lib.BuildString((c.gender == ProtoCrewMember.Gender.Male ? Local.Kerbal_Male : Local.Kerbal_Female), Local.Rescuemission_msg2));//We found xx  "He"/"She"'s still alive!"

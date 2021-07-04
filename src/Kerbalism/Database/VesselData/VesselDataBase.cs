@@ -69,6 +69,9 @@ namespace KERBALISM
 		/// <summary>in rad/s</summary>
 		public virtual double AngularVelocity { get; }
 
+		/// <summary>number of crew on the vessel, excluding rescue, dead or otherwise disabled crew members </summary>
+		public virtual int RulesEnabledCrewCount { get; }
+
 		/// <summary>number of crew on the vessel</summary>
 		public virtual int CrewCount { get; }
 
