@@ -19,13 +19,24 @@ namespace KERBALISM.Events
 		static bool Prefix(KerbalEVA __instance, Part p)
 		{
 			// continue to BoardPart() if AttemptBoard return true 
-			return GameEventsEVA.AttemptBoard(__instance, p);
+			return GameEventsCrew.AttemptBoard(__instance, p);
 		}
 	}
 
 
-	public class GameEventsEVA
+	public class GameEventsCrew
 	{
+		public void OnKerbalLevelUp(ProtoCrewMember crew)
+		{
+			if (DB.TryGetKerbalData(crew, out KerbalData kerbalData))
+			{
+				foreach (KerbalRule rule in kerbalData.rules)
+				{
+					rule.UpdateMaxValue();
+				}
+			}
+		}
+
 		#region EVA EVENTS
 
 		private static bool ignoreNextBoardAttemptDriveCheck = false;

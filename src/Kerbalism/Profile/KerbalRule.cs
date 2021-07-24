@@ -42,14 +42,12 @@ namespace KERBALISM
 				Modifiers.Add(new KerbalRuleModifier(modifierDefinition));
 			}
 
-			MaxValue = GetMaxValue();
-
 			if (initialize)
 			{
 				Initialize();
 			}
 
-			Level = Value / MaxValue;
+			UpdateMaxValue();
 		}
 
 		private void Initialize()
@@ -112,7 +110,14 @@ namespace KERBALISM
 			}
 		}
 
-		public double GetMaxValue()
+		public void UpdateMaxValue()
+		{
+			MaxValue = GetMaxValue();
+			Level = Value / MaxValue;
+			LevelChangeRate = ChangeRate / MaxValue;
+		}
+
+		private double GetMaxValue()
 		{
 			double baseValue = Definition.maxValue;
 			double variance = 0.0;
@@ -362,7 +367,7 @@ namespace KERBALISM
 		[CFGValue] public double maxValueStupidityBonus = 0.0;
 		[CFGValue] public double maxValueCourageBonus = 0.0;
 		[CFGValue] public double maxValueBadassBonus = 0.0;
-		[CFGValue] public double maxValueLevelBonus = 0.0; // TODO : need to recompute maxValue on level up
+		[CFGValue] public double maxValueLevelBonus = 0.0;
 
 		// if true, the value is set to maxValue on recovery
 		// if false, the value is never reset

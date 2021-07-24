@@ -13,7 +13,7 @@ namespace KERBALISM.Events
 	public sealed class GameEventsHandler
 	{
 		private GameEventsHabitat gameEventsHabitat = new GameEventsHabitat();
-		private GameEventsEVA gameEventsEVA = new GameEventsEVA();
+		private GameEventsCrew gameEventsEVA = new GameEventsCrew();
 		private GameEventsUI gameEventsUI = new GameEventsUI();
 		private VesselLifecycle vesselLifecycle = new VesselLifecycle();
 		private PartLifecycle partLifecycle = new PartLifecycle();
@@ -27,7 +27,8 @@ namespace KERBALISM.Events
 			GameEvents.onCrewTransferSelected.Add(gameEventsHabitat.CrewTransferSelected);
 			BaseCrewAssignmentDialog.onCrewDialogChange.Add(gameEventsHabitat.EditorCrewChanged);
 
-			// EVA
+			// CREW
+			GameEvents.onKerbalLevelUp.Add(gameEventsEVA.OnKerbalLevelUp);
 			GameEvents.onCrewOnEva.Add(gameEventsEVA.ToEVA);
 			GameEvents.onCrewBoardVessel.Add(gameEventsEVA.FromEVA);
 			GameEvents.onAttemptEva.Add(gameEventsEVA.AttemptEVA);
