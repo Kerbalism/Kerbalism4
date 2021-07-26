@@ -318,10 +318,11 @@
     <Compile Include="UI\KsmGui\KsmGuiWindow.cs" />
     <Compile Include="UI\KsmGui\KsmGuiUpdate.cs" />
     <Compile Include="ResourceSim\EditorResourceSimulator.cs" />
-    <Compile Include="UI\Science\ExperimentSubjectsList.cs" />
-    <Compile Include="UI\Science\ExperimentPopup.cs" />
-    <Compile Include="UI\Science\ScienceArchiveWindow.cs" />
-    <Compile Include="UI\Vessel\VesselSummary.cs" />
+    <Compile Include="UI\UIRefactor\ExperimentSubjectsList.cs" />
+    <Compile Include="UI\UIRefactor\ExperimentPopup.cs" />
+    <Compile Include="UI\UIRefactor\ScienceArchiveWindow.cs" />
+    <Compile Include="UI\UIRefactor\VesselsManager.cs" />
+    <Compile Include="UI\UIRefactor\VesselSummary.cs" />
     <Compile Include="Utility\CFGValue.cs" />
     <Compile Include="Utility\Collections.cs" />
     <Compile Include="Utility\DebugDrawer.cs" />

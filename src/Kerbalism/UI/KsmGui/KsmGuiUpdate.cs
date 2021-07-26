@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace KERBALISM.KsmGui
 {
@@ -37,7 +38,10 @@ namespace KERBALISM.KsmGui
 				if (updateFrequency <= 0f || lastUpdate + updateFrequency < Time.time)
 				{
 					lastUpdate = Time.time;
+
+					Profiler.BeginSample(updateAction.Target + "." + updateAction.Method.Name + "()");
 					updateAction();
+					Profiler.EndSample();
 				}
 			}
 

@@ -33,6 +33,8 @@ namespace KERBALISM.KsmGui
 			if (parent != null)
 			{
 				layoutOptimizer = parent.layoutOptimizer;
+				layoutOptimizer.SetDirty();
+				layoutOptimizer.RebuildLayout();
 				TopTransform.SetParentFixScale(parent.ParentTransformForChilds);
 			}
 			else
@@ -51,6 +53,10 @@ namespace KERBALISM.KsmGui
 			set
 			{
 				TopObject.SetActive(value);
+
+				// enabling/disabling an object almost always require a layout rebuild
+				layoutOptimizer.RebuildLayout();
+
 				// if enabling and update frequency is more than every update, update immediately
 				if (value && UpdateHandler != null)
 					UpdateHandler.UpdateASAP();
@@ -66,7 +72,7 @@ namespace KERBALISM.KsmGui
 
 			UpdateHandler.updateAction = action;
 			UpdateHandler.updateFrequency = updateFrequency;
-			//UpdateHandler.UpdateASAP();
+			UpdateHandler.UpdateASAP();
 		}
 
 		/// <summary> coroutine-like (IEnumerable) method that will be called repeatedly as long as Enabled = true </summary>

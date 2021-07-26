@@ -9,6 +9,7 @@ using KSP.UI;
 using KSP.UI.TooltipTypes;
 using Steamworks;
 using TMPro;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -219,6 +220,9 @@ namespace KERBALISM
 
 		private class SupplyEntry : KsmGuiHorizontalLayout
 		{
+			static ProfilerMarker profilerSB = new ProfilerMarker("SupplyEntry.Update.SB");
+			static ProfilerMarker profilerSetText = new ProfilerMarker("SupplyEntry.Update.SetText");
+
 			private static StringBuilder sb = new StringBuilder();
 			public VesselKSPResource Resource { get; private set; }
 			public Supply Supply { get; private set; }
@@ -235,66 +239,72 @@ namespace KERBALISM
 				textComponent.SetLayoutElement(true, false, -1, -1, -1, 18);
 				backgroundColor = TopObject.AddComponent<Image>();
 
+				SetTooltipText(() => Resource.BrokerListTooltipTMP(false));
+
 			}
 
 			private void Update()
 			{
-				sb.Clear();
-				sb.Append(Resource.Title);
-				sb.Append("<pos=100px>", Lib.HumanReadableAmountCompact(Resource.Amount));
-				sb.Append("<pos=160px>", Resource.Level.ToString("P1"));
-
-				sb.Append("<pos=220px>");
-				bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
-
-				if (showAvailabilityFactor)
+				using (profilerSB.Auto())
 				{
-					sb.AppendColor(Resource.AvailabilityFactor.ToString("P1"), Lib.Kolor.Red, true);
-					sb.Append(" ", "availability");
-				}
-				else
-				{
-					if (Resource.Rate > -1e-09 && Resource.Rate < 1e-09)
+					sb.Clear();
+					sb.Append(Resource.Title);
+					sb.Append("<pos=100px>", Lib.HumanReadableAmountCompact(Resource.Amount));
+					sb.Append("<pos=160px>", Resource.Level.ToString("P1"));
+
+					sb.Append("<pos=220px>");
+					bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
+
+					if (showAvailabilityFactor)
 					{
-						if (Resource.ResourceBrokers.Count == 0)
-						{
-							sb.Append("none");
-						}
-						else
-						{
-							sb.AppendColor("stable", Lib.Kolor.Green);
-						}
+						sb.AppendColor(Resource.AvailabilityFactor.ToString("P1"), Lib.Kolor.Red, true);
+						sb.Append(" ", "availability");
 					}
 					else
 					{
-						sb.AppendColor(Resource.Rate > 0.0, Lib.HumanReadableRate(Resource.Rate, "F3", string.Empty, true), Lib.Kolor.PosRate, Lib.Kolor.NegRate);
-					}
-				}
-
-				if (!showAvailabilityFactor)
-				{
-					sb.Append("<pos=280px>");
-					double depletion = Resource.Depletion;
-					if (depletion > Lib.SecondsInYearExact * 100.0) // more than 100 years = perpetual
-					{
-						sb.Append(Lib.Color(Local.Generic_PERPETUAL, Lib.Kolor.Green));
-					}
-					else if (depletion == 0.0)
-					{
-						sb.Append(Lib.Color(Local.Monitor_depleted, Lib.Kolor.Orange));
-					}
-					else
-					{
-						if (Supply != null && Resource.Level < Supply.levelThreshold)
-							sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Orange));
+						if (Resource.Rate > -1e-09 && Resource.Rate < 1e-09)
+						{
+							if (Resource.ResourceBrokers.Count == 0)
+							{
+								sb.Append("none");
+							}
+							else
+							{
+								sb.AppendColor("stable", Lib.Kolor.Green);
+							}
+						}
 						else
-							sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Green));
+						{
+							sb.AppendColor(Resource.Rate > 0.0, Lib.HumanReadableRate(Resource.Rate, "F3", string.Empty, true), Lib.Kolor.PosRate, Lib.Kolor.NegRate);
+						}
+					}
+
+					if (!showAvailabilityFactor)
+					{
+						sb.Append("<pos=280px>");
+						double depletion = Resource.Depletion;
+						if (depletion > Lib.SecondsInYearExact * 100.0) // more than 100 years = perpetual
+						{
+							sb.Append(Lib.Color(Local.Generic_PERPETUAL, Lib.Kolor.Green));
+						}
+						else if (depletion == 0.0)
+						{
+							sb.Append(Lib.Color(Local.Monitor_depleted, Lib.Kolor.Orange));
+						}
+						else
+						{
+							if (Supply != null && Resource.Level < Supply.levelThreshold)
+								sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Orange));
+							else
+								sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Green));
+						}
 					}
 				}
 
-				textComponent.Text = sb.ToString();
-
-				SetTooltipText(Resource.BrokerListTooltipTMP(false));
+				using (profilerSetText.Auto())
+				{
+					textComponent.Text = sb.ToString();
+				}
 			}
 		}
 
@@ -625,6 +635,8 @@ namespace KERBALISM
 				{
 					suppliesScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
 				}
+
+				RebuildLayout();
 			}
 		}
 
@@ -663,6 +675,8 @@ namespace KERBALISM
 				{
 					crewScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
 				}
+
+				RebuildLayout();
 			}
 		}
 

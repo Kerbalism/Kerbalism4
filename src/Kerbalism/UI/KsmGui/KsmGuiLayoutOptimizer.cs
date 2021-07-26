@@ -21,27 +21,59 @@ namespace KERBALISM.KsmGui
 	public class KsmGuiLayoutOptimizer : MonoBehaviour
 	{
 		private List<UIBehaviour> layoutControllers = new List<UIBehaviour>();
-		private bool isRebuilding;
+
+		private bool isDirty = true;
+		private bool rebuildRequested = false;
+		private bool isRebuilding = false;
 		
 		public void RebuildLayout()
 		{
-			if (isRebuilding)
-				return;
+			rebuildRequested = true;
+		}
 
-			isRebuilding = true;
+		public void SetDirty()
+		{
+			isDirty = true;
+		}
 
-			layoutControllers.Clear();
-			foreach (ILayoutController ILayoutController in GetComponentsInChildren<ILayoutController>(true))
+		private void LateUpdate()
+		{
+			if (rebuildRequested && !isRebuilding)
 			{
-				if (ILayoutController is ScrollRect)
-					continue;
+				if (isDirty)
+				{
+					isDirty = false;
+					layoutControllers.Clear();
+					foreach (ILayoutController ILayoutController in GetComponentsInChildren<ILayoutController>(true))
+					{
+						if (ILayoutController is ScrollRect)
+							continue;
 
-				UIBehaviour UIBehaviour = (UIBehaviour)ILayoutController;
-				layoutControllers.Add(UIBehaviour);
-				UIBehaviour.enabled = true;
+						UIBehaviour layoutController = (UIBehaviour)ILayoutController;
+						layoutControllers.Add(layoutController);
+						layoutController.enabled = true;
+					}
+				}
+				else
+				{
+					for (int i = 0; i < layoutControllers.Count; i++)
+					{
+						if (layoutControllers[i] == null)
+						{
+							layoutControllers.RemoveAt(i);
+						}
+						else
+						{
+							layoutControllers[i].enabled = true;
+						}
+					}
+				}
+
+				isRebuilding = true;
+				rebuildRequested = false;
+
+				StartCoroutine(DisableLayoutAfterRebuild());
 			}
-
-			StartCoroutine(DisableLayoutAfterRebuild());
 		}
 
 		private IEnumerator DisableLayoutAfterRebuild()
@@ -53,6 +85,9 @@ namespace KERBALISM.KsmGui
 
 			foreach (UIBehaviour layoutController in layoutControllers)
 			{
+				if (layoutController == null)
+					continue;
+
 				layoutController.enabled = false;
 			}
 
@@ -76,6 +111,7 @@ namespace KERBALISM.KsmGui
 		private void OnDisable()
 		{
 			isRebuilding = false;
+			rebuildRequested = false;
 		}
 	}
 }
