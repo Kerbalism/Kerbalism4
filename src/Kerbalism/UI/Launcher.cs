@@ -1,3 +1,4 @@
+using KERBALISM.KsmGui;
 using KSP.UI.Screens;
 using UnityEngine;
 
@@ -42,6 +43,13 @@ namespace KERBALISM
 				  | ApplicationLauncher.AppScenes.TRACKSTATION
 				  | ApplicationLauncher.AppScenes.VAB
 				  | ApplicationLauncher.AppScenes.SPH;
+
+				vesselListLauncher.onRightClick = () =>
+				{
+					KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical);
+					new VesselsManager(window);
+
+				};
 			}
 
 			if (Features.Science)

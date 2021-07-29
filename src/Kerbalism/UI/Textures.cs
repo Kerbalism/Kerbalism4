@@ -1,3 +1,6 @@
+using System;
+using System.Reflection;
+using KSP.UI.Screens;
 using UnityEngine;
 
 namespace KERBALISM
@@ -126,6 +129,42 @@ namespace KERBALISM
 		internal static Texture2D KsmGuiTexHeaderClose;
 		internal static Texture2D KsmGuiTexHeaderInfo;
 		internal static Texture2D KsmGuiTexHeaderRnD;
+
+		internal static Texture2D vesselTypeAircraft;
+		internal static Texture2D vesselTypeBase;
+		internal static Texture2D vesselTypeCommsRelay;
+		internal static Texture2D vesselTypeDebris;
+		internal static Texture2D vesselTypeDeployScience;
+		internal static Texture2D vesselTypeLander;
+		internal static Texture2D vesselTypeProbe;
+		internal static Texture2D vesselTypeRover;
+		internal static Texture2D vesselTypeShip;
+		internal static Texture2D vesselTypeSpaceObj;
+		internal static Texture2D vesselTypeStation;
+
+		internal static Texture2D ttBattery;
+		internal static Texture2D ttBox;
+		internal static Texture2D ttEscape;
+		internal static Texture2D ttHeart;
+		internal static Texture2D ttLanded;
+		internal static Texture2D ttOrbit;
+		internal static Texture2D ttRadioactive;
+		internal static Texture2D ttReliability;
+		internal static Texture2D ttStorm;
+		internal static Texture2D ttSun;
+		internal static Texture2D ttSunStriked;
+		internal static Texture2D ttSuborbit;
+		internal static Texture2D ttFlying;
+		internal static Texture2D ttPlasma;
+		internal static Texture2D ttBelt;
+
+		internal static Texture2D ttSignalFull;
+		internal static Texture2D ttSignalMid;
+		internal static Texture2D ttSignalLow;
+		internal static Texture2D ttSignalData;
+		internal static Texture2D ttSignalNoData;
+		internal static Texture2D ttSignalDirect;
+		internal static Texture2D ttSignalRelay;
 
 		// timer controller
 		internal static float nextFlashing = Time.time;
@@ -268,11 +307,35 @@ namespace KERBALISM
 			KsmGuiTexHeaderArrowsUp = Lib.GetTexture("ksm-gui/arrows-up-32", 32, 32);
 			KsmGuiTexHeaderArrowsDown = Lib.GetTexture("ksm-gui/arrows-down-32", 32, 32);
 
-
-
 			KsmGuiTexHeaderClose = Lib.GetTexture("ksm-gui/i8-header-close-32", 32, 32);
 			KsmGuiTexHeaderInfo = Lib.GetTexture("ksm-gui/info-32", 32, 32);
 			KsmGuiTexHeaderRnD = Lib.GetTexture("ksm-gui/i8-rnd-32", 32, 32);
+
+			GetVesselTypeTextures();
+
+			ttBattery = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/battery-48");
+			ttBox = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/box-48");
+			ttEscape = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/escape-48");
+			ttHeart = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/heart-48");
+			ttLanded = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/landed-48");
+			ttOrbit = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/orbit-48");
+			ttRadioactive = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/radioactive-48");
+			ttReliability = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/reliability-48");
+			ttStorm = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/storm-48");
+			ttSun = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/sun-48");
+			ttSunStriked = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/sunStriked-48");
+			ttSuborbit = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/suborbit-48");
+			ttFlying = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/flying-48");
+			ttPlasma = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/plasma-48");
+			ttBelt = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/belt-48");
+
+			ttSignalFull = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalFull-48");
+			ttSignalMid = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalMid-48");
+			ttSignalLow = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalLow-48");
+			ttSignalData = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalData-48");
+			ttSignalNoData = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalNoData-48");
+			ttSignalDirect = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalDirect-48");
+			ttSignalRelay = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalRelay-48");
 
 			//Texture2D winBg = Lib.GetTexture("ui-core/window-background", 64, 64);
 			//// inspecting pixelPerUnit gives 92.75362, but 100f is the default value and seems to work fine
@@ -297,6 +360,33 @@ namespace KERBALISM
 			}
 			if (lastIcon) return icon1;
 			return icon2;
+		}
+
+		private static void GetVesselTypeTextures()
+		{
+			try
+			{
+				VesselRenameDialog prefab = AssetBase.GetPrefab("VesselRenameDialog").GetComponent<VesselRenameDialog>();
+				Type rdType = typeof(VesselRenameDialog);
+				BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+
+				vesselTypeAircraft = ((TypeButton)rdType.GetField("toggleAircraft", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeBase = ((TypeButton)rdType.GetField("toggleBase", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeCommsRelay = ((TypeButton)rdType.GetField("toggleCommunicationsRelay", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeDebris = ((TypeButton)rdType.GetField("toggleDebris", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeDeployScience = ((TypeButton)rdType.GetField("toggleDeployedScience", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeLander = ((TypeButton)rdType.GetField("toggleLander", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeProbe = ((TypeButton)rdType.GetField("toggleProbe", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeRover = ((TypeButton)rdType.GetField("toggleRover", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeShip = ((TypeButton)rdType.GetField("toggleShip", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeSpaceObj = ((TypeButton)rdType.GetField("toggleSpaceObj", flags).GetValue(prefab)).icon.sprite.texture;
+				vesselTypeStation = ((TypeButton)rdType.GetField("toggleStation", flags).GetValue(prefab)).icon.sprite.texture;
+			}
+			catch (Exception e)
+			{
+				ErrorManager.AddError(true, "Error retrieving vessel types textures", e.ToString());
+			}
+
 		}
 	}
 } // KERBALISM

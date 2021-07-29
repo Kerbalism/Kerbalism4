@@ -592,22 +592,22 @@ namespace KERBALISM
 		///This may be lower than the real value if the home body rotation period isn't a multiple of an hour
 		///</summary>
 		public static double HoursInDayFloored { get; private set; } = 6.0;
-		private static double secondsInDayFloored = 6.0 * 3600.0;
+		public static double SecondsInDayFloored { get; private set; } = 6.0 * 3600.0;
 
 		///<summary>
 		///Floored integer amount of solar days in a solar year.<br/>
 		///This may be lower than the real value if the home body orbit period isn't a multiple of a solar day
 		///</summary>
 		public static double DaysInYearFloored { get; private set; } = 426.0;
-		private static double secondsInYearFloored = 426.0 * 6.0 * 3600.0;
+		public static double SecondsInYearFloored { get; private set; }= 426.0 * 6.0 * 3600.0;
 
 		///<summary>ulong (floored) amount of hours in a solar day (utility to avoid a cast every time we need it in Lib) </summary>
-		private static ulong hoursInDayLong = 6;
-		private static ulong secondsInDayLong = 6 * 3600;
+		public static ulong HoursInDayLong { get; private set; } = 6;
+		public static ulong SecondsInDayLong { get; private set; } = 6 * 3600;
 
 		///<summary>ulong (floored) amount of solar days in a solar year (utility to avoid a cast every time we need it in Lib)</summary>
-		private static ulong daysInYearLong = 426;
-		private static ulong secondsInYearLong = 429 * 6 * 3600;
+		public static ulong DaysInYearLong { get; private set; } = 426;
+		public static ulong SecondsInYearLong { get; private set; } = 429 * 6 * 3600;
 
 		///<summary>
 		/// Setup hours in day and days in year values by parsing kopernicus configs if present, or using the kerbin time setting otherwise.
@@ -617,16 +617,18 @@ namespace KERBALISM
 		{
 			string info;
 
-			if (!Settings.UseHomeBodyCalendar || !Kopernicus.GetHomeWorldCalendar(out double hoursInDay, out hoursInDayLong, out double daysInYear, out daysInYearLong, out info))
+			if (!Settings.UseHomeBodyCalendar || !Kopernicus.GetHomeWorldCalendar(out double hoursInDay, out ulong hoursInDayLong, out double daysInYear, out ulong daysInYearLong, out info))
 			{
 				hoursInDay = GameSettings.KERBIN_TIME ? 6.0 : 24.0;
 				daysInYear = GameSettings.KERBIN_TIME ? 426.0 : 365.0;
-				hoursInDayLong = (ulong)hoursInDay;
-				daysInYearLong = (ulong)daysInYear;
+				HoursInDayLong = (ulong)hoursInDay;
+				DaysInYearLong = (ulong)daysInYear;
 				info = GameSettings.KERBIN_TIME ? "Using Kerbin time from settings" : "Using Earth time from settings";
 			}
 			else
 			{
+				HoursInDayLong = hoursInDayLong;
+				DaysInYearLong = daysInYearLong;
 				info = "Using Kopernicus body time for " + info;
 			}
 
@@ -634,12 +636,12 @@ namespace KERBALISM
 			DaysInYearExact = daysInYear;
 			SecondsInDayExact = hoursInDay * 3600.0;
 			SecondsInYearExact = daysInYear * hoursInDay * 3600.0;
-			HoursInDayFloored = hoursInDayLong;
-			DaysInYearFloored = daysInYearLong;
-			secondsInDayLong = hoursInDayLong * 3600;
-			secondsInYearLong = daysInYearLong * hoursInDayLong * 3600;
-			secondsInDayFloored = secondsInDayLong;
-			secondsInYearFloored = secondsInYearLong;
+			HoursInDayFloored = HoursInDayLong;
+			DaysInYearFloored = DaysInYearLong;
+			SecondsInDayLong = HoursInDayLong * 3600;
+			SecondsInYearLong = DaysInYearLong * HoursInDayLong * 3600;
+			SecondsInDayFloored = SecondsInDayLong;
+			SecondsInYearFloored = SecondsInYearLong;
 			return info;
 		}
 
@@ -859,6 +861,7 @@ namespace KERBALISM
 		}
 
 		///<summary>standardized kerbalism string colors</summary>
+		[Obsolete("Use the Kolor class instead")]
 		public enum Kolor
 		{
 			None,
@@ -883,6 +886,7 @@ namespace KERBALISM
 		}
 
 		///<summary>return the hex representation for kerbalism Kolors</summary>
+		[Obsolete("Use the Kolor class instead")]
 		public static string KolorToHex(Kolor color)
 		{
 			switch (color)
@@ -902,51 +906,69 @@ namespace KERBALISM
 			}
 		}
 
+		[Obsolete("Use the Kolor class instead")] public static Color KolorNone = new Color(1.000f, 1.000f, 1.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorGreen = new Color(0.533f, 1.000f, 0.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorYellow = new Color(1.000f, 0.824f, 0.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorOrange = new Color(1.000f, 0.502f, 0.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorRed = new Color(1.000f, 0.200f, 0.200f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorPosRate = new Color(0.533f, 1.000f, 0.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorNegRate = new Color(1.000f, 0.502f, 0.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorScience = new Color(0.427f, 0.812f, 0.965f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorCyan = new Color(0.000f, 1.000f, 1.000f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorLightGrey = new Color(0.800f, 0.800f, 0.800f);
+		[Obsolete("Use the Kolor class instead")] public static Color KolorDarkGrey = new Color(0.600f, 0.600f, 0.600f);
+
 		///<summary>return the unity Colot  for kerbalism Kolors</summary>
+		[Obsolete("Use the Kolor class instead")]
 		public static Color KolorToColor(Kolor color)
 		{
 			switch (color)
 			{
-				case Kolor.None: return new Color(1.000f, 1.000f, 1.000f);
-				case Kolor.Green: return new Color(0.533f, 1.000f, 0.000f);
-				case Kolor.Yellow: return new Color(1.000f, 0.824f, 0.000f);
-				case Kolor.Orange: return new Color(1.000f, 0.502f, 0.000f);
-				case Kolor.Red: return new Color(1.000f, 0.200f, 0.200f);
-				case Kolor.PosRate: return new Color(0.533f, 1.000f, 0.000f);
-				case Kolor.NegRate: return new Color(1.000f, 0.502f, 0.000f);
-				case Kolor.Science: return new Color(0.427f, 0.812f, 0.965f);
-				case Kolor.Cyan: return new Color(0.000f, 1.000f, 1.000f);
-				case Kolor.LightGrey: return new Color(0.800f, 0.800f, 0.800f);
-				case Kolor.DarkGrey: return new Color(0.600f, 0.600f, 0.600f);
+				case Kolor.None: return KolorNone;
+				case Kolor.Green: return KolorGreen;
+				case Kolor.Yellow: return KolorYellow;
+				case Kolor.Orange: return KolorOrange;
+				case Kolor.Red: return KolorRed;
+				case Kolor.PosRate: return KolorPosRate;
+				case Kolor.NegRate: return KolorNegRate;
+				case Kolor.Science: return KolorScience;
+				case Kolor.Cyan: return KolorCyan;
+				case Kolor.LightGrey: return KolorLightGrey;
+				case Kolor.DarkGrey: return KolorDarkGrey;
 				default: return new Color(1.000f, 1.000f, 1.000f);
 			}
 		}
 
 		///<summary>return string with the specified color and bold if stated</summary>
+		[Obsolete("Use KsmString instead")]
 		public static string Color(string s, Kolor color, bool bold = false)
 		{
 			return !bold ? BuildString("<color=", KolorToHex(color), ">", s, "</color>") : BuildString("<color=", KolorToHex(color), "><b>", s, "</b></color>");
 		}
 
 		///<summary>return string with different colors depending on the specified condition. "KColor.Default" will not apply any coloring</summary>
+		[Obsolete("Use KsmString instead")]
 		public static string Color(bool condition, string s, Kolor colorIfTrue, Kolor colorIfFalse = Kolor.None, bool bold = false)
 		{
 			return condition ? Color(s, colorIfTrue, bold) : colorIfFalse == Kolor.None ? bold ? Bold(s) : s : Color(s, colorIfFalse, bold);
 		}
 
 		///<summary>return different colored strings depending on the specified condition. "KColor.Default" will not apply any coloring</summary>
+		[Obsolete("Use KsmString instead")]
 		public static string Color(bool condition, string sIfTrue, Kolor colorIfTrue, string sIfFalse, Kolor colorIfFalse = Kolor.None, bool bold = false)
 		{
 			return condition ? Color(sIfTrue, colorIfTrue, bold) : colorIfFalse == Kolor.None ? bold ? Bold(sIfFalse) : sIfFalse : Color(sIfFalse, colorIfFalse, bold);
 		}
 
 		///<summary>return string in bold</summary>
+		[Obsolete("Use KsmString instead")]
 		public static string Bold(string s)
 		{
 			return BuildString("<b>", s, "</b>");
 		}
 
 		///<summary>return string in italic</summary>
+		[Obsolete("Use KsmString instead")]
 		public static string Italic(string s)
 		{
 			return BuildString("<i>", s, "</i>");
@@ -1027,6 +1049,7 @@ namespace KERBALISM
 		/// Append "\n"<br/>
 		/// StringBuilder.AppendLine() is platform-dependant and can use "\r\n" which cause trouble in KSP.
 		/// </summary>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendKSPNewLine(this StringBuilder sb)
 		{
 			sb.Append("\n");
@@ -1036,6 +1059,7 @@ namespace KERBALISM
 		/// Append "value" and add a "\n" to the end<br/>
 		/// StringBuilder.AppendLine() is platform-dependant and can use "\r\n" which cause trouble in KSP.
 		/// </summary>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendKSPLine(this StringBuilder sb, string value)
 		{
 			sb.Append(value);
@@ -1043,6 +1067,7 @@ namespace KERBALISM
 		}
 
 		/// <summary> Format to "label: <b>value</b>\n" (match the format of Specifics)</summary>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendInfo(this StringBuilder sb, string label, string value, float valuePos = -1f, TextPos unit = TextPos.pixel)
 		{
 			sb.Append(label);
@@ -1071,20 +1096,21 @@ namespace KERBALISM
 		}
 
 		/// <summary> Append "• value\n"</summary>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendList(this StringBuilder sb, string value)
 		{
 			sb.Append("• ");
 			sb.Append(value);
 			sb.Append("\n");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendBold(this StringBuilder sb, string value)
 		{
 			sb.Append("<b>");
 			sb.Append(value);
 			sb.Append("</b>");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendItalic(this StringBuilder sb, string value)
 		{
 			sb.Append("<i>");
@@ -1098,6 +1124,7 @@ namespace KERBALISM
 		/// <param name="value">text string</param>
 		/// <param name="alignment">horizontal alignement</param>
 		/// <param name="closed">should the tag be closed, preventing formatting to be applied to the next string(s)</param>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendAlignement(this StringBuilder sb, string value, TextAlignment alignment, bool closed = true)
 		{
 			switch (alignment)
@@ -1127,6 +1154,7 @@ namespace KERBALISM
 		/// <param name="pos">horizontal position</param>
 		/// <param name="unit">is position in pixels (default), % of the parent width, or in font units (em)</param>
 		/// <param name="closed">should the tag be closed, preventing formatting to be applied to the next string(s)</param>
+		[Obsolete("Use KsmString instead")]
 		public static void AppendAtPos(this StringBuilder sb, string value, float pos, TextPos unit = TextPos.pixel, bool closed = false)
 		{
 			sb.Append("<pos=");
@@ -1143,14 +1171,15 @@ namespace KERBALISM
 			{
 				sb.Append(value);
 			}
-			
+
 			if (closed)
 			{
 				sb.Append("</pos>");
 			}
-			
+
 		}
 
+		[Obsolete("Use KsmString instead")]
 		public static void AppendColor(this StringBuilder sb, string value, Kolor color, bool bold = false)
 		{
 			sb.Append("<color=");
@@ -1169,6 +1198,7 @@ namespace KERBALISM
 			sb.Append("</color>");
 		}
 
+		[Obsolete("Use KsmString instead")]
 		public static void AppendCondition(this StringBuilder sb, bool condition, string whenTrue, string whenFalse)
 		{
 			if (condition)
@@ -1181,6 +1211,7 @@ namespace KERBALISM
 			}
 		}
 
+		[Obsolete("Use KsmString instead")]
 		public static void AppendColor(this StringBuilder sb, bool condition, string sIfTrue, Kolor colorIfTrue, string sIfFalse, Kolor colorIfFalse = Kolor.None, bool bold = false)
 		{
 			sb.Append("<color=");
@@ -1219,6 +1250,7 @@ namespace KERBALISM
 		}
 
 		// public static string Color(bool condition, string s, Kolor colorIfTrue, Kolor colorIfFalse = Kolor.None, bool bold = false)
+		[Obsolete("Use KsmString instead")]
 		public static void AppendColor(this StringBuilder sb, bool condition, string value, Kolor colorIfTrue, Kolor colorIfFalse = Kolor.None, bool bold = false)
 		{
 			sb.Append("<color=");
@@ -1230,7 +1262,7 @@ namespace KERBALISM
 			{
 				sb.Append(KolorToHex(colorIfFalse));
 			}
-			
+
 			sb.Append(">");
 			if (bold)
 			{
@@ -1245,17 +1277,20 @@ namespace KERBALISM
 			sb.Append("</color>");
 		}
 
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b)
 		{
 			sb.Append(a);
 			sb.Append(b);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c)
 		{
 			sb.Append(a);
 			sb.Append(b);
 			sb.Append(c);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c, string d)
 		{
 			sb.Append(a);
@@ -1263,6 +1298,7 @@ namespace KERBALISM
 			sb.Append(c);
 			sb.Append(d);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e)
 		{
 			sb.Append(a);
@@ -1271,6 +1307,7 @@ namespace KERBALISM
 			sb.Append(d);
 			sb.Append(e);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f)
 		{
 			sb.Append(a);
@@ -1280,6 +1317,7 @@ namespace KERBALISM
 			sb.Append(e);
 			sb.Append(f);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f, string g)
 		{
 			sb.Append(a);
@@ -1290,6 +1328,7 @@ namespace KERBALISM
 			sb.Append(f);
 			sb.Append(g);
 		}
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this StringBuilder sb, string a, string b, string c, string d, string e, string f, string g, string h)
 		{
 			sb.Append(a);
@@ -1301,39 +1340,39 @@ namespace KERBALISM
 			sb.Append(g);
 			sb.Append(h);
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void Append(this string value, StringBuilder sb)
 		{
 			sb.Append(value);
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendLine(this string value, StringBuilder sb)
 		{
 			sb.Append(value);
 			sb.Append("\n");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendList(this string value, StringBuilder sb)
 		{
 			sb.Append("• ");
 			sb.Append(value);
 			sb.Append("\n");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendBold(this string value, StringBuilder sb)
 		{
 			sb.Append("<b>");
 			sb.Append(value);
 			sb.Append("</b>");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendItalic(this string value, StringBuilder sb)
 		{
 			sb.Append("<i>");
 			sb.Append(value);
 			sb.Append("</i>");
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendAlignement(this string value, StringBuilder sb, TextAlignment alignment, bool closed = true)
 		{
 			switch (alignment)
@@ -1348,7 +1387,7 @@ namespace KERBALISM
 				sb.Append("</align>");
 			}
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendAtPos(this string value, StringBuilder sb, float pos, TextPos unit = TextPos.pixel, bool closed = false)
 		{
 			sb.Append("<pos=");
@@ -1366,7 +1405,7 @@ namespace KERBALISM
 				sb.Append("</pos>");
 			}
 		}
-
+		[Obsolete("Use KsmString instead")]
 		public static void AppendColor(this string value, StringBuilder sb, Kolor color, bool bold = false)
 		{
 			sb.Append("<color=");
@@ -1389,6 +1428,8 @@ namespace KERBALISM
 		// note: the objective here is to minimize number of temporary variables for GC
 		// note: okay to call recursively, as long as all individual concatenation is atomic
 		static StringBuilder sb = new StringBuilder(256);
+
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b)
 		{
 			sb.Length = 0;
@@ -1396,6 +1437,7 @@ namespace KERBALISM
 			sb.Append(b);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c)
 		{
 			sb.Length = 0;
@@ -1404,6 +1446,7 @@ namespace KERBALISM
 			sb.Append(c);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c, string d)
 		{
 			sb.Length = 0;
@@ -1413,6 +1456,7 @@ namespace KERBALISM
 			sb.Append(d);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c, string d, string e)
 		{
 			sb.Length = 0;
@@ -1423,6 +1467,7 @@ namespace KERBALISM
 			sb.Append(e);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c, string d, string e, string f)
 		{
 			sb.Length = 0;
@@ -1434,6 +1479,7 @@ namespace KERBALISM
 			sb.Append(f);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c, string d, string e, string f, string g)
 		{
 			sb.Length = 0;
@@ -1446,6 +1492,7 @@ namespace KERBALISM
 			sb.Append(g);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(string a, string b, string c, string d, string e, string f, string g, string h)
 		{
 			sb.Length = 0;
@@ -1459,6 +1506,7 @@ namespace KERBALISM
 			sb.Append(h);
 			return sb.ToString();
 		}
+		[Obsolete("Use KsmString instead")]
 		public static string BuildString(params string[] args)
 		{
 			sb.Length = 0;
@@ -1567,21 +1615,21 @@ namespace KERBALISM
 					return BuildString(minutes.ToString(), "m ", seconds.ToString("00"), "s");
 				}
 				// hours + minutes
-				if (d < secondsInDayFloored)
+				if (d < SecondsInDayFloored)
 				{
 					ulong minutes = (durationLong / 60ul) % 60ul;
-					ulong hours = (durationLong / 3600ul) % hoursInDayLong;
+					ulong hours = (durationLong / 3600ul) % HoursInDayLong;
 					return BuildString(hours.ToString(), "h ", minutes.ToString("00"), "m");
 				}
-				ulong days = (durationLong / secondsInDayLong) % daysInYearLong;
+				ulong days = (durationLong / SecondsInDayLong) % DaysInYearLong;
 				// days + hours
-				if (d < secondsInYearFloored)
+				if (d < SecondsInYearFloored)
 				{
-					ulong hours = (durationLong / 3600ul) % hoursInDayLong;
+					ulong hours = (durationLong / 3600ul) % HoursInDayLong;
 					return BuildString(days.ToString(), "d ", hours.ToString(), "h");
 				}
 				// years + days
-				ulong years = durationLong / secondsInYearLong;
+				ulong years = durationLong / SecondsInYearLong;
 				return BuildString(years.ToString(), "y ", days.ToString(), "d");
 			}
 			else

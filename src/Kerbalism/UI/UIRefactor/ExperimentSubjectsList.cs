@@ -178,7 +178,7 @@ namespace KERBALISM
 					SubjectsContainer.InstantiateUIObjects();
 
 				SubjectsContainer.Enabled = enable;
-				bodyToggle.SetIconTexture(enable ? Textures.KsmGuiTexHeaderArrowsUp : Textures.KsmGuiTexHeaderArrowsDown);
+				bodyToggle.SetIconTextureWithLayout(enable ? Textures.KsmGuiTexHeaderArrowsUp : Textures.KsmGuiTexHeaderArrowsDown);
 				RebuildLayout();
 			}
 		}

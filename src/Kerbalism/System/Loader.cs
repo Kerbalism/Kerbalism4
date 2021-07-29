@@ -30,6 +30,8 @@ namespace KERBALISM
 	[KSPAddon(KSPAddon.Startup.Instantly, false)]
 	public sealed class Loader : MonoBehaviour
 	{
+		public static Harmony HarmonyInstance { get; private set; }
+
 		private bool mmPostLoadDone = false;
 
 		public void Start()
@@ -59,14 +61,14 @@ namespace KERBALISM
 			if (Features.Stress) Inject(root, "Kerbalism", "Stress");
 
 			// Create harmony instance
-			Harmony harmony = new Harmony("Kerbalism");
+			HarmonyInstance = new Harmony("Kerbalism");
 
 			// Search all Kerbalism classes for standalone patches 
-			harmony.PatchAll(Assembly.GetExecutingAssembly());
+			HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
 			// Add other patches
-			ErrorManager.SetupPatches(harmony);
-			B9PartSwitch.Init(harmony);
+			ErrorManager.SetupPatches();
+			B9PartSwitch.Init();
 
 			// register loading callbacks
 			if (HighLogic.LoadedScene == GameScenes.LOADING)

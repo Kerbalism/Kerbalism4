@@ -19,9 +19,6 @@ namespace KERBALISM
 	{
 		private const int contentWidth = 360;
 		private const int crewNameColumnWidth = 100;
-		
-
-		private StringBuilder sb = new StringBuilder();
 
 		private bool isPopup;
 		private bool isEditor;
@@ -169,14 +166,12 @@ namespace KERBALISM
 			public KerbalData kd;
 			private KsmGuiText name;
 			private List<RuleEntry> rules = new List<RuleEntry>();
-			private Image backgroundColor;
 
 			public KerbalEntry(KsmGuiBase parent, KerbalData kd) : base(parent)
 			{
 				this.kd = kd;
 
 				SetLayoutElement(true, false, -1, 18);
-				backgroundColor = TopObject.AddComponent<Image>();
 
 				name = new KsmGuiText(this, kd.stockKerbal.displayName, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				name.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 0);
@@ -207,11 +202,10 @@ namespace KERBALISM
 					stockController.enabled = false;
 
 					sb.Clear();
-					sb.AppendAlignement(Lib.Color(stockController.titleString, Lib.Kolor.Yellow, true), TextAlignment.Center, false);
-					sb.AppendKSPNewLine();
-					sb.AppendInfo(Localizer.Format("#autoLOC_6002246"), Lib.BuildString(pcm.experienceLevel.ToString(), " / 5"));
-					sb.AppendInfo(Localizer.Format("#autoLOC_900297"), pcm.courage.ToString("P0")); // courage
-					sb.AppendInfo(Localizer.Format("#autoLOC_900298"), pcm.stupidity.ToString("P0")); // stupidity
+					sb.Format(stockController.titleString, KF.KolorYellow, KF.Center, KF.Bold, KF.BreakAfter);
+					sb.Info(Localizer.Format("#autoLOC_6002246"), KF.Concat(pcm.experienceLevel.ToString(), " / 5"));
+					sb.Info(Localizer.Format("#autoLOC_900297"), pcm.courage.ToString("P0")); // courage
+					sb.Info(Localizer.Format("#autoLOC_900298"), pcm.stupidity.ToString("P0"), KF.BreakAfter); // stupidity
 					sb.Append(stockController.descriptionString);
 					Text = sb.ToString();
 				}
@@ -227,7 +221,6 @@ namespace KERBALISM
 			public VesselKSPResource Resource { get; private set; }
 			public Supply Supply { get; private set; }
 			private KsmGuiText textComponent;
-			private Image backgroundColor;
 
 			public SupplyEntry(KsmGuiBase parent, VesselKSPResource resource, Supply supply = null) : base(parent)
 			{
@@ -237,7 +230,6 @@ namespace KERBALISM
 				SetUpdateAction(Update);
 				textComponent = new KsmGuiText(this, "", null, TextAlignmentOptions.Left);
 				textComponent.SetLayoutElement(true, false, -1, -1, -1, 18);
-				backgroundColor = TopObject.AddComponent<Image>();
 
 				SetTooltipText(() => Resource.BrokerListTooltipTMP(false));
 
@@ -249,16 +241,16 @@ namespace KERBALISM
 				{
 					sb.Clear();
 					sb.Append(Resource.Title);
-					sb.Append("<pos=100px>", Lib.HumanReadableAmountCompact(Resource.Amount));
-					sb.Append("<pos=160px>", Resource.Level.ToString("P1"));
+					sb.Format(Lib.HumanReadableAmountCompact(Resource.Amount), KF.Position(100));
+					sb.Format(Resource.Level.ToString("P1"), KF.Position(160));
 
-					sb.Append("<pos=220px>");
+					sb.Format(KF.Position(220));
 					bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
 
 					if (showAvailabilityFactor)
 					{
-						sb.AppendColor(Resource.AvailabilityFactor.ToString("P1"), Lib.Kolor.Red, true);
-						sb.Append(" ", "availability");
+						sb.Format(Resource.AvailabilityFactor.ToString("P1"), KF.KolorRed, KF.Bold);
+						sb.Concat(KF.WhiteSpace, "availability");
 					}
 					else
 					{
@@ -270,12 +262,12 @@ namespace KERBALISM
 							}
 							else
 							{
-								sb.AppendColor("stable", Lib.Kolor.Green);
+								sb.Format("stable", KF.KolorGreen);
 							}
 						}
 						else
 						{
-							sb.AppendColor(Resource.Rate > 0.0, Lib.HumanReadableRate(Resource.Rate, "F3", string.Empty, true), Lib.Kolor.PosRate, Lib.Kolor.NegRate);
+							sb.Format(Lib.HumanReadableRate(Resource.Rate, "F3", string.Empty, true), KF.Color(Resource.Rate > 0.0, Kolor.PosRate, Kolor.NegRate));
 						}
 					}
 
@@ -335,7 +327,7 @@ namespace KERBALISM
 			commsAndScience.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
 			new KsmGuiHeader(commsAndScience, "COMMS & SCIENCE");
 			KsmGuiVerticalLayout commsAndScienceContent = new KsmGuiVerticalLayout(commsAndScience, 0, 3);
-			commsAndScienceContent.SetColor();
+			commsAndScienceContent.SetBoxColor();
 
 			signal = new KsmGuiText(commsAndScienceContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis);  // "45 %, x.xx kB/s", tooltip : current distance, max distance, control path list
 			signal.SetTooltipText(SignalTooltip, TextAlignmentOptions.TopLeft, 350f);
@@ -349,9 +341,10 @@ namespace KERBALISM
 			environment.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
 			new KsmGuiHeader(environment, "ENVIRONMENT");
 			KsmGuiVerticalLayout environmentContent = new KsmGuiVerticalLayout(environment, 0, 3);
-			environmentContent.SetColor();
+			environmentContent.SetBoxColor();
 
 			bodyAndBiome = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Kerbin Highlands", tooltip : full biome name
+			bodyAndBiome.UseEllipsisWithTooltip();
 			situations = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Space high (+2)", tooltip : other situations
 			situations.SetTooltipText(SituationTooltip);
 			temperature = new KsmGuiText(environmentContent, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "326 K", tooltip : flux details
@@ -368,7 +361,7 @@ namespace KERBALISM
 			new KsmGuiHeader(crewSpace, "CREW");
 
 			KsmGuiVerticalLayout crewSpaceContent = new KsmGuiVerticalLayout(crewSpace, 0, 3);
-			crewSpaceContent.SetColor();
+			crewSpaceContent.SetBoxColor();
 
 			KsmGuiHorizontalLayout crewHeader = new KsmGuiHorizontalLayout(crewSpaceContent);
 			KsmGuiBase titlespacer = new KsmGuiBase(crewHeader);
@@ -399,7 +392,7 @@ namespace KERBALISM
 			// "solar panels average exposure"
 			solarExposure = new KsmGuiBase(vesselSpace);
 			solarExposure.SetLayoutElement(true, false, -1, -1, -1, 18);
-			solarExposure.SetColor();
+			solarExposure.SetBoxColor();
 
 			solarExposureText = new KsmGuiText(solarExposure, string.Empty, null, TextAlignmentOptions.Center, false, TextOverflowModes.Ellipsis);
 			solarExposureText.NoLayoutStretchInParent();
@@ -422,10 +415,10 @@ namespace KERBALISM
 
 			KsmGuiVerticalLayout habCol1 = new KsmGuiVerticalLayout(habitatSpace, 0, 3);
 			habCol1.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
-			habCol1.SetColor();
+			habCol1.SetBoxColor();
 			KsmGuiVerticalLayout habCol2 = new KsmGuiVerticalLayout(habitatSpace, 0, 3);
 			habCol2.SetLayoutElement(false, false, -1, -1, contentWidth / 2 - 5);
-			habCol2.SetColor();
+			habCol2.SetBoxColor();
 
 			habRadiation = new KsmGuiText(habCol1, null, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
 			habRadiation.SetTooltipText(HabRadiationTooltip, TextAlignmentOptions.TopLeft);
@@ -445,7 +438,7 @@ namespace KERBALISM
 
 			KsmGuiHorizontalLayout shelterConfig = new KsmGuiHorizontalLayout(vesselSpace);
 			shelterConfig.SetLayoutElement(true, false, -1, -1, -1, 18);
-			shelterConfig.SetColor();
+			shelterConfig.SetBoxColor();
 			new KsmGuiText(shelterConfig, "Radiation shelter");
 			new KsmGuiTextButton(shelterConfig, "Enabled", null);
 			new KsmGuiTextButton(shelterConfig, "Auto", null);
@@ -458,7 +451,7 @@ namespace KERBALISM
 			suppliesSpace = new KsmGuiVerticalLayout(this, 5);
 			suppliesSpace.SetLayoutElement(true);
 			suppliesSpace.SetUpdateAction(UpdateSupplies);
-			suppliesSpace.SetColor();
+			suppliesSpace.SetBoxColor();
 			new KsmGuiHeader(suppliesSpace, "SUPPLIES");
 			KsmGuiVerticalLayout suppliesSpaceContent = new KsmGuiVerticalLayout(suppliesSpace, 0, 3);
 
@@ -495,10 +488,10 @@ namespace KERBALISM
 					solarExposure.Enabled = true;
 				}
 
-				sb.Clear();
-				sb.Append(Local.TELEMETRY_SolarPanelsAverageExposure, " : ");
-				sb.AppendColor(vd.SolarPanelsAverageExposure < 0.2, vd.SolarPanelsAverageExposure.ToString("P1"), Lib.Kolor.Orange);
-				solarExposureText.Text = sb.ToString();
+				solarExposureText.Text = KsmString.Get
+					.Add(Local.TELEMETRY_SolarPanelsAverageExposure, " : ")
+					.Format(vd.SolarPanelsAverageExposure.ToString("P1"), KF.Color(vd.SolarPanelsAverageExposure < 0.2, Kolor.Orange), KF.Bold)
+					.End();
 			}
 			else if (solarExposure.Enabled == true)
 			{
@@ -530,39 +523,39 @@ namespace KERBALISM
 
 		private string HabRadiationTooltip()
 		{
-			sb.Clear();
+			KsmString ks = KsmString.Get;
 
-			sb.AppendAlignement(Lib.Color("Habitat radiation protection", Lib.Kolor.Yellow, true), TextAlignment.Center);
-			sb.AppendKSPNewLine();
-			sb.AppendInfo("Shielding level", (vd.Habitat.shieldingAmount / vd.Habitat.shieldingSurface).ToString("P0"));
-			sb.AppendInfo("Ambiant radiation occlusion", vd.Habitat.radiationAmbiantOcclusion.ToString("P1"));
+			ks.Format("Habitat radiation protection", KF.KolorYellow, KF.Bold, KF.Center, KF.BreakAfter);
+			ks.Info("Shielding level", (vd.Habitat.shieldingAmount / vd.Habitat.shieldingSurface).ToString("P0"));
+			ks.Info("Ambiant radiation occlusion", vd.Habitat.radiationAmbiantOcclusion.ToString("P1"));
+
 			if (vd.Habitat.radiationEmittersOcclusion > 0.0)
 			{
-				sb.AppendInfo("Emitters radiation occlusion", vd.Habitat.radiationEmittersOcclusion.ToString("P1"));
+				ks.Info("Emitters radiation occlusion", vd.Habitat.radiationEmittersOcclusion.ToString("P1"));
 			}
-			
-			sb.AppendKSPNewLine();
-			sb.AppendAlignement(Lib.Color("Radiation sources", Lib.Kolor.Yellow, true), TextAlignment.Center);
-			sb.AppendKSPNewLine();
-			sb.AppendInfo("External radiation", Lib.HumanReadableRadiation(vd.EnvRadiation * (1.0 - vd.Habitat.radiationAmbiantOcclusion), false, true));
-			if (vd.Habitat.emittersRadiation > 0.0)
-				sb.AppendInfo("Local emitters", Lib.HumanReadableRadiation(vd.Habitat.emittersRadiation, false, true));
-			if (vd.Habitat.activeRadiationShielding > 0.0)
-				sb.AppendInfo("Active shielding", "-" + Lib.HumanReadableRadiation(vd.Habitat.activeRadiationShielding, false, false));
 
-			return sb.ToString();
+			ks.Format("Radiation sources", KF.KolorYellow, KF.Bold, KF.Center, KF.BreakBefore, KF.BreakAfter);
+
+			ks.Info("External radiation", Lib.HumanReadableRadiation(vd.EnvRadiation * (1.0 - vd.Habitat.radiationAmbiantOcclusion), false, true));
+			if (vd.Habitat.emittersRadiation > 0.0)
+				ks.Info("Local emitters", Lib.HumanReadableRadiation(vd.Habitat.emittersRadiation, false, true));
+			if (vd.Habitat.activeRadiationShielding > 0.0)
+				ks.Info("Active shielding", "-" + Lib.HumanReadableRadiation(vd.Habitat.activeRadiationShielding, false, false));
+
+			return ks.End();
 		}
 
 		private string HabPressureTooltip()
 		{
-			sb.Clear();
-			sb.AppendInfo("Pressurized volume", Lib.HumanReadableVolume(vd.Habitat.pressurizedVolume));
+			KsmString ks = KsmString.Get;
+
+			ks.Info("Pressurized volume", Lib.HumanReadableVolume(vd.Habitat.pressurizedVolume));
 			if (vd.ResHandler.TryGetResource(Settings.HabitatAtmoResource, out VesselKSPResource atmoResource))
 			{
-				sb.AppendKSPNewLine();
-				sb.Append(atmoResource.BrokerListTooltipTMP());
+				ks.Format(atmoResource.BrokerListTooltipTMP(), KF.BreakBefore);
 			}
-			return sb.ToString();
+
+			return ks.End();
 		}
 
 		private string HabCO2Tooltip()
@@ -577,10 +570,12 @@ namespace KERBALISM
 
 		private string HabLivingSpaceTooltip()
 		{
-			sb.Clear();
-			sb.AppendInfo("Total volume", Lib.HumanReadableVolume(vd.Habitat.totalVolume));
-			sb.AppendInfo("Enabled and pressurized volume", Lib.HumanReadableVolume(vd.Habitat.livingVolume));
-			return sb.ToString();
+			KsmString ks = KsmString.Get;
+
+			ks.Info("Total volume", Lib.HumanReadableVolume(vd.Habitat.totalVolume));
+			ks.Info("Enabled and pressurized volume", Lib.HumanReadableVolume(vd.Habitat.livingVolume));
+
+			return ks.End();
 		}
 
 		private void UpdateSupplies()
@@ -629,12 +624,12 @@ namespace KERBALISM
 					}
 				}
 
-				suppliesScrollView.LayoutElement.preferredHeight = Math.Min(resCount * 18f + 5f, 165f);
-
-				for (int i = 0; i < suppliesScrollView.ParentTransformForChilds.childCount; i++)
+				foreach (SupplyEntry entry in suppliesEntries)
 				{
-					suppliesScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
+					entry.SetColor(entry.TopTransform.GetSiblingIndex() % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear);
 				}
+
+				suppliesScrollView.LayoutElement.preferredHeight = Math.Min(resCount * 18f + 5f, 165f);
 
 				RebuildLayout();
 			}
@@ -671,9 +666,9 @@ namespace KERBALISM
 			{
 				crewScrollView.LayoutElement.preferredHeight = Math.Min(vd.Crew.Count * 18f + 5f, 105f);
 
-				for (int i = 0; i < crewScrollView.ParentTransformForChilds.childCount; i++)
+				foreach (KerbalEntry entry in kerbalEntries)
 				{
-					crewScrollView.ParentTransformForChilds.GetChild(i).GetComponent<Image>().color = i % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear;
+					entry.SetColor(entry.TopTransform.GetSiblingIndex() % 2 == 0 ? KsmGuiStyle.boxColor : Color.clear);
 				}
 
 				RebuildLayout();
@@ -682,6 +677,9 @@ namespace KERBALISM
 
 		private void UpdateSummary()
 		{
+			KsmString ks;
+			int commsLabelColumnWidth = 60;
+
 			if (vd.Crew.Count == 0)
 			{
 				if (crewSpace.Enabled)
@@ -696,43 +694,35 @@ namespace KERBALISM
 
 			if (!vd.ConnectionInfo.Linked)
 			{
-				signal.Text = Lib.BuildString("Signal", "<pos=20em>", Lib.Color("No connecton", Lib.Kolor.Orange, true));
+				signal.Text = KsmString.Get.Info("Signal", "No connecton", KF.KolorOrange, KF.Bold, commsLabelColumnWidth).End();
 			}
 			else
 			{
-				sb.Clear();
-				sb.Append("Signal");
-				sb.Append("<pos=20em>");
+				ks = KsmString.Get;
+				KF color;
 				if (vd.ConnectionInfo.Strength < 0.05)
-				{
-					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Red, true));
-				}
+					color = KF.KolorRed;
 				else if (vd.ConnectionInfo.Strength < 0.2)
-				{
-					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Orange, true));
-				}
+					color = KF.KolorOrange;
 				else
-				{
-					sb.Append(Lib.Color(vd.ConnectionInfo.Strength.ToString("P1"), Lib.Kolor.Green, true));
-				}
+					color = KF.KolorGreen;
+
+				ks.Add("Signal");
+				ks.Format(vd.ConnectionInfo.Strength, "P1", color, KF.Bold, KF.Position(commsLabelColumnWidth));
 
 				if (vd.ConnectionInfo.DataRate > 0.0)
-				{
-					sb.Append(" (");
-					sb.Append(Lib.HumanReadableDataRate(vd.ConnectionInfo.DataRate));
-					sb.Append(")");
-				}
+					ks.Add(" (", Lib.HumanReadableDataRate(vd.ConnectionInfo.DataRate), ")");
 
-				signal.Text = sb.ToString();
+				signal.Text = ks.End();
 			}
 
-			sb.Clear();
-			sb.Append("Upload");
-			sb.AppendAtPos(null, 20f, Lib.TextPos.fontUnit);
+			ks = KsmString.Get;
+			ks.Add("Upload");
+			ks.Format(KF.Position(commsLabelColumnWidth));
 
 			if (!vd.DeviceTransmit)
 			{
-				sb.AppendColor("Disabled", Lib.Kolor.Orange, true);
+				ks.Format("Disabled", KF.KolorOrange, KF.Bold);
 			}
 			else
 			{
@@ -740,92 +730,96 @@ namespace KERBALISM
 				{
 					if (isEditor)
 					{
-						sb.AppendColor("Enabled", Lib.Kolor.Green);
+						ks.Format("Enabled", KF.KolorGreen);
 					}
 					else
 					{
-						sb.Append(vdFlight.filesTransmitted.Count.ToString(), " ", "files", " (", Lib.HumanReadableDataRate(vdFlight.filesTransmitted.Sum(i => i.transmitRate)), ")");
+						ks.Add(vdFlight.filesTransmitted.Count.ToString(), KF.WhiteSpace, "files", " (", Lib.HumanReadableDataRate(vdFlight.filesTransmitted.Sum(i => i.transmitRate)), ")");
 					}
 				}
 				else
 				{
-					sb.AppendColor("No data link", Lib.Kolor.Orange);
+					ks.Format("Enabled", KF.KolorOrange);
 				}
 			}
 
-			transmit.Text = sb.ToString();
+			transmit.Text = ks.End();
 
 			DriveHandler.GetDrivesInfo(vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
 				out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass);
 
-			sb.Clear();
-			sb.Append("Data", "<pos=20em>");
+			ks = KsmString.Get;
+			ks.Add("Data");
+			ks.Format(KF.Position(commsLabelColumnWidth));
 			if (filesCapacity == 0.0)
 			{
-				sb.AppendColor("no drive", Lib.Kolor.Orange);
+				ks.Format("no drive", KF.KolorOrange);
 				
 			}
 			else
 			{
-				sb.Append(Lib.HumanReadableDataSize(filesSize), "/");
-				sb.AppendCondition(filesCapacity < 0.0, "unlimited", Lib.HumanReadableDataSize(filesCapacity));
+				ks.Add(Lib.HumanReadableDataSize(filesSize), "/", filesCapacity < 0.0 ? "unlimited" : Lib.HumanReadableDataSize(filesCapacity));
 
 			}
 
-			storedData.Text = sb.ToString();
+			storedData.Text = ks.End();
 
 			if (filesCount > 0)
-				storedData.SetTooltipText(Lib.BuildString(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)));
+				storedData.SetTooltipText(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
 			else
 				storedData.SetTooltipText(string.Empty);
 
 
-			sb.Clear();
-			sb.Append("Samples", "<pos=20em>");
+			ks = KsmString.Get;
+			ks.Add("Samples");
+			ks.Format(KF.Position(commsLabelColumnWidth));
+
 			if (slotsCapacity == 0.0)
 			{
-				sb.AppendColor("no storage", Lib.Kolor.Orange);
+				ks.Format("no storage", KF.KolorOrange);
 			}
 			else
 			{
-				sb.Append(samplesSlots.ToString(), "/");
-				sb.AppendCondition(slotsCapacity < 0.0, "unlimited", slotsCapacity.ToString());
-				sb.Append(" ", "slots");
+				ks.Add(samplesSlots.ToString(), "/", slotsCapacity < 0.0 ? "unlimited" : slotsCapacity.ToString(), KF.WhiteSpace, "slots");
 
 				if (samplesMass > 0.0)
 				{
-					sb.Append(" (", Lib.HumanReadableMass(samplesMass),")");
+					ks.Add(" (", Lib.HumanReadableMass(samplesMass),")");
 				}
 			}
 
-			samples.Text = sb.ToString();
+			samples.Text = ks.End();
 
 			if (samplesCount > 0)
 				samples.SetTooltipText(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
 			else
 				samples.SetTooltipText(string.Empty);
 
-			sb.Clear();
-			sb.Append("Body", "<pos=25em>", vd.VesselSituations.BodyTitle);
+			int envLabelColumnWidth = 75;
+
+			ks = KsmString.Get;
+			ks.Add("Body").Format(vd.VesselSituations.BodyTitle, KF.Position(envLabelColumnWidth));
 			if (!string.IsNullOrEmpty(vd.VesselSituations.BiomeTitle))
 			{
-				sb.Append(" (", vd.VesselSituations.BiomeTitle, ")");
+				ks.Add(" (", vd.VesselSituations.BiomeTitle, ")");
 			}
 
-			bodyAndBiome.Text = sb.ToString();
-			if (bodyAndBiome.TextComponent.isTextTruncated)
-				bodyAndBiome.SetTooltipText(sb.ToString());
-			else
-				bodyAndBiome.SetTooltipText(string.Empty);
+			bodyAndBiome.Text = ks.End();
+			//if (bodyAndBiome.TextComponent.isTextTruncated)
+			//	bodyAndBiome.SetTooltipText(sb.ToString());
+			//else
+			//	bodyAndBiome.SetTooltipText(string.Empty);
 
-			sb.Clear();
-			sb.Append("Situation<pos=25em>" + vd.VesselSituations.FirstSituation.ScienceSituationTitle);
-			if (vd.VesselSituations.situations.Count > 1)
-				sb.Append(" (+" + (vd.VesselSituations.situations.Count - 1) + ")");
-			situations.Text = sb.ToString();
+			ks = KsmString.Get;
+			ks.Add("Situation").Format(vd.VesselSituations.FirstSituation.ScienceSituationTitle, KF.Position(envLabelColumnWidth));
 
-			temperature.Text = "Temperature<pos=25em>" + Lib.HumanReadableTemp(vd.EnvTemperature);
-			radiation.Text = "Radiation<pos=25em>" + Lib.HumanReadableRadiation(vd.EnvRadiation);
+			// ignore the "global" situation
+			if (vd.VesselSituations.virtualBiomes.Count > 1)
+				ks.Add(" (+" + (vd.VesselSituations.virtualBiomes.Count - 1) + ")");
+			situations.Text = ks.End();
+
+			temperature.Text = KsmString.Get.Add("Temperature").Format(KF.ReadableTemperature(vd.EnvTemperature), KF.Position(envLabelColumnWidth)).End();
+			radiation.Text = KsmString.Get.Add("Radiation").Format(KF.ReadableRadiation(vd.EnvRadiation), KF.Position(envLabelColumnWidth)).End();
 
 		}
 
@@ -837,15 +831,18 @@ namespace KERBALISM
 			if (vdFlight.Connection.control_path.Count == 0)
 				return null;
 
-			sb.Clear();
-			sb.AppendKSPLine("<align=center>Control path :</align>");
-			sb.AppendKSPLine("<pos=5em>Strength<pos=25em>Target<pos=50em>Details");
+			KsmString ks = KsmString.Get;
+			ks.Format(KF.Concat("Control path", " :"), KF.Center, KF.BreakAfter);
+			ks.Format("Strength", KF.Position(20)).Format("Target", KF.Position(120)).Format("Details", KF.Position(220), KF.BreakAfter);
 			for (int i = 0; i < vdFlight.Connection.control_path.Count; i++)
 			{
-				sb.AppendKSPLine((i + 1) + ".<pos=5em>" + vdFlight.Connection.control_path[i][1] + "<pos=25em>" + vdFlight.Connection.control_path[i][0] + "<pos=50em>" + vdFlight.Connection.control_path[i][2]);
+				ks.Format(i + 1)
+					.Format(vdFlight.Connection.control_path[i][1], KF.Position(20))
+					.Format(vdFlight.Connection.control_path[i][0], KF.Position(120))
+					.Format(vdFlight.Connection.control_path[i][2], KF.Position(220), KF.BreakAfter);
 			}
 
-			return sb.ToString();
+			return ks.End();
 		}
 
 		private string TransmitTooltip()
@@ -853,28 +850,31 @@ namespace KERBALISM
 			if (isEditor)
 				return null;
 
-			sb.Clear();
+			KsmString ks = KsmString.Get;
 
 			if (vd.DeviceTransmit)
-				sb.AppendKSPLine(Lib.Italic("Click to disable data transmissions"));
+				ks.Format("Click to disable data transmissions", KF.Italic, KF.BreakAfter);
 			else
-				sb.AppendKSPLine(Lib.Italic("Click to enable data transmissions"));
+				ks.Format("Click to enable data transmissions", KF.Italic, KF.BreakAfter);
 
 			if (vdFlight.scienceTransmitted > 0.0)
 			{
-				sb.AppendKSPLine("Total science transmitted : " + Lib.HumanReadableScience(vdFlight.scienceTransmitted, true, true));
+				ks.Info("Total science transmitted", Lib.HumanReadableScience(vdFlight.scienceTransmitted, true, true));
 			}
 
 			if (vdFlight.filesTransmitted.Count > 0)
 			{
-				sb.AppendKSPLine("Transmitting :");
+				ks.Add("Transmitting", " :");
 				for (int i = 0; i < vdFlight.filesTransmitted.Count; i++)
 				{
-					sb.AppendKSPLine("> " + Lib.HumanReadableDataRate(vdFlight.filesTransmitted[i].transmitRate) + "<pos=20em>" + Lib.Ellipsis(vdFlight.filesTransmitted[i].subjectData.FullTitle, 30));
+					ks.Add("> ")
+						.Format(Lib.HumanReadableDataRate(vdFlight.filesTransmitted[i].transmitRate), KF.Position(80))
+						.Format(Lib.Ellipsis(vdFlight.filesTransmitted[i].subjectData.FullTitle, 30), KF.Position(120))
+						.Break();
 				}
 			}
 
-			return sb.ToString();
+			return ks.End();
 		}
 
 		private string SituationTooltip()
@@ -882,28 +882,30 @@ namespace KERBALISM
 			if (isEditor)
 				return null;
 
-			sb.Clear();
-			sb.AppendKSPLine("Available situations :");
+			KsmString ks = KsmString.Get;
 
-			for (int i = 0; i < vd.VesselSituations.SituationsTitle.Length; i++)
+			ks.Format("Current situations", KF.KolorYellow, KF.Bold, KF.Center, KF.BreakAfter);
+
+			ks.Format(vd.VesselSituations.FirstSituation.ScienceSituationTitle, KF.List);
+
+			for (int i = 0; i < vd.VesselSituations.virtualBiomes.Count; i++)
 			{
-				sb.AppendKSPLine("> " + vd.VesselSituations.SituationsTitle[i]);
+				ks.Format(vd.VesselSituations.virtualBiomes[i].Title(), KF.List);
 			}
 
-			return sb.ToString();
+			return ks.End();
 		}
 
 		private string TemperatureTooltip()
 		{
-			sb.Clear();
-			sb.AppendAlignement("Black body temperature at vessel position", TextAlignment.Center);
-			sb.AppendKSPNewLine();
-			sb.AppendInfo("Total irradiance", Lib.HumanReadableIrradiance(vd.IrradianceTotal), 100f);
-			sb.AppendInfo("Sun irradiance", Lib.HumanReadableIrradiance(vd.IrradianceStarTotal), 100f);
-			sb.AppendInfo("Bodies albedo", Lib.HumanReadableIrradiance(vd.IrradianceAlbedo), 100f);
-			sb.AppendInfo("Bodies core", Lib.HumanReadableIrradiance(vd.IrradianceBodiesCore), 100f);
-			sb.AppendInfo("Bodies emissive", Lib.HumanReadableIrradiance(vd.IrradianceBodiesEmissive), 100f);
-			return sb.ToString();
+			return KsmString.Get
+				.Format("Black body temperature at vessel position", KF.KolorYellow, KF.Bold, KF.Center, KF.BreakAfter)
+				.Info("Total irradiance", KF.ReadableIrradiance(vd.IrradianceTotal), 100)
+				.Info("Sun irradiance", KF.ReadableIrradiance(vd.IrradianceStarTotal), 100)
+				.Info("Bodies albedo", KF.ReadableIrradiance(vd.IrradianceAlbedo), 100)
+				.Info("Bodies core", KF.ReadableIrradiance(vd.IrradianceBodiesCore), 100)
+				.Info("Bodies emissive", KF.ReadableIrradiance(vd.IrradianceBodiesEmissive), 100)
+				.End();
 		}
 
 		private class RadiationTooltip : KsmGuiVerticalLayout

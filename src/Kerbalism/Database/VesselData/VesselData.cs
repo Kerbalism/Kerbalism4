@@ -1009,7 +1009,6 @@ namespace KERBALISM
                 magnetosphere = new_magnetosphere;
                 if (IsSimulated) API.OnRadiationFieldChanged.Notify(Vessel, innerBelt, outerBelt, magnetosphere);
             }
-            
 
             thermosphere = Sim.InsideThermosphere(Vessel);
             exosphere = Sim.InsideExosphere(Vessel);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Steamworks;
 using TMPro;
 
 namespace KERBALISM.KsmGui
@@ -10,10 +11,11 @@ namespace KERBALISM.KsmGui
 		
 
 		private TextAlignmentOptions savedAlignement;
+		private bool useEllipsisWithTooltip = false;
 
 		public KsmGuiText(
 			KsmGuiBase parent,
-			string text = "",
+			string text = null,
 			string tooltipText = null,
 			TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft,
 			bool wordWrap = true,
@@ -28,17 +30,48 @@ namespace KERBALISM.KsmGui
 			TextComponent.alignment = alignement;
 			TextComponent.enableWordWrapping = wordWrap;
 			TextComponent.overflowMode = overflowMode;
-			TextComponent.text = text;
+
+			if (!string.IsNullOrEmpty(text))
+				TextComponent.text = text;
+
 			SetLayoutElement(true);
 			//TextComponent.raycastTarget = false;
 
-			if (tooltipText != null) SetTooltipText(tooltipText);
+			if (!string.IsNullOrEmpty(tooltipText))
+				SetTooltipText(tooltipText);
+		}
+
+		// note : this only works reliably with the ellipsis mode, not with the truncate mode...
+		public void UseEllipsisWithTooltip()
+		{
+			TextComponent.overflowMode = TextOverflowModes.Ellipsis;
+			TextComponent.enableWordWrapping = true;
+			useEllipsisWithTooltip = true;
 		}
 
 		public string Text
 		{
 			get => TextComponent.text;
-			set => TextComponent.SetText(value);
+			set
+			{
+				if (value == null)
+					value = string.Empty;
+
+				TextComponent.SetText(value);
+
+				if (useEllipsisWithTooltip)
+				{
+					TextComponent.ForceMeshUpdate();
+					if (TextComponent.isTextTruncated)
+					{
+						SetTooltipText(value);
+					}
+					else
+					{
+						SetTooltipText(string.Empty);
+					}
+				}
+			}
 		}
 
 		// workaround for a textmeshpro bug :
@@ -52,8 +85,6 @@ namespace KERBALISM.KsmGui
 				TextComponent.alignment = savedAlignement;
 			}
 		}
-
-
 
 	}
 }

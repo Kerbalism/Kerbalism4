@@ -38,7 +38,7 @@ namespace KERBALISM
 		// 2.15-
 		private static MethodInfo moduleModifierFindModuleMethod;
 
-		public static void Init(Harmony harmony)
+		public static void Init()
 		{
 			foreach (var a in AssemblyLoader.loadedAssemblies)
 			{
@@ -84,7 +84,7 @@ namespace KERBALISM
 
 					var activate = moduleDataHandlerBasic.GetMethod("Activate", BindingFlags.Instance | BindingFlags.NonPublic);
 					var ActivatePostfixPatch = typeof(B9PartSwitch).GetMethod(nameof(ActivatePostfix), BindingFlags.Static | BindingFlags.NonPublic);
-					harmony.Patch(activate, null, new HarmonyMethod(ActivatePostfixPatch));
+					Loader.HarmonyInstance.Patch(activate, null, new HarmonyMethod(ActivatePostfixPatch));
 
 					break;
 				}

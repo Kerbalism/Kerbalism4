@@ -59,6 +59,18 @@ namespace KERBALISM.KsmGui
 			}
 
 			// distance in pixels between the anchor and the pivot
+			// TODO : compute delta as an offset depending on the origin/pivot, instead of having to provide coordinates
+			// ex : if originInParent = UpperLeft & destinationPivot = LowerRight, and offset X / Y = -50
+			// deltaX should be 50, deltaY should be -50
+			// ----------
+			// | object |
+			// |        |
+			// |    O---------  O => originInParent
+			// |    |   |    |
+			// ---------P    |  P => destinationPivot
+			//      |        |
+			//      | parent |
+			//      ----------
 			transform.anchoredPosition = new Vector2(deltaX, deltaY);
 		}
 

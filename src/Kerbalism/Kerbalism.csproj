@@ -241,10 +241,12 @@
     <Compile Include="System\ErrorManager.cs" />
     <Compile Include="System\PartPrefabsPostCompilation.cs" />
     <Compile Include="Sim\SubStepSim.cs" />
+    <Compile Include="UI\KsmGui\KsmGuiDestroyCallback.cs" />
+    <Compile Include="UI\KsmGui\KsmGuiPopup.cs" />
     <Compile Include="UI\KsmGui\KsmGuiSlider.cs" />
     <Compile Include="UI\KsmGui\KsmGuiTextButton.cs" />
     <Compile Include="Database\VesselData\VesselDataShip.cs" />
-    <Compile Include="UI\ProcessPopup.cs" />
+    <Compile Include="UI\UIRefactor\ProcessPopup.cs" />
     <Compile Include="Modules\KsmHabitat\HabitatHandler.cs" />
     <Compile Include="Database\KerbalData.cs" />
     <Compile Include="Database\PartData\PartData.cs" />
@@ -359,6 +361,10 @@
     <Compile Include="Utility\Archive.cs" />
     <Compile Include="Utility\CrewSpecs.cs" />
     <Compile Include="Utility\Highlighter.cs" />
+    <Compile Include="Utility\Kolor.cs" />
+    <Compile Include="Utility\StringBuilderExtensions.cs" />
+    <Compile Include="Utility\KsmStringFormat.cs" />
+    <Compile Include="Utility\KsmString.cs" />
     <Compile Include="Utility\Profiler.cs" />
     <Compile Include="Utility\Serialization.cs" />
     <Compile Include="Utility\Space.cs" />

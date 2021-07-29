@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Assertions.Must;
 
 namespace KERBALISM
 {
@@ -425,50 +426,45 @@ namespace KERBALISM
 			modifiers.Sort((a, b) => a.cancelRateMode.CompareTo(b.cancelRateMode));
 		}
 
-		private static StringBuilder sb = new StringBuilder();
-
 		public string TooltipText()
 		{
-			sb.Clear();
-			sb.AppendAlignement(Lib.Color(title, Lib.Kolor.Yellow, true), TextAlignment.Center);
-			sb.AppendKSPNewLine();
+			KsmString ks = KsmString.Get;
+			ks.Format(title, KF.Center, KF.Bold, KF.KolorYellow).Break();
+
 			if (!string.IsNullOrEmpty(description))
 			{
-				sb.Append(description);
-				sb.AppendKSPNewLine();
+				ks.Add(description).Break();
 			}
 
-			sb.AppendKSPNewLine();
+			ks.Break();
 
 			if (!resetOnRecovery)
 			{
-				sb.AppendAlignement(Lib.Color("Doesn't reset on recovery", Lib.Kolor.Orange, true), TextAlignment.Center);
-				sb.AppendKSPNewLine();
+				ks.Format("Doesn't reset on recovery", KF.Center, KF.Bold, KF.Italic, KF.KolorOrange).Break().Break();
 			}
 
 			foreach (KerbalRuleEffectDefinition effect in effects)
 			{
-				sb.AppendColor(Lib.BuildString("Effect", " : ", effect.title), Lib.Kolor.Yellow, true);
-				sb.AppendKSPNewLine();
+				ks.Format(KF.Concat("Effect", " : ", effect.title), KF.Center, KF.Bold, KF.KolorYellow).Break();
 
 				if (effect.reputationPenalty > 0.0)
 				{
-					sb.AppendInfo("Reputation penality", effect.reputationPenalty.ToString("F0"));
+					ks.Info("Reputation penality", effect.reputationPenalty.ToString("F0"));
 				}
 
 				if (effect.thresholdCurve != null)
 				{
-					sb.AppendInfo("Effect threshold", Lib.BuildString((effect.thresholdCurve.Evaluate(0f) * 100f).ToString("F0"), " - ", effect.thresholdCurve.Evaluate(1f).ToString("P0")));
+					ks.Info("Effect threshold", KF.Concat((effect.thresholdCurve.Evaluate(0f) * 100f).ToString("F0"), " - ", effect.thresholdCurve.Evaluate(1f).ToString("P0")));
 				}
 				else
 				{
-					sb.AppendInfo("Effect threshold", effect.threshold.ToString("P0"));
+					ks.Info("Effect threshold", effect.threshold.ToString("P0"));
 				}
-				sb.AppendKSPNewLine();
 
+				ks.Break();
 			}
 
-			return sb.ToString();
+			return ks.End();
 
 		}
 	}

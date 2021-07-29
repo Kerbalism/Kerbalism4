@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Smooth.Compare.Utilities;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,6 +17,7 @@ namespace KERBALISM.KsmGui
 		public KsmGuiUpdateHandler UpdateHandler { get; private set; }
 		private KsmGuiTooltipBase tooltip;
 		private KsmGuiLayoutOptimizer layoutOptimizer;
+		private Image colorComponent;
 
 		/// <summary>
 		/// transform that will be used as parent for child KsmGui objects.
@@ -52,6 +54,9 @@ namespace KERBALISM.KsmGui
 			get => TopObject.activeSelf;
 			set
 			{
+				if (value == TopObject.activeSelf)
+					return;
+
 				TopObject.SetActive(value);
 
 				// enabling/disabling an object almost always require a layout rebuild
@@ -123,6 +128,21 @@ namespace KERBALISM.KsmGui
 			LayoutElement.minHeight = minHeight;
 		}
 
+		public enum HorizontalEdge { Left, Right }
+		public enum VerticalEdge { Top, Bottom }
+
+
+		public void StaticLayout(int width, int height, int horizontalOffset = 0, int verticalOffset = 0, HorizontalEdge horizontalEdge = HorizontalEdge.Left, VerticalEdge verticalEdge = VerticalEdge.Top)
+		{
+			TopTransform.anchorMin = new Vector2(horizontalEdge == HorizontalEdge.Left ? 0f : 1f, verticalEdge == VerticalEdge.Top ? 0f : 1f);
+			TopTransform.anchorMax = TopTransform.anchorMin;
+
+			TopTransform.sizeDelta = new Vector2(width, height);
+			TopTransform.anchoredPosition = new Vector2(
+				horizontalEdge == HorizontalEdge.Left ? horizontalOffset + width * TopTransform.pivot.x : horizontalOffset - width * (1f - TopTransform.pivot.x),
+				verticalEdge == VerticalEdge.Top ? verticalOffset + height * TopTransform.pivot.y : verticalOffset - height * (1f - TopTransform.pivot.y));
+		}
+
 		public void RebuildLayout() => layoutOptimizer.RebuildLayout();
 
 		/// <summary>
@@ -145,6 +165,19 @@ namespace KERBALISM.KsmGui
 			TopTransform.SetAsLastSibling();
 		}
 
+		public void SetDestroyCallback(Action callback)
+		{
+			KsmGuiDestroyCallback destroyCallback = TopObject.AddComponent<KsmGuiDestroyCallback>();
+			destroyCallback.SetCallback(callback);
+		}
+
+		public void Destroy()
+		{
+			TopObject.DestroyGameObject();
+			RebuildLayout();
+		}
+
+
 
 
 		/// <summary>
@@ -152,20 +185,15 @@ namespace KERBALISM.KsmGui
 		/// The GameObject can't already have a graphic component (image, text...).
 		/// </summary>
 		/// <param name="color">If set to default, will add a black color with 20% transparency</param>
-		public void SetColor(Color color = default)
+		public void SetColor(Color color)
 		{
-			if (color == default)
-			{
-				color = KsmGuiStyle.boxColor;
-			}
-
 			Image image = null;
 
 			foreach (Graphic graphicComponent in TopObject.GetComponents<Graphic>())
 			{
 				if (graphicComponent is Image)
 				{
-					image = (Image) graphicComponent;
+					colorComponent = (Image) graphicComponent;
 					break;
 				}
 				else
@@ -176,12 +204,14 @@ namespace KERBALISM.KsmGui
 
 			}
 
-			if (image == null)
+			if (colorComponent == null)
 			{
-				image = TopObject.AddComponent<Image>();
+				colorComponent = TopObject.AddComponent<Image>();
 			}
 
-			image.color = color;
+			colorComponent.color = color;
 		}
+
+		public void SetBoxColor() => SetColor(KsmGuiStyle.boxColor);
 	}
 }

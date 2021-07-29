@@ -36,18 +36,23 @@ namespace KERBALISM.KsmGui
 			// anchor-pivot distance
 			IconTransform.anchoredPosition = new Vector2(0f, 0f);
 
-			SetIconTexture(texture, width, height);
+			SetIconTextureWithLayout(texture, width, height);
 
 			IconTransform.SetParentFixScale(TopTransform);
 
 			if (tooltipText != null) SetTooltipText(tooltipText);
 		}
 
-		public void SetIconTexture(Texture2D texture, int width = 16, int height = 16)
+		public void SetIconTextureWithLayout(Texture2D texture, int width = 16, int height = 16)
 		{
 			SetLayoutElement(false, false, -1, -1, width, height);
 			Image.texture = texture;
 			IconTransform.sizeDelta = new Vector2(width, height);
+		}
+
+		public void SetIconTexture(Texture2D texture)
+		{
+			Image.texture = texture;
 		}
 
 		public void SetIconColor(Color color)

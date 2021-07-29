@@ -53,7 +53,7 @@ namespace KERBALISM.KsmGui
 
 			SetButtonOnClick(onClick);
 
-			SetIconTexture(iconTexture, iconWidth, iconHeight);
+			SetIconTextureWithLayout(iconTexture, iconWidth, iconHeight);
 
 			TextObject = new KsmGuiText(this, buttonText, null, TextAlignmentOptions.Center);
 			TextObject.SetLayoutElement(true);
@@ -85,7 +85,7 @@ namespace KERBALISM.KsmGui
 				ButtonComponent.onClick.AddListener(onClick);
 		}
 
-		public void SetIconTexture(Texture2D texture, int width = 16, int height = 16)
+		public void SetIconTextureWithLayout(Texture2D texture, int width = 16, int height = 16)
 		{
 			if (texture != null && IconObject == null)
 			{
@@ -94,7 +94,7 @@ namespace KERBALISM.KsmGui
 			}
 
 			if (IconObject != null)
-				IconObject.SetIconTexture(texture);
+				IconObject.SetIconTextureWithLayout(texture);
 		}
 
 		public void SetIconColor(Color color)

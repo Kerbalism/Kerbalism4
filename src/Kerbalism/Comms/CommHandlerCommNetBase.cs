@@ -15,18 +15,21 @@ namespace KERBALISM
 		{
 			Vessel v = vd.Vessel;
 
-			if (v == null || v.connection == null || !connection.powered || !v.connection.IsConnected)
+			if (v == null || v.connection == null || !connection.powered || !v.connection.IsConnected || connection.storm)
 			{
 				connection.linked = false;
-				connection.Status = LinkStatus.no_link;
 				connection.strength = 0.0;
 				connection.rate = 0.0;
 				connection.target_name = string.Empty;
 				connection.control_path.Clear();
 
+				// is loss of connection due to a storm ?
+				// Note : we are setting CommNetVessel.plasmaMult and CommNetVessel.inPlasma with
+				// a Harmony postfix on CommNetVessel.OnNetworkPreUpdate() when a storm is in progress
+				if (connection.storm)
+					connection.Status = LinkStatus.storm;
 				// is loss of connection due to plasma blackout
-				// calling InPlasma causes a StackOverflow :(
-				if (vd.EnvInAtmosphere && v != null && v.connection != null && Lib.ReflectionValue<bool>(v.connection, "inPlasma"))
+				else if (vd.EnvInAtmosphere && v != null && v.connection != null && v.connection.InPlasma) //// calling InPlasma causes a StackOverflow ??? Lib.ReflectionValue<bool>(v.connection, "inPlasma")
 					connection.Status = LinkStatus.plasma;
 				else
 					connection.Status = LinkStatus.no_link;

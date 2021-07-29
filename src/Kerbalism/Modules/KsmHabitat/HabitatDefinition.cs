@@ -12,13 +12,13 @@ namespace KERBALISM
 	{
 		[CFGValue] public bool canPressurize = true;              // can the habitat be pressurized ?
 		[CFGValue] public double maxShieldingFactor = 1.0;        // how much shielding can be applied, in % of the habitat surface (can be > 1.0)
-		[CFGValue] public double reclaimFactor = 0.4;  // % of atmosphere that will be recovered when depressurizing (producing "reclaimResource" back)
-		[CFGValue] public double reclaimStorageFactor = 0.0;        // Amount of nitrogen storage, in % of the amount needed to pressurize the part
+		[CFGValue] public double reclaimFactor = 0.4;             // % of atmosphere that will be recovered when depressurizing (producing "reclaimResource" back)
+		[CFGValue] public double reclaimStorageFactor = 0.0;      // Amount of nitrogen storage, in % of the amount needed to pressurize the part
 		[CFGValue] public bool canRetract = true;                 // if false, can't be retracted once deployed
 		[CFGValue] public bool deployWithPressure = false;        // if true, deploying is done by pressurizing
 		[CFGValue] public double depressurizeECRate = 0.5;        // EC/s consumed while depressurizing and reclaiming the reclaim resource
 		[CFGValue] public double deployECRate = 1.0;              // EC/s consumed while deploying / inflating
-		[CFGValue] public double accelerateECRate = 5.0;         // EC/s consumed while accelerating a centrifuge (note : decelerating is free)
+		[CFGValue] public double accelerateECRate = 5.0;          // EC/s consumed while accelerating a centrifuge (note : decelerating is free)
 		[CFGValue] public double rotateECRate = 2.0;              // EC/s consumed to sustain the centrifuge rotation
 		[CFGValue] public double centrifugeGravity = 0.3;
 
@@ -60,7 +60,6 @@ namespace KERBALISM
 		public bool isDeployable = false;
 		public bool isCentrifuge = false;
 		public bool hasShielding;
-		public int baseComfortsMask;
 		public double depressurizationSpeed = -1.0;
 
 		public override void OnLoad(ConfigNode node)
