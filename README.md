@@ -6,105 +6,76 @@
 
 Kerbalism is a mod for Kerbal Space Program that alters the game to add life support, radiation, failures and an entirely new way of doing science.
 
-### Frequently Asked Questions: [FAQ]
+# Version 4 - In development
 
-## Current version: 3.7
-
-**What's new** : [New and Noteworthy]   
-**Download** : **[Github releases]** - **[CKAN]**  
-**Docs & support** : **[Github wiki]** - **[Discord]** - [FAQ] - [Github issues] - [KSP forums thread]  
-**License** : [Unlicense] (public domain)  
-**KSP version** : 1.5.x to 1.9.x  
-**Requires** : [Module Manager], [CommunityResourcePack]  
-**[Mod compatibility]** - [Changelog] - [Dev Builds]
+- **KSP version** : 1.12.x  
+- **Requires : [ModuleManager] - [CommunityResourcePack] - [B9PartSwitch] - [HarmonyKSP]**
+- **[Mod compatibility]**
+- **License** : [Unlicense] (public domain)  
 
 ## Download and installation
 
-**Download on [Github releases] or use [CKAN]** 
-
-Two packages are available :
+Two folders must be copied to your `GameData` folder :
 - **Kerbalism** is the core plugin, always required.
-- **KerbalismConfig** is the default configuration pack.\
-  It can be be replaced by other packs distributed elsewhere.
-
-**Requirements**
-
-- [Module Manager] : must be installed in GameData
-- [CommunityResourcePack] : must be installed in GameData
-
-**Third-party configuration packs**
-
-Make sure to install exactly one configuration pack only.\
-Don't combine packs unless there is explicit instructions to do so.
-- [ROKerbalism](https://github.com/Standecco/ROKerbalism) for Realism Overhaul / RP-1 by standecco
-- [SIMPLEX Living](https://spacedock.info/mod/2067) by theJesuit
-- [KerbalismScienceOnly](https://github.com/Kerbalism/KerbalismScienceOnly/releases) for Kerbalism with the science feature only
+- **KerbalismConfig** is the default configuration pack.
 
 **Installation checklist** for the "GameData" folder required content : 
 
+- `000_Harmony` (folder)
 - `CommunityResourcePack` (folder)
 - `Kerbalism` (folder)
-- `KerbalismConfig` (folder, can be replaced by a third-party config pack)
+- `KerbalismConfig` (folder)
 - `ModuleManager.X.X.X.dll` (file)
 
-## Mod compatibility and support
+## The Kerbalism 4 project
 
-Checking the **[mod compatibility]** page is **mandatory before installing Kerbalism on a heavily modded game**.
+Kerbalism 4 is an almost complete rewrite of Kerbalism. The main motivation is that the current version (3.x) has seen a lot of contributions on top of the original codebase, from a lot of people and without a clear plan. A lot of the current features are built on top of a codebase that was never meant to become that large and complex. The result has become very hard to work with and maintain, and there are long standing issues/limitations that can't really be fixed.
 
-Kerbalism does very custom stuff. This can break other mods. For a lot of mods that breaks or need balancing, we provide support code and configuration patches. However some mods are incompatible because there is too much feature overlap or support is too complex to implement.
+Progress tracking is done mainly through the [projects](https://github.com/Kerbalism/Kerbalism4/projects) page.
 
-## Documentation, help and bug-reporting
+In terms of major changes, the goal for the initial release are to provide feature parity with the 3.x branch with the notable exception that we are likely scrapping the whole Reliability/Failures features (see https://github.com/Kerbalism/Kerbalism4/issues/3)
 
-- **Tutorials and documentation** are available at the **[Github wiki]**
+**Internals**
+- Editor/Flight/Unloaded states agnostic [Vessel/Part/Module data/persistence framework](https://github.com/Kerbalism/Kerbalism4/tree/master/src/Kerbalism/Database)
+- [PartModule framework](https://github.com/Kerbalism/Kerbalism4/tree/master/src/Kerbalism/Modules/Base)
+- Virtual resources and [editor/flight agnostic resource sim](https://github.com/Kerbalism/Kerbalism4/tree/master/src/Kerbalism/ResourceSim)
+- [Discrete high warp vessel environment evaluation](https://github.com/Kerbalism/Kerbalism4/tree/master/src/Kerbalism/Sim)
 
-- Need **help** ?
+**Main feature - whishlist**
+- Rules (life support, stress, radiation...) rewrite : https://github.com/Kerbalism/Kerbalism4/issues/4
+- Habitat and pressure rewrite : https://github.com/Kerbalism/Kerbalism4/issues/9
+- Thermal system (radiators & stock core heat replacement)
+- Processes and resource management rewrite
+- B9PS integration
+- Radiation refactor and new active radiation shield system : https://github.com/Kerbalism/Kerbalism4/issues/5
+- Simplification of the default profile
 
-  Ask on **[Discord]** or in the **[KSP forums thread]**\
-  Also see [this short YouTube video](https://www.youtube.com/watch?v=eW9pW_839sw) about useful UI tips.
-
-- You **found a bug** ?
-  - Maybe it's related to another mod ? Check the [Mod Compatibility] page.
-  - Maybe it's a known issue ? Check the [GitHub issues] and ask on the [official Discord].
-
-- You want to **report a bug** ?
-  - Reproduce it consistently, provide us with screenshots and the `KSP.log`, `modulemanager.configcache` and `persistent.sfs` files.
-  - Report it on [Github issues] (preferred) or in the [KSP forums thread] (we don't go there often).
-
-- You want to **contribute** or add support for your mod ?
-  - Check the technical guide on the wiki
-  - Pull requests are welcome, especially for mod support configs. For code contributions, it is recommended to talk to us on [Discord] before engaging anything.
-  - Read the [contributing] documentation
-  - To build the plugin from the source code, read the [BuildSystem] documentation
-
-## Disclaimer and license
-
-This mod is released under the [Unlicense], which mean it's in the public domain.
-
-It includes [MiniAVC]. If you opt-in, it will use the Internet to check whether there is a new version available. Data is only read from the Internet and no personal information is sent. For more control, download the full [KSP-AVC Plugin].
+**UI**
+- Processes and resources management dedicated UI
+- Planner and flight UI rewrite : https://github.com/Kerbalism/Kerbalism4/issues/2
 
 
-
-
-[Github releases]: https://github.com/Kerbalism/Kerbalism/releases
-[Github wiki]: https://github.com/Kerbalism/Kerbalism/wiki
-[GitHub issues]: https://github.com/Kerbalism/Kerbalism/issues
+[Github releases]: https://github.com/Kerbalism/Kerbalism4/releases
+[Github wiki]: https://github.com/Kerbalism/Kerbalism4/wiki
+[GitHub issues]: https://github.com/Kerbalism/Kerbalism4/issues
 [Dev Builds]: https://github.com/Kerbalism/DevBuilds/releases
-[Mod Compatibility]: https://github.com/Kerbalism/Kerbalism/wiki/Home-~-Mod-Support
-[Changelog]: https://github.com/Kerbalism/Kerbalism/blob/master/CHANGELOG.md
-[Contributing]: https://github.com/Kerbalism/Kerbalism/blob/master/CONTRIBUTING.md
-[BuildSystem]: https://github.com/Kerbalism/Kerbalism/blob/master/BuildSystem/README.MD
-[System/API.cs]: https://github.com/Kerbalism/Kerbalism/blob/master/src/System/API.cs
-[KSP forums thread]: https://forum.kerbalspaceprogram.com/index.php?/topic/190382-150-181-kerbalism-32/
+[Mod Compatibility]: https://github.com/Kerbalism/Kerbalism4/projects/2
+[Changelog]: https://github.com/Kerbalism/Kerbalism4/blob/master/CHANGELOG.md
+[Contributing]: https://github.com/Kerbalism/Kerbalism4/blob/master/CONTRIBUTING.md
+[BuildSystem]: https://github.com/Kerbalism/Kerbalism4/blob/master/BuildSystem/README.MD
+[KSP forums thread]: https://forum.kerbalspaceprogram.com/index.php?/topic/201171-kerbalism
 [Discord]: https://discord.gg/3JAE2JE
 
-[Module Manager]: https://ksp.sarbian.com/jenkins/job/ModuleManager/lastStableBuild/
+[KSPBugReport]: https://github.com/KSPModdingLibs/KSPBugReport
+[ModuleManager]: https://ksp.sarbian.com/jenkins/job/ModuleManager/lastStableBuild/
 [CommunityResourcePack]: https://github.com/BobPalmer/CommunityResourcePack/releases
+[HarmonyKSP]: https://github.com/KSPModdingLibs/HarmonyKSP/releases
+[B9PartSwitch]: https://github.com/blowfishpro/B9PartSwitch/releases
 [MiniAVC]: https://ksp.cybutek.net/miniavc/Documents/README.htm
 [KSP-AVC Plugin]: https://forum.kerbalspaceprogram.com/index.php?/topic/72169-13-12-ksp-avc-add-on-version-checker-plugin-1162-miniavc-ksp-avc-online-2016-10-13/
-[CKAN]: https://forum.kerbalspaceprogram.com/index.php?/topic/154922-ckan-the-comprehensive-kerbal-archive-network-v1264-orion/
+[CKAN]: https://forum.kerbalspaceprogram.com/index.php?/topic/197082-ckan
 [Unlicense]: https://github.com/Kerbalism/Kerbalism/blob/master/LICENSE
 
-[KerbalismBanner]: https://github.com/Kerbalism/Kerbalism/raw/master/misc/img/banner.png
+[KerbalismBanner]: https://github.com/Kerbalism/Kerbalism4/raw/master/misc/img/banner.png
 
-[New and Noteworthy]: https://github.com/Kerbalism/Kerbalism/wiki/New-And-Noteworthy
-[FAQ]: https://github.com/Kerbalism/Kerbalism/wiki/FAQ
+[FAQ]: https://github.com/Kerbalism/Kerbalism4/wiki/FAQ
