@@ -63,7 +63,7 @@ namespace KERBALISM
 				{
 					foreach (ConfigNode kerbalNode in kerbalsNode.GetNodes())
 					{
-						KerbalData kerbalData = KerbalData.Load(HighLogic.CurrentGame.CrewRoster, kerbalNode);
+						KerbalData kerbalData = KerbalData.Load(kerbalNode);
 						if (kerbalData != null)
 						{
 							kerbals.Add(kerbalData.stockKerbal, kerbalData);

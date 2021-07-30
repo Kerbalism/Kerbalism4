@@ -22,6 +22,12 @@ namespace KERBALISM
 			tooltip = new Tooltip();
 
 			GameEvents.onGUIApplicationLauncherReady.Add(Create);
+			GameEvents.onGUIApplicationLauncherDestroyed.Add(Destroy);
+		}
+
+		private void Destroy()
+		{
+			EditorUIManager.OnGUIApplicationLauncherDestroyed();
 		}
 
 		public void Create()
@@ -44,11 +50,15 @@ namespace KERBALISM
 				  | ApplicationLauncher.AppScenes.VAB
 				  | ApplicationLauncher.AppScenes.SPH;
 
+				EditorUIManager.OnGUIApplicationLauncherReady(vesselListLauncher);
+
 				vesselListLauncher.onRightClick = () =>
 				{
-					KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical);
-					new VesselsManager(window);
-
+					if (!Lib.IsEditor)
+					{
+						KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical);
+						new VesselsManager(window);
+					}
 				};
 			}
 
@@ -117,7 +127,8 @@ namespace KERBALISM
 				float at_top_offset_y = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
 				float at_bottom_offset_x = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
 				float at_bottom_offset_y = 40.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
-				float at_bottom_editor_offset_x = 66.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
+				float at_bottom_editor_offset_x = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS; // 66
+				float at_bottom_editor_offset_y = 500.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS; // 40
 
 				// get screen size
 				float screen_width = Screen.width;
@@ -141,7 +152,7 @@ namespace KERBALISM
 				else
 				{
 					left -= !Lib.IsEditor ? at_bottom_offset_x : at_bottom_editor_offset_x;
-					top -= at_bottom_offset_y;
+					top -= !Lib.IsEditor ? at_bottom_offset_y : at_bottom_editor_offset_y;
 				}
 
 				// store window geometry

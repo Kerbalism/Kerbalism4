@@ -148,8 +148,7 @@ namespace KERBALISM.Planner
 				List<Part> parts = Lib.GetPartsRecursively(EditorLogic.RootPart);
 
 				// analyze using the settings from the panels user input
-				vesselData.Analyze(parts, FlightGlobals.Bodies[body_index], situation, sunlight);
-				EditorResourceSimulator.Analyze(parts);
+				vesselData.Analyze(FlightGlobals.Bodies[body_index], situation, sunlight);
 
 				// add ec panel
 				AddSubPanelEC(panel);

@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace KERBALISM
@@ -47,7 +45,7 @@ namespace KERBALISM
 			isEditor = !(vd is VesselData);
 			if (!isEditor)
 			{
-				vdFlight = (VesselData) vd;
+				vdFlight = (VesselData)vd;
 			}
 		}
 
@@ -58,6 +56,7 @@ namespace KERBALISM
 
 			if (isEditor)
 			{
+				GetSituationsAndVirtualBiomesEditor();
 				biomeIndex = 0;
 			}
 			else
@@ -99,6 +98,42 @@ namespace KERBALISM
 			}
 
 			return new Situation(body.flightGlobalsIndex, expSituation, expBiomeIndex);
+		}
+
+		private void GetSituationsAndVirtualBiomesEditor()
+		{
+			situations.Clear();
+			virtualBiomes.Clear();
+
+			if (vd.EnvLanded)
+			{
+				situations.Add(ScienceSituation.SrfLanded);
+				situations.Add(ScienceSituation.Surface);
+				situations.Add(ScienceSituation.BodyGlobal);
+				virtualBiomes.Add(VirtualBiome.NoBiome);
+			}
+			else if (body.atmosphere && vd.Altitude < body.atmosphereDepth)
+			{
+				if (vd.Altitude < body.scienceValues.flyingAltitudeThreshold)
+					situations.Add(ScienceSituation.FlyingLow);
+				else
+					situations.Add(ScienceSituation.FlyingHigh);
+
+				situations.Add(ScienceSituation.Flying);
+				situations.Add(ScienceSituation.BodyGlobal);
+				virtualBiomes.Add(VirtualBiome.NoBiome);
+			}
+			else
+			{
+				if (vd.Altitude > body.scienceValues.spaceAltitudeThreshold)
+					situations.Add(ScienceSituation.InSpaceHigh);
+				else
+					situations.Add(ScienceSituation.InSpaceLow);
+
+				situations.Add(ScienceSituation.Space);
+				situations.Add(ScienceSituation.BodyGlobal);
+				virtualBiomes.Add(VirtualBiome.NoBiome);
+			}
 		}
 
 		/// <summary>

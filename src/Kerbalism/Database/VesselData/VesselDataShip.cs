@@ -1,11 +1,6 @@
-﻿using Flee.PublicTypes;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using KERBALISM.Planner;
 using static KERBALISM.Planner.Planner;
 
 namespace KERBALISM
@@ -35,6 +30,7 @@ namespace KERBALISM
 		{
 			resHandler = new VesselResHandler(this, VesselResHandler.SimulationType.Planner);
 			Synchronizer = new SynchronizerBase(this);
+			VesselSituations = new VesselSituations(this);
 		}
 
 		public void Start()
@@ -80,6 +76,8 @@ namespace KERBALISM
 		public override double AngularVelocity => 0.0;
 
 		public override int CrewCount => crewCount; public int crewCount;
+
+		public override int RulesEnabledCrewCount => rulesEnabledCrewCount; public int rulesEnabledCrewCount;
 
 		public override int CrewCapacity => crewCapacity; public int crewCapacity;
 
@@ -158,15 +156,80 @@ namespace KERBALISM
 
 		#region PLANNER METHODS
 
-		public void Analyze(List<Part> parts, CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
+		public void Analyze(CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
 		{
+			// Note : Vessel execution flow :
+
+			// VesselData.Evaluate()
+			// Storm.Update()
+			// Science.Update();
+			// Profile.Execute();
+			// ResHandler.ResourceUpdate()
+
 			Synchronizer.Synchronize();
 			AnalyzeEnvironment(body, situation, sunlight);
-			AnalyzeCrew(parts);
+			AnalyzeCrew();
 			AnalyzeComms();
-			ModuleDataUpdate();
 			//AnalyzeRadiation(parts);
-			AnalyzeReliability(parts);
+			AnalyzeReliability();
+
+			Simulate();
+		}
+
+		private void Simulate()
+		{
+			// reset and re-find all resources amounts and capacities
+			resHandler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Init);
+
+			// reach steady state, so all initial resources like WasteAtmosphere are produced
+			// it is assumed that one cycle is needed to produce things that don't need inputs
+			// another cycle is needed for processes to pick that up
+			// another cycle may be needed for results of those processes to be picked up
+			// two additional cycles are for having some margin
+			for (int i = 0; i < 5; i++)
+			{
+				// do all produce/consume/recipe requests
+				SimulatedFixedUpdate(1.0);
+				// process them
+				resHandler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Next);
+			}
+
+			// set back all resources amounts to the stored amounts
+			// this is for visualisation purposes, so the displayed amounts match the current values and not the results of the simulation
+			resHandler.ResourceUpdate(1.0, VesselResHandler.EditorStep.Finalize);
+		}
+
+		private void SimulatedFixedUpdate(double elapsedSec)
+		{
+			ModuleDataUpdate();
+
+			//vesselRadiation.FixedUpdate(Parts, LoadedOrEditor, elapsedSec);
+
+			foreach (PartData pd in Parts)
+			{
+				foreach (ModuleHandler module in pd.modules)
+				{
+					if (!module.handlerIsEnabled)
+						continue;
+
+					module.OnFixedUpdate(elapsedSec);
+				}
+			}
+
+			foreach (KerbalData kerbal in Crew)
+			{
+				kerbal.OnFixedUpdate(this, elapsedSec);
+			}
+
+			foreach (Process process in Profile.processes)
+			{
+				process.Execute(this, elapsedSec);
+			}
+
+			// process comms
+			resHandler.ElectricCharge.Consume(connection.ec_idle, ResourceBroker.CommsIdle);
+			if (connection.ec > 0.0)
+				resHandler.ElectricCharge.Consume(connection.ec - connection.ec_idle, ResourceBroker.CommsXmit);
 		}
 
 		private void AnalyzeEnvironment(CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
@@ -248,49 +311,40 @@ namespace KERBALISM
 			outerRad = gamma_radiation + magnetopauseRad + rb.radiation_outer;
 			surfaceRad = magnetopauseRad * gammaTransparency + rb.radiation_surface;
 			stormRad = heliopauseRad + PreferencesRadiation.Instance.StormRadiation * (MainStarSunlightFactor > 0.0 ? 1.0 : 0.0);
+
+			VesselSituations.Update();
 		}
 
-		private void AnalyzeCrew(List<Part> parts)
+		private void AnalyzeCrew()
 		{
 			// get number of kerbals assigned to the vessel in the editor
 			// note: crew manifest is not reset after root part is deleted
 			VesselCrewManifest manifest = KSP.UI.CrewAssignmentDialog.Instance.GetManifest();
-			crew = manifest.GetAllCrew(false).FindAll(k => k != null);
-			crewCount = crew.Count;
-			crewEngineer = crew.Find(k => k.trait == "Engineer") != null;
-			crewScientist = crew.Find(k => k.trait == "Scientist") != null;
-			crewPilot = crew.Find(k => k.trait == "Pilot") != null;
 
-			crewEngineerMaxlevel = 0;
-			crewScientistMaxlevel = 0;
-			crewPilotMaxlevel = 0;
-			foreach (ProtoCrewMember c in crew)
+			Crew.Clear();
+			rulesEnabledCrewCount = 0;
+			crewCount = 0;
+			foreach (ProtoCrewMember stockCrew in manifest.GetAllCrew(false))
 			{
-				switch (c.trait)
+				if (stockCrew == null)
+					continue;
+
+				KerbalData kd = DB.GetOrCreateKerbalData(stockCrew);
+				Crew.Add(kd.Copy());
+				crewCount++;
+				if (kd.RulesEnabled)
 				{
-					case "Engineer":
-						crewEngineerMaxlevel = Math.Max(crewEngineerMaxlevel, (uint)c.experienceLevel);
-						break;
-					case "Scientist":
-						crewScientistMaxlevel = Math.Max(crewScientistMaxlevel, (uint)c.experienceLevel);
-						break;
-					case "Pilot":
-						crewPilotMaxlevel = Math.Max(crewPilotMaxlevel, (uint)c.experienceLevel);
-						break;
+					rulesEnabledCrewCount++;
 				}
 			}
 
 			// scan the parts
 			crewCapacity = 0;
-			foreach (Part p in parts)
+			foreach (PartData partData in ShipParts)
 			{
 				// accumulate crew capacity
-				crewCapacity += p.CrewCapacity;
+				crewCapacity += partData.LoadedPart.CrewCapacity;
 			}
-
-			// if the user press SHIFT, the planner consider the vessel crewed at full capacity
-			if (Input.GetKey(KeyCode.LeftShift))
-				crewCount = crewCapacity;
 		}
 
 		private void AnalyzeComms()
@@ -334,7 +388,7 @@ namespace KERBALISM
 		//}
 
 
-		private void AnalyzeReliability(List<Part> parts)
+		private void AnalyzeReliability()
 		{
 			// reset data
 			highQuality = 0.0;
@@ -343,10 +397,10 @@ namespace KERBALISM
 			redundancy = new Dictionary<string, int>();
 
 			// scan the parts
-			foreach (Part p in parts)
+			foreach (PartData partData in ShipParts)
 			{
 				// for each module
-				foreach (PartModule m in p.Modules)
+				foreach (PartModule m in partData.LoadedPart.Modules)
 				{
 					// skip disabled modules
 					if (!m.isEnabled)
@@ -391,6 +445,8 @@ namespace KERBALISM
 			// calculate high quality percentage
 			highQuality /= Math.Max(components, 1u);
 		}
+
+
 
 		#endregion
 	}

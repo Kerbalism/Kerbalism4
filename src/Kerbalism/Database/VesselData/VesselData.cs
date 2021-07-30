@@ -678,7 +678,11 @@ namespace KERBALISM
 			}
 
 			StateUpdate();
-			ModuleDataUpdate();
+
+			if (LoadedOrEditor && Parts[0].LoadedPart == null)
+				Lib.LogDebug($"Skipping loaded vessel ModuleDataUpdate (part references not set yet) on {VesselName}");
+			else
+				ModuleDataUpdate();
 
 			// Set orbit visibility based on the saved user setup
 			SetOrbitVisible(cfg_orbit);
@@ -763,7 +767,12 @@ namespace KERBALISM
 			{
 				EnvironmentUpdate(secSinceLastEval);
 				StateUpdate();
-				ModuleDataUpdate();
+
+				if (LoadedOrEditor && Parts[0].LoadedPart == null)
+					Lib.LogDebug($"Skipping loaded vessel ModuleDataUpdate (part references not set yet) on {VesselName}");
+				else
+					ModuleDataUpdate();
+
 				secSinceLastEval = 0.0;
 			}
 

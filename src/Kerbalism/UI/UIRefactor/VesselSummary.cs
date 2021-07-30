@@ -18,6 +18,7 @@ namespace KERBALISM
 	public class VesselSummaryUI : KsmGuiVerticalLayout
 	{
 		private const int contentWidth = 360;
+		public static int Width => contentWidth + 10;
 		private const int crewNameColumnWidth = 100;
 
 		private bool isPopup;
@@ -119,7 +120,7 @@ namespace KERBALISM
 
 						// todo : parametrized localization string
 						new KsmGuiText(this, Lib.BuildString(Lib.Color(rule.Definition.title, Lib.Kolor.Yellow, true), " ", "for", " ", Lib.Color(rule.KerbalData.stockKerbal.name, Lib.Kolor.Yellow, true)), null, TextAlignmentOptions.Top);
-						
+
 						currentRate = new KsmGuiText(this, string.Empty, null, TextAlignmentOptions.Top);
 
 						new KsmGuiText(this, "\n" + Lib.Color("Modifiers", Lib.Kolor.Yellow, true), null, TextAlignmentOptions.Top);
@@ -316,8 +317,8 @@ namespace KERBALISM
 			}
 
 			KsmGuiHeader topHeader = new KsmGuiHeader(this, vesselDataBase.VesselName);
-			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => ((KsmGuiWindow) parent).Close(), Local.SCIENCEARCHIVE_closebutton); //"close"
-			//topHeader.Enabled = isPopup;
+			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => ((KsmGuiWindow)parent).Close(), Local.SCIENCEARCHIVE_closebutton); //"close"
+																																					//topHeader.Enabled = isPopup;
 
 			summmarySpace = new KsmGuiHorizontalLayout(this, 10);
 			summmarySpace.SetLayoutElement(true, false, contentWidth);
@@ -357,7 +358,7 @@ namespace KERBALISM
 			crewSpace = new KsmGuiVerticalLayout(this, 5);
 			crewSpace.SetLayoutElement(true);
 			crewSpace.SetUpdateAction(UpdateCrew);
-			
+
 			new KsmGuiHeader(crewSpace, "CREW");
 
 			KsmGuiVerticalLayout crewSpaceContent = new KsmGuiVerticalLayout(crewSpace, 0, 3);
@@ -754,7 +755,7 @@ namespace KERBALISM
 			if (filesCapacity == 0.0)
 			{
 				ks.Format("no drive", KF.KolorOrange);
-				
+
 			}
 			else
 			{
@@ -784,7 +785,7 @@ namespace KERBALISM
 
 				if (samplesMass > 0.0)
 				{
-					ks.Add(" (", Lib.HumanReadableMass(samplesMass),")");
+					ks.Add(" (", Lib.HumanReadableMass(samplesMass), ")");
 				}
 			}
 

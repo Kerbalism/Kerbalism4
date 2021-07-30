@@ -1,23 +1,21 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-
-
-
 	public class KsmGuiWindow : KsmGuiBase
 	{
-		public class KsmGuiInputLock : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+		private class KsmGuiInputLock : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 		{
 			private string inputLockId;
 			public RectTransform rectTransform;
-			private bool isLocked = false;
+			public Action onPointerEnterAction;
+			public Action onPointerExitAction;
+
+			public bool IsHovering { get; private set; } = false;
 
 			private ControlTypes inputLocks =
 				ControlTypes.MANNODE_ADDEDIT |
@@ -28,8 +26,8 @@ namespace KERBALISM.KsmGui
 				ControlTypes.TWEAKABLES |
 				//ControlTypes.EDITOR_UI |
 				ControlTypes.EDITOR_SOFT_LOCK //|
-				//ControlTypes.UI |
-				//ControlTypes.CAMERACONTROLS
+											  //ControlTypes.UI |
+											  //ControlTypes.CAMERACONTROLS
 				;
 
 			void Awake()
@@ -39,17 +37,19 @@ namespace KERBALISM.KsmGui
 
 			public void OnPointerEnter(PointerEventData pointerEventData)
 			{
-				if (!isLocked)
+				if (!IsHovering)
 				{
 					global::InputLockManager.SetControlLock(inputLocks, inputLockId);
-					isLocked = true;
+					IsHovering = true;
+					onPointerEnterAction?.Invoke();
 				}
 			}
 
 			public void OnPointerExit(PointerEventData pointerEventData)
 			{
 				global::InputLockManager.RemoveControlLock(inputLockId);
-				isLocked = false;
+				IsHovering = false;
+				onPointerExitAction?.Invoke();
 			}
 
 			// this handle disabling and destruction
@@ -59,7 +59,7 @@ namespace KERBALISM.KsmGui
 			}
 		}
 
-		public KsmGuiInputLock InputLockManager { get; private set; }
+		private KsmGuiInputLock inputLockManager;
 		public bool IsDraggable { get; private set; }
 		public DragPanel DragPanel { get; private set; }
 		public ContentSizeFitter SizeFitter { get; private set; }
@@ -90,8 +90,8 @@ namespace KERBALISM.KsmGui
 			TopTransform.localScale = Vector3.one;
 
 			// our custom lock manager
-			InputLockManager = TopObject.AddComponent<KsmGuiInputLock>();
-			InputLockManager.rectTransform = TopTransform;
+			inputLockManager = TopObject.AddComponent<KsmGuiInputLock>();
+			inputLockManager.rectTransform = TopTransform;
 
 			// if draggable, add the stock dragpanel component
 			IsDraggable = isDraggable;
@@ -145,5 +145,13 @@ namespace KERBALISM.KsmGui
 			GameEvents.onGameSceneLoadRequested.Remove(OnSceneChange);
 			KsmGuiTooltipController.Instance.HideTooltip();
 		}
+
+		public bool IsHovering => inputLockManager.IsHovering;
+
+		public void SetOnPointerEnterAction(Action action) => inputLockManager.onPointerEnterAction = action;
+
+		public void SetOnPointerExitAction(Action action) => inputLockManager.onPointerExitAction = action;
+
+		public void StartCoroutine(IEnumerator routine) => LayoutGroup.StartCoroutine(routine);
 	}
 }

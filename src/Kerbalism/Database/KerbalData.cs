@@ -17,7 +17,7 @@ namespace KERBALISM
 		public bool isEvaDead;
 
 		/// <summary> Check if rules should be enabled for this Kerbal </summary>
-		public bool RulesEnabled => !isRescue && !disableRules && !isEvaDead;
+		public bool RulesEnabled => (Lib.IsEditor || !isRescue) && !disableRules && !isEvaDead;
 
 		public List<KerbalRule> rules = new List<KerbalRule>();
 
@@ -34,13 +34,16 @@ namespace KERBALISM
 			}
 		}
 
-		public static KerbalData Load(KerbalRoster stockRoster, ConfigNode kerbalNode)
+		public static KerbalData Load(ConfigNode kerbalNode)
 		{
 			string name = Lib.ConfigValue(kerbalNode, "name", string.Empty);
-			ProtoCrewMember stockKerbal = stockRoster[name];
+			ProtoCrewMember stockKerbal = HighLogic.CurrentGame.CrewRoster[name];
 
 			if (stockKerbal == null)
+			{
+				Lib.Log($"Error loading KerbalData for {name}", Lib.LogLevel.Error);
 				return null;
+			}
 
 			KerbalData kerbalData = new KerbalData(stockKerbal, false)
 			{
@@ -64,6 +67,13 @@ namespace KERBALISM
 			kerbalNode.AddValue("isEvaDead", isEvaDead);
 
 			KerbalRule.Save(this, kerbalNode);
+		}
+
+		public KerbalData Copy()
+		{
+			ConfigNode node = new ConfigNode();
+			Save(node);
+			return Load(node.GetNode("KERBAL"));
 		}
 
 		public void OnFixedUpdate(VesselDataBase vesselData, double elapsedSec)

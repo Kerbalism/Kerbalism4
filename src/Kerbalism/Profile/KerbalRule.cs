@@ -171,7 +171,9 @@ namespace KERBALISM
 
 		public void OnFixedUpdate(VesselDataBase vesselData, double elapsedSec)
 		{
-			if (!kerbalData.RulesEnabled || kerbalData.stockKerbal.rosterStatus != ProtoCrewMember.RosterStatus.Assigned)
+			if (!kerbalData.RulesEnabled
+			    || kerbalData.stockKerbal.rosterStatus == ProtoCrewMember.RosterStatus.Dead
+			    || kerbalData.stockKerbal.rosterStatus == ProtoCrewMember.RosterStatus.Missing)
 				return;
 
 			ChangeRate = 0.0;

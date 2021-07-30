@@ -187,6 +187,7 @@
     <Compile Include="Database\PartData\PartRadiationData.Occlusion.cs" />
     <Compile Include="Modules\Base\KsmModuleDefinition.cs" />
     <Compile Include="Modules\KsmRadiationEmitter\RadiationEmitterDefinition.cs" />
+    <Compile Include="Modules\StockSupport\EditorHandlers.cs" />
     <Compile Include="Modules\StockSupport\KerbalEVAHandler.cs" />
     <Compile Include="Modules\StockSupport\ModuleAsteroidDrillHandler.cs" />
     <Compile Include="Modules\StockSupport\ModuleCommandHandler.cs" />
@@ -246,6 +247,7 @@
     <Compile Include="UI\KsmGui\KsmGuiSlider.cs" />
     <Compile Include="UI\KsmGui\KsmGuiTextButton.cs" />
     <Compile Include="Database\VesselData\VesselDataShip.cs" />
+    <Compile Include="UI\UIRefactor\EditorUIManager.cs" />
     <Compile Include="UI\UIRefactor\ProcessPopup.cs" />
     <Compile Include="Modules\KsmHabitat\HabitatHandler.cs" />
     <Compile Include="Database\KerbalData.cs" />
@@ -319,7 +321,6 @@
     <Compile Include="UI\KsmGui\KsmGuiVerticalSection.cs" />
     <Compile Include="UI\KsmGui\KsmGuiWindow.cs" />
     <Compile Include="UI\KsmGui\KsmGuiUpdate.cs" />
-    <Compile Include="ResourceSim\EditorResourceSimulator.cs" />
     <Compile Include="UI\UIRefactor\ExperimentSubjectsList.cs" />
     <Compile Include="UI\UIRefactor\ExperimentPopup.cs" />
     <Compile Include="UI\UIRefactor\ScienceArchiveWindow.cs" />
