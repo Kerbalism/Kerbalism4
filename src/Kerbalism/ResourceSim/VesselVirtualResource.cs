@@ -125,6 +125,11 @@ namespace KERBALISM
 			return false;
 		}
 
+ 		public override void EditorFinalize()
+		{
+			level = capacity > 0.0 ? amount / capacity : 0.0;
+		}
+
 		/// <summary>Record a consumption, it will be stored in 'Deferred' until the Sync() method synchronize it to 'Amount'</summary>
 		/// <param name="brokerName">origin of the consumption, will be available in the UI</param>
 		public override void Produce(double quantity, ResourceBroker broker)
