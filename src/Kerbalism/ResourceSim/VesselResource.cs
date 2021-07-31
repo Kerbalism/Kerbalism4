@@ -196,6 +196,11 @@ namespace KERBALISM
 			return false;
 		}
 
+		public virtual void EditorFinalize()
+		{
+			level = resourceWrapper.capacity > 0.0 ? resourceWrapper.amount / resourceWrapper.capacity : 0.0;
+		}
+
 		/// <summary>
 		/// Record a consumption, it will be stored in "Deferred" and later synchronized to the vessel in ExecuteAndSyncToParts()
 		/// <para/>IMPORTANT : quantity should NEVER be scaled by the AvailabilityFactor,

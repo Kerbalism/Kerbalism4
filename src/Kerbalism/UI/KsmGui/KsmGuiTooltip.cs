@@ -22,8 +22,23 @@ namespace KERBALISM.KsmGui
 		{
 			KsmGuiTooltipController.Instance.HideTooltip();
 		}
-	}
 
+		private void OnDisable()
+		{
+			if (KsmGuiTooltipController.Instance.CurrentTooltip == this)
+			{
+				KsmGuiTooltipController.Instance.HideTooltip();
+			}
+		}
+
+		private void OnDestroy()
+		{
+			if (KsmGuiTooltipController.Instance.CurrentTooltip == this)
+			{
+				KsmGuiTooltipController.Instance.HideTooltip();
+			}
+		}
+	}
 
 	public class KsmGuiTooltipStatic : KsmGuiTooltipBase
 	{

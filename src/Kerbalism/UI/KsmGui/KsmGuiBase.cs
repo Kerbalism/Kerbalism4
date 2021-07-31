@@ -15,8 +15,9 @@ namespace KERBALISM.KsmGui
 		public GameObject TopObject { get; private set; }
 		public LayoutElement LayoutElement { get; private set; }
 		public KsmGuiUpdateHandler UpdateHandler { get; private set; }
+		public KsmGuiLayoutOptimizer LayoutOptimizer { get; private set; }
 		private KsmGuiTooltipBase tooltip;
-		private KsmGuiLayoutOptimizer layoutOptimizer;
+
 		private Image colorComponent;
 
 		/// <summary>
@@ -34,14 +35,14 @@ namespace KERBALISM.KsmGui
 
 			if (parent != null)
 			{
-				layoutOptimizer = parent.layoutOptimizer;
-				layoutOptimizer.SetDirty();
-				layoutOptimizer.RebuildLayout();
+				LayoutOptimizer = parent.LayoutOptimizer;
+				LayoutOptimizer.SetDirty();
+				LayoutOptimizer.RebuildLayout();
 				TopTransform.SetParentFixScale(parent.ParentTransformForChilds);
 			}
 			else
 			{
-				layoutOptimizer = TopObject.AddComponent<KsmGuiLayoutOptimizer>();
+				LayoutOptimizer = TopObject.AddComponent<KsmGuiLayoutOptimizer>();
 			}
 
 			TopObject.SetLayerRecursive(5);
@@ -60,11 +61,13 @@ namespace KERBALISM.KsmGui
 				TopObject.SetActive(value);
 
 				// enabling/disabling an object almost always require a layout rebuild
-				layoutOptimizer.RebuildLayout();
+				LayoutOptimizer.RebuildLayout();
 
 				// if enabling and update frequency is more than every update, update immediately
 				if (value && UpdateHandler != null)
+				{
 					UpdateHandler.UpdateASAP();
+				}
 			}
 		}
 
@@ -143,7 +146,7 @@ namespace KERBALISM.KsmGui
 				verticalEdge == VerticalEdge.Top ? verticalOffset + height * TopTransform.pivot.y : verticalOffset - height * (1f - TopTransform.pivot.y));
 		}
 
-		public void RebuildLayout() => layoutOptimizer.RebuildLayout();
+		public void RebuildLayout() => LayoutOptimizer.RebuildLayout();
 
 		/// <summary>
 		/// Stretch the object transform to match its parent size and position. Only works the parent has no layout component

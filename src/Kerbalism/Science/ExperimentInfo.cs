@@ -79,7 +79,7 @@ namespace KERBALISM
 
 		private string[] includedExperimentsId;
 
-		public ExperimentInfo(ScienceExperiment stockDef, ConfigNode kerbalismExperimentNode)
+		public ExperimentInfo(ScienceExperiment stockDef, ConfigNode kerbalismExperimentNode = null)
 		{
 			// if we have a custom "KERBALISM_EXPERIMENT" definition for the experiment, load it, else just use an empty node to avoid nullrefs
 			if (kerbalismExperimentNode == null) kerbalismExperimentNode = new ConfigNode();

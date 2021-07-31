@@ -241,6 +241,11 @@ namespace KERBALISM
 					Lib.LogDebug($"Adding {experimentId} to science DB");
 					experiments.Add(experimentId, expInfo);
 				}
+				else
+				{
+					Lib.Log($"Duplicate {experimentId} definition found, fix your configs !", Lib.LogLevel.Warning);
+					continue;
+				}
 
 				if (!subjectByExpThenSituationId.ContainsKey(expInfo))
 					subjectByExpThenSituationId.Add(expInfo, new Dictionary<int, SubjectData>());

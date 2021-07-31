@@ -23,7 +23,7 @@ namespace KERBALISM.KsmGui
 		private RectTransform backgroundTranform;
 		private KsmGuiBase content;
 
-		private KsmGuiTooltipBase currentTooltip;
+		public KsmGuiTooltipBase CurrentTooltip { get; private set; }
 
 		private void Awake()
 		{
@@ -127,9 +127,9 @@ namespace KERBALISM.KsmGui
 
 		public void ShowTooltip(KsmGuiTooltipBase tooltip, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float maxWidth = -1f, Func<KsmGuiBase> tooltipContent = null)
 		{
-			currentTooltip = tooltip;
+			CurrentTooltip = tooltip;
 
-			if (string.IsNullOrEmpty(currentTooltip.Text) && tooltipContent == null)
+			if (string.IsNullOrEmpty(CurrentTooltip.Text) && tooltipContent == null)
 			{
 				HideTooltip();
 				return;
@@ -154,7 +154,7 @@ namespace KERBALISM.KsmGui
 
 			textComponent.enabled = true;
 			textComponent.alignment = textAlignement;
-			textComponent.SetText(currentTooltip.Text);
+			textComponent.SetText(CurrentTooltip.Text);
 
 			content?.TopObject.DestroyGameObject();
 
@@ -163,6 +163,7 @@ namespace KERBALISM.KsmGui
 				topFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 				content = tooltipContent();
 				content.TopTransform.SetParentFixScale(backgroundTranform);
+				content.LayoutOptimizer.enabled = false;
 			}
 
 			tooltipObject.SetActive(true);
@@ -173,7 +174,7 @@ namespace KERBALISM.KsmGui
 		public void HideTooltip()
 		{
 			content?.TopObject.DestroyGameObject();
-			currentTooltip = null;
+			CurrentTooltip = null;
 			tooltipObject.SetActive(false);
 			IsVisible = false;
 		}
@@ -199,7 +200,7 @@ namespace KERBALISM.KsmGui
 
 				TopTransform.position = position;
 
-				textComponent.SetText(currentTooltip.Text);
+				textComponent.SetText(CurrentTooltip.Text);
 			}
 		}
 	}

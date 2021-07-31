@@ -131,8 +131,8 @@ namespace KERBALISM.KsmGui
 
 		public void Close()
 		{
-			if (OnClose != null) OnClose();
-			KsmGuiTooltipController.Instance.HideTooltip();
+			if (OnClose != null)
+				OnClose();
 
 			if (destroyOnClose)
 				TopObject.DestroyGameObject();
@@ -143,7 +143,6 @@ namespace KERBALISM.KsmGui
 		private void OnDestroy()
 		{
 			GameEvents.onGameSceneLoadRequested.Remove(OnSceneChange);
-			KsmGuiTooltipController.Instance.HideTooltip();
 		}
 
 		public bool IsHovering => inputLockManager.IsHovering;

@@ -315,9 +315,13 @@ namespace KERBALISM
 			{
 				case EditorStep.None:
 				case EditorStep.Init:
-				case EditorStep.Finalize:
 					SyncPartResources();
 					break;
+				case EditorStep.Finalize:
+					SyncPartResources();
+					foreach (VesselResource resource in resources.Values)
+						resource.EditorFinalize();
+					return;
 			}
 
 			// execute all recorded recipes
