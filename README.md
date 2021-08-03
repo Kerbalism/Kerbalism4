@@ -1,3 +1,4 @@
+<p align="center">
 <img src="https://raw.githubusercontent.com/Kerbalism/Kerbalism4/master/misc/kerbalism_logo_colorV2.png" width="260" height="300">
 
 ### Welcome to Kerbalism
@@ -75,9 +76,5 @@ In terms of major changes, the goal for the initial release are to provide featu
 [KSP-AVC Plugin]: https://forum.kerbalspaceprogram.com/index.php?/topic/72169-13-12-ksp-avc-add-on-version-checker-plugin-1162-miniavc-ksp-avc-online-2016-10-13/
 [CKAN]: https://forum.kerbalspaceprogram.com/index.php?/topic/197082-ckan
 [Unlicense]: https://github.com/Kerbalism/Kerbalism/blob/master/LICENSE
-
-[KerbalismBanner]: https://raw.githubusercontent.com/Kerbalism/Kerbalism4/master/misc/kerbalism_logo_colorV2.png
-
-
 
 [FAQ]: https://github.com/Kerbalism/Kerbalism4/wiki/FAQ
