@@ -81,12 +81,12 @@ namespace KERBALISM
 						evaFuel.Amount = fuelAmount;
 					}
 
-					foreach (Supply supply in Profile.supplies)
+					foreach (SupplyDefinition supply in Profile.supplies)
 					{
 						if (supply.grantedOnRescue == 0.0)
 							continue;
 
-						PartResourceWrapper supplyResource = part.resources.Find(p => p.ResName == supply.resource);
+						PartResourceWrapper supplyResource = part.resources.Find(p => p.ResName == supply.name);
 						double resourceAmount = supply.grantedOnRescue * partCrewCount;
 						if (supplyResource == null)
 						{

@@ -48,6 +48,14 @@ namespace KERBALISM.KsmGui
 			TopObject.SetLayerRecursive(5);
 		}
 
+		public void SetParent(KsmGuiBase parent)
+		{
+			LayoutOptimizer = parent.LayoutOptimizer;
+			LayoutOptimizer.SetDirty();
+			LayoutOptimizer.RebuildLayout();
+			TopTransform.SetParentFixScale(parent.ParentTransformForChilds);
+		}
+
 		public virtual string Name => GetType().Name;
 
 		public virtual bool Enabled
@@ -109,12 +117,26 @@ namespace KERBALISM.KsmGui
 			((KsmGuiTooltipStatic)tooltip).SetTooltipText(text, textAlignement, width, content);
 		}
 
-		public void SetTooltipText(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
+		public void SetTooltipTextFunc(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
 		{
 			if (ReferenceEquals(tooltip, null))
 				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamic>();
 
 			((KsmGuiTooltipDynamic)tooltip).SetTooltipText(tooltipTextFunc, textAlignement, width, content);
+		}
+
+		public void SetTooltipContent(Func<KsmGuiBase> content = null)
+		{
+			if (ReferenceEquals(tooltip, null))
+				tooltip = TopObject.AddComponent<KsmGuiTooltipStatic>();
+
+			((KsmGuiTooltipStatic)tooltip).SetTooltipText(null, TextAlignmentOptions.Top, -1f, content);
+		}
+
+		public void SetTooltipEnabled(bool enabled)
+		{
+			if (!ReferenceEquals(tooltip, null))
+				tooltip.TooltipEnabled = enabled;
 		}
 
 		/// <summary> Add sizing constraints trough a LayoutElement component</summary>
@@ -134,7 +156,6 @@ namespace KERBALISM.KsmGui
 		public enum HorizontalEdge { Left, Right }
 		public enum VerticalEdge { Top, Bottom }
 
-
 		public void StaticLayout(int width, int height, int horizontalOffset = 0, int verticalOffset = 0, HorizontalEdge horizontalEdge = HorizontalEdge.Left, VerticalEdge verticalEdge = VerticalEdge.Top)
 		{
 			TopTransform.anchorMin = new Vector2(horizontalEdge == HorizontalEdge.Left ? 0f : 1f, verticalEdge == VerticalEdge.Top ? 0f : 1f);
@@ -146,17 +167,19 @@ namespace KERBALISM.KsmGui
 				verticalEdge == VerticalEdge.Top ? verticalOffset + height * TopTransform.pivot.y : verticalOffset - height * (1f - TopTransform.pivot.y));
 		}
 
-		public void RebuildLayout() => LayoutOptimizer.RebuildLayout();
-
 		/// <summary>
-		/// Stretch the object transform to match its parent size and position. Only works the parent has no layout component
+		/// Stretch the object transform to match its parent size and position. Only works if the parent has no layout component
 		/// </summary>
-		public void NoLayoutStretchInParent()
+		public void StaticLayoutStretchInParent()
 		{
 			TopTransform.anchorMin = Vector2.zero;
 			TopTransform.anchorMax = Vector2.one;
 			TopTransform.sizeDelta = Vector2.zero;
 		}
+
+		public void RebuildLayout() => LayoutOptimizer.RebuildLayout();
+
+
 
 		public void MoveAsFirstChild()
 		{
@@ -166,6 +189,25 @@ namespace KERBALISM.KsmGui
 		public void MoveAsLastChild()
 		{
 			TopTransform.SetAsLastSibling();
+		}
+
+		public void MoveToSiblingIndex(int index)
+		{
+			TopTransform.SetSiblingIndex(index);
+		}
+
+		public bool MoveAfter(KsmGuiBase afterThis)
+		{
+			for (int i = 0; i < TopTransform.childCount; i++)
+			{
+				if (TopTransform.GetChild(i).transform == afterThis.TopTransform)
+				{
+					TopTransform.SetSiblingIndex(i + 1);
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		public void SetDestroyCallback(Action callback)

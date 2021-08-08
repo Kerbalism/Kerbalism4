@@ -7,7 +7,7 @@ namespace KERBALISM
 {
 	/// <summary>
 	/// When applied on a public/non-public field/property, the value will parsed from a provided ConfigNode by calling CFGValue.Parse().<br/>
-	/// See the Utility/Serialization class for supported types. Can also be applied to a generic List of supported types.<br/>
+	/// See the Utility/Serialization class for supported types. Can also be applied to a generic List of supported types<br/>
 	/// The ConfigNode value(s) name will be the same as the member name. If the value isn't found in the node, the instance member stays untouched.<br/>
 	/// Note : vastly slower and garbagey than manual deserialization, use this only for one time config parsing and not for game load/save cycles.<br/>
 	/// Note 2 : if called on a child class, private members of the base class won't be returned. They need to be public or protected.

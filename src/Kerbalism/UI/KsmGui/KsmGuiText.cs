@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using Steamworks;
 using TMPro;
 
 namespace KERBALISM.KsmGui
@@ -16,7 +13,6 @@ namespace KERBALISM.KsmGui
 		public KsmGuiText(
 			KsmGuiBase parent,
 			string text = null,
-			string tooltipText = null,
 			TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft,
 			bool wordWrap = true,
 			TextOverflowModes overflowMode = TextOverflowModes.Overflow
@@ -35,10 +31,6 @@ namespace KERBALISM.KsmGui
 				TextComponent.text = text;
 
 			SetLayoutElement(true);
-			//TextComponent.raycastTarget = false;
-
-			if (!string.IsNullOrEmpty(tooltipText))
-				SetTooltipText(tooltipText);
 		}
 
 		// note : this only works reliably with the ellipsis mode, not with the truncate mode...

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using KSPAchievements;
 
 namespace KERBALISM
 {
@@ -22,10 +23,40 @@ namespace KERBALISM
 			return result;
 		}
 
+		public KsmString Insert(int index, string value)
+		{
+			sb.Insert(index, value);
+			return this;
+		}
+
 		/// <summary> Append a string </summary>
 		public KsmString Break()
 		{
 			sb.Append("\n");
+			return this;
+		}
+
+		public KsmString AlignLeft()
+		{
+			sb.Append("<align=left>");
+			return this;
+		}
+
+		public KsmString AlignCenter()
+		{
+			sb.Append("<align=center>");
+			return this;
+		}
+
+		public KsmString AlignRight()
+		{
+			sb.Append("<align=right>");
+			return this;
+		}
+
+		public KsmString AlignReset()
+		{
+			sb.Append("</align>");
 			return this;
 		}
 

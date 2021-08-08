@@ -166,7 +166,9 @@ namespace KERBALISM.KsmGui
 				content.LayoutOptimizer.enabled = false;
 			}
 
-			tooltipObject.SetActive(true);
+			// TODO (optimization) : don't instantiate content until tooltip becomes enabled
+			tooltipObject.SetActive(CurrentTooltip.TooltipEnabled);
+
 			LayoutRebuilder.ForceRebuildLayoutImmediate(TopTransform);
 			IsVisible = true;
 		}
@@ -183,6 +185,16 @@ namespace KERBALISM.KsmGui
 		{
 			if (IsVisible)
 			{
+				if (!CurrentTooltip.TooltipEnabled)
+				{
+					tooltipObject.SetActive(false);
+					return;
+				}
+				else
+				{
+					tooltipObject.SetActive(true);
+				}
+
 				Vector3 mouseWorldPos;
 				Vector3 position = new Vector3();
 				RectTransformUtility.ScreenPointToWorldPointInRectangle(TopTransform, Input.mousePosition, UIMasterController.Instance.uiCamera, out mouseWorldPos);

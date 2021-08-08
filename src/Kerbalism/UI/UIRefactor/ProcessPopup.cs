@@ -48,7 +48,7 @@ namespace KERBALISM
 			// top header
 			KsmGuiHeader topHeader = new KsmGuiHeader(window, vesselProcess.process.title, default, 120);
 			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltipText(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(vd.VesselName)));
-			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => window.Close(), Local.SCIENCEARCHIVE_closebutton);//"close"
+			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => window.Close());//"close"
 
 			// content panel
 			KsmGuiVerticalLayout content = new KsmGuiVerticalLayout(window, 5);
@@ -73,7 +73,6 @@ namespace KERBALISM
 
 			KsmGuiText resHeaderText = new KsmGuiText(resListHeader,
 				Local.ProcessPopup_NameTitle,
-				Local.ProcessPopup_NameTooltip,
 				TextAlignmentOptions.Left);
 			resHeaderText.TextComponent.fontStyle = FontStyles.Bold;
 			resHeaderText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
@@ -81,7 +80,6 @@ namespace KERBALISM
 
 			KsmGuiText nominalHeaderText = new KsmGuiText(resListHeader,
 				Local.ProcessPopup_MaxRateTitle,
-				Local.ProcessPopup_MaxRateTooltip,
 				TextAlignmentOptions.Left);
 			nominalHeaderText.TextComponent.fontStyle = FontStyles.Bold;
 			nominalHeaderText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 105, 0);
@@ -89,7 +87,6 @@ namespace KERBALISM
 
 			KsmGuiText statusHeaderText = new KsmGuiText(resListHeader,
 				Local.ProcessPopup_StatusTitle,
-				Local.ProcessPopup_StatusTooltip,
 				TextAlignmentOptions.Left);
 			statusHeaderText.TextComponent.fontStyle = FontStyles.Bold;
 			statusHeaderText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 175, 0);
@@ -97,7 +94,6 @@ namespace KERBALISM
 
 			KsmGuiText dumpHeaderText = new KsmGuiText(resListHeader,
 				Local.ProcessPopup_DumpTitle,
-				Local.ProcessPopup_DumpTooltip,
 				TextAlignmentOptions.Center);
 			dumpHeaderText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
 			dumpHeaderText.TextComponent.fontStyle = FontStyles.Bold;
@@ -128,17 +124,17 @@ namespace KERBALISM
 			partListHeader.SetLayoutElement(true, false, -1, 16);
 			partListHeader.AddImageComponentWithColor(KsmGuiStyle.boxColor);
 
-			KsmGuiText partListPartName = new KsmGuiText(partListHeader, Local.ProcessPopup_NameTitle, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+			KsmGuiText partListPartName = new KsmGuiText(partListHeader, Local.ProcessPopup_NameTitle, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 			partListPartName.TextComponent.fontStyle = FontStyles.Bold;
 			partListPartName.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 			partListPartName.TopTransform.SetSizeDelta(150, 16);
 
-			KsmGuiText partListCapacity = new KsmGuiText(partListHeader, Local.ProcessPopup_Capacity, null, TextAlignmentOptions.Center);
+			KsmGuiText partListCapacity = new KsmGuiText(partListHeader, Local.ProcessPopup_Capacity, TextAlignmentOptions.Center);
 			partListCapacity.TextComponent.fontStyle = FontStyles.Bold;
 			partListCapacity.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
 			partListCapacity.TopTransform.SetSizeDelta(55, 16);
 
-			KsmGuiText partListEnabled = new KsmGuiText(partListHeader, Lib.UppercaseFirst(Local.Generic_ENABLED), null, TextAlignmentOptions.Center);
+			KsmGuiText partListEnabled = new KsmGuiText(partListHeader, Lib.UppercaseFirst(Local.Generic_ENABLED), TextAlignmentOptions.Center);
 			partListEnabled.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
 			partListEnabled.TextComponent.fontStyle = FontStyles.Bold;
 			partListEnabled.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 230, 0);
@@ -214,16 +210,16 @@ namespace KERBALISM
 				this.AddImageComponentWithColor(KsmGuiStyle.boxColor);
 				SetUpdateAction(Update);
 
-				resNameText = new KsmGuiText(this, resource.Title, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				resNameText = new KsmGuiText(this, resource.Title, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				resNameText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 				resNameText.TopTransform.SetSizeDelta(95, 16);
 
-				resRateText = new KsmGuiText(this, "", null, TextAlignmentOptions.Left);
+				resRateText = new KsmGuiText(this, "", TextAlignmentOptions.Left);
 				resRateText.TextComponent.color = Lib.KolorToColor(isInput ? Lib.Kolor.NegRate : Lib.Kolor.PosRate);
 				resRateText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 105, 0);
 				resRateText.TopTransform.SetSizeDelta(65, 16);
 
-				resStatusText = new KsmGuiText(this, "", null, TextAlignmentOptions.Left);
+				resStatusText = new KsmGuiText(this, "", TextAlignmentOptions.Left);
 				resStatusText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 175, 0);
 				resStatusText.TopTransform.SetSizeDelta(80, 16);
 
@@ -326,11 +322,11 @@ namespace KERBALISM
 				this.AddImageComponentWithColor(KsmGuiStyle.boxColor);
 				SetUpdateAction(Update);
 
-				KsmGuiText resNameText = new KsmGuiText(this, partTitle, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				KsmGuiText resNameText = new KsmGuiText(this, partTitle, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				resNameText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 				resNameText.TopTransform.SetSizeDelta(150, 16);
 
-				resCapText = new KsmGuiText(this, data.definition.capacity.ToString("F1"), null, TextAlignmentOptions.Center);
+				resCapText = new KsmGuiText(this, data.definition.capacity.ToString("F1"), TextAlignmentOptions.Center);
 				resCapText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
 				resCapText.TopTransform.SetSizeDelta(55, 16);
 

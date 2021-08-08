@@ -12,7 +12,7 @@ namespace KERBALISM
 	{
 		[CFGValue] public bool canPressurize = true;              // can the habitat be pressurized ?
 		[CFGValue] public double maxShieldingFactor = 1.0;        // how much shielding can be applied, in % of the habitat surface (can be > 1.0)
-		[CFGValue] public double reclaimFactor = 0.4;             // % of atmosphere that will be recovered when depressurizing (producing "reclaimResource" back)
+		[CFGValue] public double reclaimFactor = 0.6;             // % of atmosphere that will be recovered when depressurizing (producing "reclaimResource" back)
 		[CFGValue] public double reclaimStorageFactor = 0.0;      // Amount of nitrogen storage, in % of the amount needed to pressurize the part
 		[CFGValue] public bool canRetract = true;                 // if false, can't be retracted once deployed
 		[CFGValue] public bool deployWithPressure = false;        // if true, deploying is done by pressurizing

@@ -101,8 +101,6 @@ namespace KERBALISM
 
 		public override double EnvRadiation => radiation; public double radiation;
 
-		public override double EnvRadiationHabitat => habitatRadiation; public double habitatRadiation;
-
 		public override double EnvStormRadiation => 0.0;
 
 		public override double EnvGammaTransparency => gammaTransparency; public double gammaTransparency;

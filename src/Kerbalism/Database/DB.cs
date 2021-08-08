@@ -130,7 +130,7 @@ namespace KERBALISM
 				uiData = new UIData();
             }
 
-			SubStepSim.Load(node);
+            SubStepSim.Load(node);
 
 			// if an old savegame was imported, log some debug info
 			if (version != Lib.KerbalismVersion) Lib.Log("savegame converted from version " + version + " to " + Lib.KerbalismVersion);
@@ -190,6 +190,24 @@ namespace KERBALISM
 		#endregion
 
 		#region VESSELDATA METHODS
+
+		private static List<Guid> vdsToRemove = new List<Guid>();
+		public static void UpdateVesselDataDictionary()
+		{
+			vdsToRemove.Clear();
+			foreach (KeyValuePair<Guid, VesselData> vd in vessels)
+			{
+				if (vd.Value.Vessel == null)
+				{
+					vdsToRemove.Add(vd.Key);
+				}
+			}
+
+			foreach (Guid vdId in vdsToRemove)
+			{
+				vessels.Remove(vdId);
+			}
+		}
 
 		public static VesselData NewVesselDataFromShipConstruct(Vessel v, ConfigNode shipNode, VesselDataShip shipVd)
 		{

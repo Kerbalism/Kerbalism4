@@ -1,0 +1,3 @@
+"Material Two Tone" icons by https://icons8.com
+Recolored in full white and exported to 48x48 pixels
+The transparent color is a full white with 29.8% alpha

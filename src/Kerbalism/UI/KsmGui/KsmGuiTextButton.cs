@@ -12,7 +12,7 @@ namespace KERBALISM.KsmGui
 		public Button ButtonComponent { get; private set; }
 		private UnityAction onClick;
 
-		public KsmGuiTextButton(KsmGuiBase parent, string text, UnityAction onClick, string tooltipText = null, TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft, bool wordWrap = true, TextOverflowModes overflowMode = TextOverflowModes.Overflow) : base(parent, text, tooltipText, alignement, wordWrap, overflowMode)
+		public KsmGuiTextButton(KsmGuiBase parent, string text, UnityAction onClick, string tooltipText = null, TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft, bool wordWrap = true, TextOverflowModes overflowMode = TextOverflowModes.Overflow) : base(parent, text, alignement, wordWrap, overflowMode)
 		{
 			ButtonComponent = TopObject.AddComponent<Button>();
 			ButtonComponent.interactable = true;

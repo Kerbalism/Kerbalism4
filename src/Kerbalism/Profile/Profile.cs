@@ -18,7 +18,7 @@ namespace KERBALISM
 
 
 		public static List<KerbalRuleDefinition> rules;
-		public static List<Supply> supplies;          // supplies in the profile
+		public static List<SupplyDefinition> supplies;          // supplies in the profile
 		public static List<Process> processes;        // processes in the profile
 
 		// node parsing
@@ -70,10 +70,10 @@ namespace KERBALISM
 				try
 				{
 					// parse supply
-					Supply supply = new Supply(supply_node);
+					SupplyDefinition supply = new SupplyDefinition(supply_node);
 
 					// ignore duplicates
-					if (supplies.Find(k => k.resource == supply.resource) == null)
+					if (supplies.Find(k => k.name == supply.name) == null)
 					{
 						// add the supply
 						supplies.Add(supply);
@@ -143,7 +143,7 @@ namespace KERBALISM
 		{
 			// initialize data
 			rules = new List<KerbalRuleDefinition>();
-			supplies = new List<Supply>();
+			supplies = new List<SupplyDefinition>();
 			processes = new List<Process>();
 
 			// for each profile config
@@ -177,8 +177,8 @@ namespace KERBALISM
 
 			// log info
 			Lib.Log($"{supplies.Count} {NODENAME_SUPPLY} definitions found :");
-			foreach (Supply supply in supplies)
-				Lib.Log($"- {supply.resource}");
+			foreach (SupplyDefinition supply in supplies)
+				Lib.Log($"- {supply.name}");
 
 			Lib.Log($"{rules.Count} {NODENAME_RULE} definitions found :");
 			foreach (KerbalRuleDefinition rule in rules)
@@ -208,7 +208,7 @@ namespace KERBALISM
 
 		public static void SetupEva(Part p)
 		{
-			foreach (Supply supply in supplies)
+			foreach (SupplyDefinition supply in supplies)
 			{
 				supply.SetupEva(p);
 			}

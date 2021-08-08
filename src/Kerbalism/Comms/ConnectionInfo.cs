@@ -23,6 +23,8 @@ namespace KERBALISM
 			set => status = (int)value;
 		}
 
+		public bool HasActiveAntenna => hasActiveAntenna;
+
 		public bool Linked => linked;
 
 		public double Ec => ec;
@@ -32,6 +34,7 @@ namespace KERBALISM
 		public double DataRate => rate;
 
 		public double Strength => strength;
+
 
 		// ====================================================================
 		// VALUES SET BY KERBALISM (CommInfo API )
@@ -56,6 +59,8 @@ namespace KERBALISM
 		// ====================================================================
 		// VALUES TO SET FOR KERBALISM (CommInfo API)
 		// ====================================================================
+
+		public bool hasActiveAntenna = false;
 
 		/// <summary>
 		/// science data rate, in MB/s. note that internal transmitters can not transmit science data only telemetry data

@@ -398,8 +398,6 @@ namespace KERBALISM
 					resources.ResourceUpdate(elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
 
-					Supply.SendMessages(vd);
-
 					// call automation scripts
 					vd.computer.Automate(v, vd);
 
@@ -429,6 +427,8 @@ namespace KERBALISM
 					}
 				}
 			}
+
+			DB.UpdateVesselDataDictionary();
 
 			// at most one vessel gets background processing per physics tick :
 			// if there is a vessel that is not the currently loaded vessel, then
@@ -469,8 +469,6 @@ namespace KERBALISM
 				// apply deferred requests
 				resources.ResourceUpdate(last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
-
-				Supply.SendMessages(last_vd);
 
 				// call automation scripts
 				last_vd.computer.Automate(last_v, last_vd);

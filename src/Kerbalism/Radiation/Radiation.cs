@@ -760,7 +760,7 @@ namespace KERBALISM
 
 			// clamp radiation to positive range
 			// note: we avoid radiation going to zero by using a small positive value
-			radiation = Math.Max(radiation, Nominal);
+			radiation = Math.Max(radiation, 0.0);
 
 #if DEBUG_RADIATION
 			if (v.loaded) Lib.Log("Radiation " + v + " after clamp: " + Lib.HumanReadableRadiation(radiation) + " shielded " + Lib.HumanReadableRadiation(shieldedRadiation));

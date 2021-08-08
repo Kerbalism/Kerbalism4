@@ -2,7 +2,7 @@ using System;
 
 namespace KERBALISM
 {
-	public sealed class File
+	public sealed class DriveFile
 	{
 		/// <summary>data size in Mb</summary>
 		public double size;
@@ -18,7 +18,7 @@ namespace KERBALISM
 		/// <summary> this is for UI purpose only, and can be unreliable in some situations, do not use this for evaluating things</summary>
 		public double transmitRate = 0.0;
 
-		public File(SubjectData subjectData, double size = 0.0, bool useStockCrediting = false, string resultText = "")
+		public DriveFile(SubjectData subjectData, double size = 0.0, bool useStockCrediting = false, string resultText = "")
 		{
 			this.subjectData = subjectData;
 			this.size = size;
@@ -35,7 +35,7 @@ namespace KERBALISM
 				this.resultText = resultText;
 		}
 
-		public static File Load(string integerSubjectId, ConfigNode node)
+		public static DriveFile Load(string integerSubjectId, ConfigNode node)
 		{
 			SubjectData subjectData;
 			string stockSubjectId = Lib.ConfigValue(node, "stockSubjectId", string.Empty);
@@ -58,7 +58,7 @@ namespace KERBALISM
 			string resultText = Lib.ConfigValue(node, "resultText", "");
 			bool useStockCrediting = Lib.ConfigValue(node, "useStockCrediting", false);
 
-			return new File(subjectData, size, useStockCrediting, resultText);
+			return new DriveFile(subjectData, size, useStockCrediting, resultText);
 		}
 
 		public void Save(ConfigNode node)

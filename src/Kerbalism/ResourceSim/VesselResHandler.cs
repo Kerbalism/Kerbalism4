@@ -341,6 +341,9 @@ namespace KERBALISM
 
 				if (resource.ExecuteAndSyncToParts(vesselData, elapsedSec) && vesselData.LoadedOrEditor)
 					CoherencyWarning(resource.Title);
+
+				if (resource.IsSupply)
+					resource.Supply.Evaluate(vesselData, resource);
 			}
 
 		}

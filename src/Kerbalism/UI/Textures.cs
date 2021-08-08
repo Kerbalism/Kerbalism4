@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using KSP.UI.Screens;
 using UnityEngine;
@@ -9,6 +11,10 @@ namespace KERBALISM
 	///<summary> Kerbalism's Icons </summary>
 	internal static class Textures
 	{
+
+		public static Dictionary<Texture2D, string> textureNames = new Dictionary<Texture2D, string>();
+		public static Dictionary<string, Texture2D> texturesByName = new Dictionary<string, Texture2D>();
+
 		///<summary> Path to Kerbalism's textures </summary>
 		internal static string TexturePath;
 
@@ -119,6 +125,9 @@ namespace KERBALISM
 		internal static Sprite KsmGuiSpriteBtnHighlight;
 		internal static Sprite KsmGuiSpriteBtnDisabled;
 
+		internal static Texture2D KsmGuiColorPickerBackground;
+		internal static Texture2D KsmGuiColorPickerSelector;
+
 		internal static Texture2D KsmGuiTexCheckmark;
 
 		internal static Texture2D KsmGuiTexHeaderArrowsLeft;
@@ -141,6 +150,7 @@ namespace KERBALISM
 		internal static Texture2D vesselTypeShip;
 		internal static Texture2D vesselTypeSpaceObj;
 		internal static Texture2D vesselTypeStation;
+		internal static Texture2D vesselTypeEVA;
 
 		internal static Texture2D ttBattery;
 		internal static Texture2D ttBox;
@@ -166,9 +176,19 @@ namespace KERBALISM
 		internal static Texture2D ttSignalDirect;
 		internal static Texture2D ttSignalRelay;
 
+		internal static Texture2D ttOverlayHidden;
+		internal static Texture2D ttOverlayVisible;
+
+
 		// timer controller
-		internal static float nextFlashing = Time.time;
+		internal static float nextFlashing = Time.unscaledTime;
 		internal static bool lastIcon = false;
+
+		internal static Sprite GetSprite(string texturePath, int width, int height)
+		{
+			Texture2D tex = Lib.GetKerbalismTexture(texturePath);
+			return Sprite.Create(tex, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f));
+		}
 
 		internal static Sprite Get9SlicesSprite(string textureName, int width, int height, int borderSize)
 		{
@@ -299,6 +319,10 @@ namespace KERBALISM
 			KsmGuiSpriteBtnHighlight = Get9SlicesSprite("ksm-gui/btn-black-highlight-64-5", 64, 64, 5);
 			KsmGuiSpriteBtnDisabled = Get9SlicesSprite("ksm-gui/btn-black-disabled-64-5", 64, 64, 5);
 
+
+			KsmGuiColorPickerBackground = Lib.GetKerbalismTexture("ksm-gui/ColorPicker");
+			KsmGuiColorPickerSelector = Lib.GetKerbalismTexture("ksm-gui/Selector");
+
 			KsmGuiTexCheckmark = Lib.GetTexture("ksm-gui/checkmark-20", 20, 20);
 
 			KsmGuiTexHeaderClose = Lib.GetTexture("ksm-gui/i8-header-close-32", 32, 32);
@@ -311,7 +335,18 @@ namespace KERBALISM
 			KsmGuiTexHeaderInfo = Lib.GetTexture("ksm-gui/info-32", 32, 32);
 			KsmGuiTexHeaderRnD = Lib.GetTexture("ksm-gui/i8-rnd-32", 32, 32);
 
-			GetVesselTypeTextures();
+			vesselTypeAircraft = Lib.GetKerbalismTexture("vesselTypes/vesselTypeAircraft-48");
+			vesselTypeBase = Lib.GetKerbalismTexture("vesselTypes/vesselTypeBase-48");
+			vesselTypeCommsRelay = Lib.GetKerbalismTexture("vesselTypes/vesselTypeCommsRelay-48");
+			vesselTypeDebris = Lib.GetKerbalismTexture("vesselTypes/vesselTypeDebris-48");
+			vesselTypeDeployScience = Lib.GetKerbalismTexture("vesselTypes/vesselTypeDeployScience-48");
+			vesselTypeLander = Lib.GetKerbalismTexture("vesselTypes/vesselTypeLander-48");
+			vesselTypeProbe = Lib.GetKerbalismTexture("vesselTypes/vesselTypeProbe-48");
+			vesselTypeRover = Lib.GetKerbalismTexture("vesselTypes/vesselTypeRover-48");
+			vesselTypeShip = Lib.GetKerbalismTexture("vesselTypes/vesselTypeShip-48");
+			vesselTypeSpaceObj = Lib.GetKerbalismTexture("vesselTypes/vesselTypeSpaceObj-48");
+			vesselTypeStation = Lib.GetKerbalismTexture("vesselTypes/vesselTypeStation-48");
+			vesselTypeEVA = Lib.GetKerbalismTexture("vesselTypes/vesselTypeEVA-48");
 
 			ttBattery = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/battery-48");
 			ttBox = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/box-48");
@@ -337,12 +372,25 @@ namespace KERBALISM
 			ttSignalDirect = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalDirect-48");
 			ttSignalRelay = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/signalRelay-48");
 
+			ttOverlayHidden = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/overlayHidden-48");
+			ttOverlayVisible = Lib.GetKerbalismTexture("Icons8MaterialTwoTones/overlayVisible-48");
+
 			//Texture2D winBg = Lib.GetTexture("ui-core/window-background", 64, 64);
 			//// inspecting pixelPerUnit gives 92.75362, but 100f is the default value and seems to work fine
 			//window_background = Sprite.Create(winBg, new Rect(0f, 0f, 64f, 64f), new Vector2(0.5f, 0.5f), 100f, 0u, SpriteMeshType.Tight, new Vector4(4.6f, 4.6f, 4.6f, 4.6f));
 
 			//close_btn_tex = Lib.GetTexture("ui-core/icons8-cancel-24", 24, 24);
 			//close_btn = Sprite.Create(close_btn_tex, new Rect(0f, 0f, 24f, 24f), new Vector2(0.5f, 0.5f), 100f);
+
+			foreach (FieldInfo field in typeof(Textures).GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+			{
+				if (field.FieldType != typeof(Texture2D))
+					continue;
+
+				Texture2D value = (Texture2D) field.GetValue(null);
+				textureNames[value] = field.Name;
+				texturesByName[field.Name] = value;
+			}
 
 		}
 
@@ -353,9 +401,9 @@ namespace KERBALISM
 		/// <returns></returns>
 		internal static Texture2D iconSwitch(Texture2D icon1, Texture2D icon2, float interval = 1f)
 		{
-			if (Time.time > nextFlashing)
+			if (Time.unscaledTime > nextFlashing)
 			{
-				nextFlashing = Time.time + interval;
+				nextFlashing = Time.unscaledTime + interval;
 				lastIcon ^= true;
 			}
 			if (lastIcon) return icon1;
@@ -386,7 +434,33 @@ namespace KERBALISM
 			{
 				ErrorManager.AddError(true, "Error retrieving vessel types textures", e.ToString());
 			}
+		}
 
+		private static Texture2D GetReadableTexture(Texture2D source)
+		{
+			RenderTexture renderTex = RenderTexture.GetTemporary(
+				source.width,
+				source.height,
+				0,
+				RenderTextureFormat.Default,
+				RenderTextureReadWrite.Linear);
+
+			Graphics.Blit(source, renderTex);
+			RenderTexture previous = RenderTexture.active;
+			RenderTexture.active = renderTex;
+			Texture2D readableText = new Texture2D(source.width, source.height);
+			readableText.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
+			readableText.Apply();
+			RenderTexture.active = previous;
+			RenderTexture.ReleaseTemporary(renderTex);
+			return readableText;
+		}
+
+		public static void ExportAsPNG(this Texture2D texture, string textureName)
+		{
+			File.WriteAllBytes(
+				Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "KSP_Textures", textureName + ".png"),
+				GetReadableTexture(texture).EncodeToPNG());
 		}
 	}
 } // KERBALISM

@@ -7,7 +7,7 @@ namespace KERBALISM
 {
 	public static class Serialization
 	{
-		private static Type enumType = typeof(Enum);
+		private static readonly Type enumType = typeof(Enum);
 
 		public static bool SerializeValue<T>(T value, out string serializedValue)
 		{
@@ -133,7 +133,8 @@ namespace KERBALISM
 			{ typeof(QuaternionD), new QuaternionDParser() },
 			{ typeof(Matrix4x4), new Matrix4x4Parser() },
 			{ typeof(Color), new ColorParser() },
-			{ typeof(Color32), new Color32Parser() }
+			{ typeof(Color32), new Color32Parser() },
+			{ typeof(Kolor), new KolorParser() }
 		};
 
 		public abstract class ValueParser
@@ -348,6 +349,15 @@ namespace KERBALISM
 		{
 			public override bool Deserialize(string strValue, out Color32 value) => ParseExtensions.TryParseColor32(strValue, out value);
 			public override string Serialize(Color32 value) => ConfigNode.WriteColor(value);
+		}
+
+		public class KolorParser : ValueParser<Kolor>
+		{
+			public override bool Deserialize(string strValue, out Kolor value)
+			{
+				value = Kolor.Parse(strValue);
+				return value != null;
+			}
 		}
 
 		#endregion

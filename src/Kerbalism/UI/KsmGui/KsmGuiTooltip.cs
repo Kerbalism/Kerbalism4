@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -12,6 +11,7 @@ namespace KERBALISM.KsmGui
 		protected TextAlignmentOptions textAlignement;
 		protected float width;
 		protected Func<KsmGuiBase> content;
+		public bool TooltipEnabled { get; set; } = true;
 
 		public void OnPointerEnter(PointerEventData eventData)
 		{

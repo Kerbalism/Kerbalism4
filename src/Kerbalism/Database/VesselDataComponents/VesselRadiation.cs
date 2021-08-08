@@ -59,7 +59,7 @@ namespace KERBALISM.VesselLogic
 			}
 
 			// get next part index
-			partToUpdate = (partToUpdate + 1) % parts.Count;
+			partToUpdate = parts.Count > 0 ? (partToUpdate + 1) % parts.Count : 0;
 
 			// process a single raycast task per fixedUpdate
 			// TODO: I haven't done a lot of testing, but on vessels with a large amount of local emitters it is likely

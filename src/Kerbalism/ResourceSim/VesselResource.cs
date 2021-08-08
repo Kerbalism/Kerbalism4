@@ -79,6 +79,9 @@ namespace KERBALISM
 		public PartResourceWrapperCollection ResourceWrapper => resourceWrapper;
 		protected PartResourceWrapperCollection resourceWrapper;
 
+		public bool IsSupply => Supply != null;
+		public Supply Supply { get; private set; }
+
 		/// <summary> Called at the VesselResHandler instantiation, after the ResourceWrapper amount and capacity has been evaluated </summary>
 		protected virtual void Init()
 		{
@@ -91,6 +94,8 @@ namespace KERBALISM
 
 			// calculate level
 			level = resourceWrapper.capacity > 0.0 ? resourceWrapper.amount / resourceWrapper.capacity : 0.0;
+
+			Supply = Supply.GetSupply(Name);
 		}
 
 		/// <summary> Called by the VesselResHandler, every update :
@@ -284,6 +289,7 @@ namespace KERBALISM
 			return $"{Name} : {Lib.HumanReadableStorage(Amount, Capacity)} ({Rate:+0.#######/s;-0.#######/s})";
 		}
 
+		[Obsolete("Use the KsmString version")]
 		public string BrokersListTooltip(bool showSummary = true)
 		{
 			sb.Length = 0;
@@ -355,6 +361,7 @@ namespace KERBALISM
 			return sb.ToString();
 		}
 
+		[Obsolete("Use the KsmString version")]
 		public string BrokerListTooltipTMP(bool showSummary = true)
 		{
 			sb.Length = 0;
@@ -410,6 +417,65 @@ namespace KERBALISM
 			}
 
 			return sb.ToString();
+		}
+
+		public KsmString BrokerListTooltip(KsmString ks, bool showSummary = true)
+		{
+			ks.Format(Title, KF.KolorYellow, KF.Bold);
+			
+			if (showSummary)
+			{
+				ks.Break();
+
+				if (AvailabilityFactor < 1.0)
+				{
+					ks.Info("Availability", AvailabilityFactor.ToString("P1"), KF.Color(criticalConsumptionSatisfied ? Kolor.Yellow : Kolor.Red), KF.Bold);
+				}
+				else
+				{
+					ks.Info("Depletion", DepletionInfo);
+				}
+
+
+
+				ks.AlignLeft();
+
+				if (Rate != 0.0)
+				{
+					ks.Format(KF.ReadableRate(Rate), KF.Color(Rate > 0.0 ? Kolor.PosRate : Kolor.NegRate), KF.Bold);
+				}
+				else
+				{
+					ks.Format(Local.TELEMETRY_nochange, KF.Bold);
+				}
+
+				ks.Format(KF.Concat(Lib.HumanReadableStorage(Amount, Capacity), " (", Level.ToString("P0"), ")"), KF.Position(80));
+			}
+			else
+			{
+				ks.AlignLeft();
+			}
+
+			if (ResourceBrokers.Count > 0)
+			{
+				if (showSummary)
+				{
+					ks.Add("\n<b>------------<pos=80px>------------</b>");
+				}
+
+				foreach (ResourceBrokerRate rb in ResourceBrokers)
+				{
+					// exclude very tiny rates to avoid the ui flickering
+					if (rb.rate > -1e-09 && rb.rate < 1e-09)
+						continue;
+
+					ks.Break();
+					ks.Format(KF.ReadableRate(rb.rate), KF.Color(Rate > 0.0 ? Kolor.PosRate : Kolor.NegRate), KF.Bold);
+					ks.Format(rb.broker.Title, KF.Position(80));
+				}
+			}
+
+			return ks;
 		}
 
 	}

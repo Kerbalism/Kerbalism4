@@ -10,12 +10,12 @@ namespace KERBALISM
 
 	public enum Severity
 	{
-		none,
-		relax,    // something went back to nominal
-		warning,  // the user should start being worried about something
-		danger,   // the user should start panicking about something
-		fatality, // somebody died
-		breakdown // somebody is breaking down
+		none = 0,
+		relax = 1,    // something went back to nominal
+		warning = 2,  // the user should start being worried about something
+		danger = 3,   // the user should start panicking about something
+		fatality = 4, // somebody died
+		breakdown = 5 // somebody is breaking down
 	}
 
 

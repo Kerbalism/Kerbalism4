@@ -57,7 +57,7 @@ namespace KERBALISM.KsmGui
 			checkmarkImage.texture = Textures.KsmGuiTexCheckmark;
 			ToggleComponent.graphic = checkmarkImage;
 
-			TextObject = new KsmGuiText(this, toggleText, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+			TextObject = new KsmGuiText(this, toggleText, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 			if (width <= 0)
 				SetLayoutElement(true, false, -1, height);
 			else

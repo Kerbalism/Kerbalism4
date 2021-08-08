@@ -204,6 +204,7 @@ namespace KERBALISM
 			connection.ec_idle += connection.ec * Settings.TransmitterPassiveEcFactor; // add "transmit" antennas always-consumed rate
 			connection.ec *= Settings.TransmitterActiveEcFactor; // adjust "transmit" antennas transmit-only rate by the factor
 
+			connection.hasActiveAntenna = connection.ec_idle > 0.0;
 		}
 
 		private void GetTransmittersLoaded(Vessel v)

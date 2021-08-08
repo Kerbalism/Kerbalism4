@@ -18,7 +18,7 @@ namespace KERBALISM
 	{
 		#region FIELDS
 
-		public Dictionary<SubjectData, File> files = new Dictionary<SubjectData, File>();
+		public Dictionary<SubjectData, DriveFile> files = new Dictionary<SubjectData, DriveFile>();
 		public Dictionary<SubjectData, Sample> samples = new Dictionary<SubjectData, Sample>();
 		public Dictionary<string, bool> fileSendFlags = new Dictionary<string, bool>();
 		public double dataCapacity;
@@ -160,14 +160,14 @@ namespace KERBALISM
 		public override void OnLoad(ConfigNode node)
 		{
 			// parse science  files
-			files = new Dictionary<SubjectData, File>();
+			files = new Dictionary<SubjectData, DriveFile>();
 			ConfigNode filesNode = node.GetNode("FILES");
 			if (filesNode != null)
 			{
 				foreach (var file_node in filesNode.GetNodes())
 				{
 					string subject_id = DB.FromSafeKey(file_node.name);
-					File file = File.Load(subject_id, file_node);
+					DriveFile file = DriveFile.Load(subject_id, file_node);
 					if (file != null)
 					{
 						if (files.ContainsKey(file.subjectData))
@@ -218,7 +218,7 @@ namespace KERBALISM
 			// save science files
 			bool hasFiles = false;
 			ConfigNode filesNode = new ConfigNode("FILES");
-			foreach (File file in files.Values)
+			foreach (DriveFile file in files.Values)
 			{
 				file.Save(filesNode.AddNode(DB.ToSafeKey(file.subjectData.Id)));
 				hasFiles = true;
@@ -299,10 +299,10 @@ namespace KERBALISM
 				return false;
 
 			// create new data or get existing one
-			File file;
+			DriveFile file;
 			if (!files.TryGetValue(subjectData, out file))
 			{
-				file = new File(subjectData, 0.0, useStockCrediting);
+				file = new DriveFile(subjectData, 0.0, useStockCrediting);
 				files.Add(subjectData, file);
 
 				if (!allowImmediateTransmission) Send(subjectData.Id, false);
@@ -376,7 +376,7 @@ namespace KERBALISM
 		public void DeleteFile(SubjectData subjectData, double amount = 0.0)
 		{
 			// get data
-			File file;
+			DriveFile file;
 			if (files.TryGetValue(subjectData, out file))
 			{
 				// decrease amount of data stored in the file
@@ -440,7 +440,7 @@ namespace KERBALISM
 
 			// copy files
 			List<SubjectData> filesList = new List<SubjectData>();
-			foreach (File file in files.Values)
+			foreach (DriveFile file in files.Values)
 			{
 				double size = Math.Min(file.size, destination.FileCapacityAvailable());
 				if (destination.RecordFile(file.subjectData, size, true, file.useStockCrediting))
@@ -515,7 +515,7 @@ namespace KERBALISM
 		public double FilesSize()
 		{
 			double amount = 0.0;
-			foreach (File file in files.Values)
+			foreach (DriveFile file in files.Values)
 			{
 				amount += file.size;
 			}
@@ -660,7 +660,7 @@ namespace KERBALISM
 		/// <summary> delete all files/samples in the drive</summary>
 		public void DeleteAllData()
 		{
-			foreach (File file in files.Values)
+			foreach (DriveFile file in files.Values)
 				file.subjectData.RemoveDataCollectedInFlight(file.size);
 
 			foreach (Sample sample in samples.Values)
@@ -717,7 +717,7 @@ namespace KERBALISM
 					slotsCapacity += drive.sampleCapacity;
 				}
 
-				foreach (File file in drive.files.Values)
+				foreach (DriveFile file in drive.files.Values)
 				{
 					filesCount++;
 					filesSize += file.size;

@@ -16,6 +16,18 @@ namespace KERBALISM
 		
 	 */
 
+	public static class PartModuleExtensions
+	{
+		public static T GetModuleHandler<T>(this PartModule module) where T : ModuleHandler
+		{
+			if (ModuleHandler.loadedHandlersByModuleInstanceId.TryGetValue(module.GetInstanceID(), out ModuleHandler handler) && handler is T typedHandler)
+				return typedHandler;
+
+			return null;
+		}
+	}
+
+
 
 	public abstract class ModuleHandler
 	{
@@ -138,6 +150,7 @@ namespace KERBALISM
 						continue;
 					}
 
+					handlerNode.AddValue(nameof(handlerIsEnabled), moduleHandler.handlerIsEnabled);
 					persistentHandler.Save(handlerNode);
 				}
 			}
@@ -325,7 +338,9 @@ namespace KERBALISM
 			moduleHandler.SetModuleReferences(partData.PartPrefab.Modules[moduleIndex], module);
 			partData.modules.Add(moduleHandler);
 
+			moduleHandler.handlerIsEnabled = Lib.ConfigValue(handlerNode, nameof(handlerIsEnabled), true);
 			((IPersistentModuleHandler)moduleHandler).Load(handlerNode);
+			
 
 			// handlerFlightIdsByModuleInstanceId is populated in the PartModule.Load() PostFix harmony patch
 			if (handlerFlightIdsByModuleInstanceId.TryGetValue(module.GetInstanceID(), out int flightId))
@@ -376,6 +391,7 @@ namespace KERBALISM
 			moduleHandler.protoModule = protoModule;
 			partData.modules.Add(moduleHandler);
 
+			moduleHandler.handlerIsEnabled = Lib.ConfigValue(handlerNode, nameof(handlerIsEnabled), true);
 			persistentHandler.Load(handlerNode);
 
 			Lib.LogDebug($"Instantiated persisted {moduleHandler} for {partData} on {partData.vesselData}");

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Text;
 using UnityEngine;
 
@@ -7,6 +8,13 @@ namespace KERBALISM
 {
 	public abstract class KF
 	{
+		public enum Precision
+		{
+			Full,
+			Compact,
+			Tiny
+		}
+
 		public abstract void OpeningTag(StringBuilder sb);
 		public abstract void ClosingTag(StringBuilder sb);
 
@@ -211,23 +219,34 @@ namespace KERBALISM
 		protected static ObjectPool<KsmFormatReadableField> factoryKsmFormatReadableField = new ObjectPool<KsmFormatReadableField>();
 		protected static ObjectPool<KsmFormatReadableRadiation> factoryKsmFormatReadableRadiation = new ObjectPool<KsmFormatReadableRadiation>();
 
+		protected static ObjectPool<KsmFormatReadablePressure> factoryKsmFormatReadablePressure = new ObjectPool<KsmFormatReadablePressure>();
+		protected static ObjectPool<KsmFormatReadableVolume> factoryKsmFormatReadableVolume = new ObjectPool<KsmFormatReadableVolume>();
+		protected static ObjectPool<KsmFormatReadableSurface> factoryKsmFormatReadableSurface = new ObjectPool<KsmFormatReadableSurface>();
+		protected static ObjectPool<KsmFormatReadableMass> factoryKsmFormatReadableMass = new ObjectPool<KsmFormatReadableMass>();
+		protected static ObjectPool<KsmFormatReadableStorage> factoryKsmFormatReadableStorage = new ObjectPool<KsmFormatReadableStorage>();
+		protected static ObjectPool<KsmFormatReadableAmountCompact> factoryKsmFormatReadableAmountCompact = new ObjectPool<KsmFormatReadableAmountCompact>();
+
 		/// <summary> Pretty-print a per second rate </summary>
-		public static KsmFormatReadableRate ReadableRate(double rate, string format = "F3", string unit = "", bool showSign = false)
+		public static KsmFormatReadableRate ReadableRate(double rate, bool showSign = true, string unit = "")
 		{
 			KsmFormatReadableRate formatter = factoryKsmFormatReadableRate.Get();
 			formatter.rate = rate;
-			formatter.format = format;
 			formatter.unit = unit;
 			formatter.showSign = showSign;
 			return formatter;
 		}
 
-		/// <summary> Pretty-print a duration in seconds </summary>
-		public static KsmFormatReadableDuration ReadableDuration(double duration, bool fullprecison = false)
+		/// <summary>
+		/// Pretty-print a duration in seconds
+		/// </summary>
+		/// <param name="precision">full : "1y45d1h24s", compact : "1y 45d", tiny : "1.2y"</param>
+		/// <returns></returns>
+		public static KsmFormatReadableDuration ReadableDuration(double duration, Precision precision = Precision.Compact, ulong yearsMax = 99)
 		{
 			KsmFormatReadableDuration formatter = factoryKsmFormatReadableDuration.Get();
 			formatter.duration = duration;
-			formatter.fullprecison = fullprecison;
+			formatter.precision = precision;
+			formatter.yearsMax = yearsMax;
 			return formatter;
 		}
 
@@ -297,10 +316,61 @@ namespace KERBALISM
 		}
 
 		/// <summary> Pretty-print radiation rate in rad/s </summary>
-		public static KsmFormatReadableRadiation ReadableRadiation(double radiation)
+		public static KsmFormatReadableRadiation ReadableRadiation(double radiation, bool dangerColor = true)
 		{
 			KsmFormatReadableRadiation formatter = factoryKsmFormatReadableRadiation.Get();
 			formatter.radiation = radiation;
+			formatter.dangerColor = dangerColor;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print pressure in kPa  </summary>
+		public static KsmFormatReadablePressure ReadablePressure(double pressure)
+		{
+			KsmFormatReadablePressure formatter = factoryKsmFormatReadablePressure.Get();
+			formatter.pressure = pressure;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print volume in m3 </summary>
+		public static KsmFormatReadableVolume ReadableVolume(double volume)
+		{
+			KsmFormatReadableVolume formatter = factoryKsmFormatReadableVolume.Get();
+			formatter.volume = volume;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print surface in m2 </summary>
+		public static KsmFormatReadableSurface ReadableSurface(double surface)
+		{
+			KsmFormatReadableSurface formatter = factoryKsmFormatReadableSurface.Get();
+			formatter.surface = surface;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print mass in t </summary>
+		public static KsmFormatReadableMass ReadableMass(double mass)
+		{
+			KsmFormatReadableMass formatter = factoryKsmFormatReadableMass.Get();
+			formatter.mass = mass;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print amount / capacity using M/k abbreviations for large values</summary>
+		public static KsmFormatReadableStorage ReadableStorage(double amount, double capacity)
+		{
+			KsmFormatReadableStorage formatter = factoryKsmFormatReadableStorage.Get();
+			formatter.amount = amount;
+			formatter.capacity = capacity;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print a potentially large amount using M/k abbreviations </summary>
+		public static KsmFormatReadableAmountCompact ReadableAmountCompact(double amount, string unit = null)
+		{
+			KsmFormatReadableAmountCompact formatter = factoryKsmFormatReadableAmountCompact.Get();
+			formatter.amount = amount;
+			formatter.unit = unit;
 			return formatter;
 		}
 
@@ -567,7 +637,6 @@ namespace KERBALISM
 	public class KsmFormatReadableRate : KF
 	{
 		public double rate;
-		public string format;
 		public string unit;
 		public bool showSign;
 
@@ -575,11 +644,11 @@ namespace KERBALISM
 
 		public override void ClosingTag(StringBuilder sb)
 		{
-			Append(sb, rate, format, unit, showSign);
+			Append(sb, rate, showSign, unit);
 			factoryKsmFormatReadableRate.Return(this);
 		}
 
-		public static void Append(StringBuilder sb, double rate, string format = "F3", string unit = "", bool showSign = false)
+		public static void Append(StringBuilder sb, double rate, bool showSign = false, string unit = "")
 		{
 			if (rate == 0.0)
 			{
@@ -594,6 +663,7 @@ namespace KERBALISM
 
 			if (Input.GetKey(KeyCode.LeftAlt))
 			{
+				string format;
 				int exponent = rate == 0.0 ? 0 : (int)Math.Floor(Math.Log10(rate));
 				switch (exponent)
 				{
@@ -638,6 +708,17 @@ namespace KERBALISM
 
 			void BuildString(string timeUnit)
 			{
+				string format;
+
+				if (rate > 100.0)
+					format = "F0";
+				else if (rate > 10.0)
+					format = "F1";
+				else if (rate > 1.0)
+					format = "F2";
+				else
+					format = "F3";
+
 				sb.Append(rate.ToString(format));
 
 				if (!string.IsNullOrEmpty(unit))
@@ -683,18 +764,20 @@ namespace KERBALISM
 
 	public class KsmFormatReadableDuration : KF
 	{
+
+		public ulong yearsMax;
 		public double duration;
-		public bool fullprecison;
+		public Precision precision;
 
 		public override void OpeningTag(StringBuilder sb) { }
 
 		public override void ClosingTag(StringBuilder sb)
 		{
-			Append(sb, duration, fullprecison);
+			Append(sb, duration, precision);
 			factoryKsmFormatReadableDuration.Return(this);
 		}
 
-		public static void Append(StringBuilder sb, double d, bool fullprecison = false)
+		public static void Append(StringBuilder sb, double d, Precision precision = Precision.Compact, ulong yearsMax = 99)
 		{
 			if (double.IsInfinity(d) || double.IsNaN(d))
 			{
@@ -710,61 +793,104 @@ namespace KERBALISM
 				return;
 			}
 
-			if (!fullprecison)
+			if (precision != Precision.Full)
 			{
 				ulong durationLong = (ulong)d;
 
 				// seconds
 				if (d < 60.0)
 				{
-					ulong seconds = durationLong % 60ul;
-					sb.Append(seconds);
+					sb.Append(durationLong % 60ul);
 					sb.Append("s");
 					return;
 				}
 				// minutes + seconds
 				if (d < 3600.0)
 				{
-					ulong seconds = durationLong % 60ul;
-					ulong minutes = (durationLong / 60ul) % 60ul;
-
-					sb.Append(minutes);
-					sb.Append("m ");
-					sb.Append(seconds.ToString("00"));
-					sb.Append("s");
+					if (precision == Precision.Tiny)
+					{
+						sb.Append((d / 60.0).ToString("F1"));
+						sb.Append("m");
+					}
+					else
+					{
+						sb.Append((durationLong / 60ul) % 60ul);
+						sb.Append("m ");
+						sb.Append((durationLong % 60ul).ToString("00"));
+						sb.Append("s");
+					}
 					return;
 				}
 				// hours + minutes
 				if (d < Lib.SecondsInDayFloored)
 				{
-					ulong minutes = (durationLong / 60ul) % 60ul;
-					ulong hours = (durationLong / 3600ul) % Lib.HoursInDayLong;
-
-					sb.Append(hours);
-					sb.Append("h ");
-					sb.Append(minutes.ToString("00"));
-					sb.Append("m");
+					if (precision == Precision.Tiny)
+					{
+						sb.Append((d / 3600.0).ToString("F1"));
+						sb.Append("h");
+					}
+					else
+					{
+						sb.Append((durationLong / 3600ul) % Lib.HoursInDayLong);
+						sb.Append("h ");
+						sb.Append(((durationLong / 60ul) % 60ul).ToString("00"));
+						sb.Append("m");
+					}
 					return;
 				}
-				ulong days = (durationLong / Lib.SecondsInDayLong) % Lib.DaysInYearLong;
+
 				// days + hours
 				if (d < Lib.SecondsInYearFloored)
 				{
-					ulong hours = (durationLong / 3600ul) % Lib.HoursInDayLong;
+					if (precision == Precision.Tiny)
+					{
+						double days = d / Lib.SecondsInDayExact;
+						if (days < 10.0)
+						{
+							sb.Append(days.ToString("F1"));
+							sb.Append("d");
+						}
+						else if (days < 100.0)
+						{
+							sb.Append(days.ToString("F0"));
+							sb.Append("d");
+						}
+						else
+						{
+							sb.Append((d / Lib.SecondsInYearExact).ToString("F1"));
+							sb.Append("y");
+						}
+					}
+					else
+					{
+						sb.Append((durationLong / Lib.SecondsInDayLong) % Lib.DaysInYearLong);
+						sb.Append("d ");
+						sb.Append((durationLong / 3600ul) % Lib.HoursInDayLong);
+						sb.Append("h");
+					}
 
-					sb.Append(days);
-					sb.Append("d ");
-					sb.Append(hours);
-					sb.Append("h");
 					return;
 				}
+
 				// years + days
 				ulong years = durationLong / Lib.SecondsInYearLong;
-
-				sb.Append(years);
-				sb.Append("y ");
-				sb.Append(days);
-				sb.Append("d");
+				if (years >= (ulong)yearsMax)
+				{
+					sb.Append(yearsMax);
+					sb.Append("+y");
+				}
+				else if (precision == Precision.Tiny)
+				{
+					sb.Append((d / Lib.SecondsInYearExact).ToString("F1"));
+					sb.Append("y");
+				}
+				else
+				{
+					sb.Append(years);
+					sb.Append("y ");
+					sb.Append((durationLong / Lib.SecondsInDayLong) % Lib.DaysInYearLong);
+					sb.Append("d");
+				}
 			}
 			else
 			{
@@ -817,7 +943,7 @@ namespace KERBALISM
 		public override void ClosingTag(StringBuilder sb)
 		{
 			sb.Append("T-");
-			KsmFormatReadableDuration.Append(sb, duration, !compact);
+			KsmFormatReadableDuration.Append(sb, duration, Precision.Compact);
 			factoryKsmFormatReadableCountdown.Return(this);
 		}
 	}
@@ -937,7 +1063,7 @@ namespace KERBALISM
 		public static void Append(StringBuilder sb, double temperature)
 		{
 			sb.Append(temperature.ToString("F1"));
-			sb.Append("/s");
+			sb.Append(" K");
 		}
 	}
 
@@ -1028,29 +1154,18 @@ namespace KERBALISM
 	public class KsmFormatReadableRadiation : KF
 	{
 		public double radiation;
-		public bool nominal;
 		public bool dangerColor;
 
 		public override void OpeningTag(StringBuilder sb) { }
 
 		public override void ClosingTag(StringBuilder sb)
 		{
-			Append(sb, radiation, nominal, dangerColor);
+			Append(sb, radiation, dangerColor);
 			factoryKsmFormatReadableRadiation.Return(this);
 		}
 
-		public static void Append(StringBuilder sb, double radiation, bool nominal = true, bool dangerColor = true)
+		public static void Append(StringBuilder sb, double radiation, bool dangerColor = true)
 		{
-			if (nominal && radiation <= Radiation.Nominal)
-			{
-				if (dangerColor)
-					sb.Format(Local.Generic_NOMINAL, KolorGreen);
-				else
-					sb.Append(Local.Generic_NOMINAL);
-
-				return;
-			}
-
 			radiation *= 3600.0;
 
 			if (Settings.RadiationInSievert)
@@ -1062,37 +1177,240 @@ namespace KERBALISM
 			}
 
 			string unit;
+			string format;
 			KF color;
 
 			if (radiation < 0.00001)
 			{
 				unit = " μrad/h";
+				format = "F3";
 				radiation *= 1000000.0;
 				color = KolorGreen;
 			}
 			else if (radiation < 0.01)
 			{
 				unit = " mrad/h";
+				format = "F3";
 				radiation *= 1000.0;
 				color = KolorGreen;
 			}
 			else
 			{
 				unit = " rad/h";
-				if (radiation < 0.25)
-					color = KolorYellow;
-				else if (radiation < 1.0)
-					color = KolorOrange;
-				else
+
+				if (radiation >= 100.0)
+				{
+					format = "F1";
 					color = KolorRed;
+				}
+				else if (radiation >= 10.0)
+				{
+					format = "F2";
+					color = KolorRed;
+				}
+				else if (radiation >= 1.0)
+				{
+					format = "F3";
+					color = KolorRed;
+				}
+				else if (radiation >= 0.25)
+				{
+					format = "F3";
+					color = KolorOrange;
+				}
+				else
+				{
+					format = "F3";
+					color = KolorYellow;
+				}
 			}
 
 			if (dangerColor)
-				sb.Format(radiation.ToString("F3"), color);
+				sb.Format(radiation.ToString(format), color);
 			else
-				sb.Append(radiation.ToString("F3"));
+				sb.Append(radiation.ToString(format));
 
 			sb.Append(unit);
+		}
+	}
+
+	public class KsmFormatReadablePressure : KF
+	{
+		public double pressure;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, pressure);
+			factoryKsmFormatReadablePressure.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double pressure)
+		{
+			sb.Append(pressure.ToString("F1"));
+			sb.Append(" kPa");
+		}
+	}
+
+	public class KsmFormatReadableVolume : KF
+	{
+		public double volume;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, volume);
+			factoryKsmFormatReadableVolume.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double volume)
+		{
+			sb.Append(volume.ToString(volume < 1.0 ? "F2" : "F1"));
+			sb.Append(" m³");
+		}
+	}
+
+	public class KsmFormatReadableSurface : KF
+	{
+		public double surface;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, surface);
+			factoryKsmFormatReadableSurface.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double surface)
+		{
+			sb.Append(surface.ToString(surface < 1.0 ? "F2" : "F1"));
+			sb.Append(" m²");
+		}
+	}
+
+	public class KsmFormatReadableMass : KF
+	{
+		public double mass;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, mass);
+			factoryKsmFormatReadableMass.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double mass)
+		{
+			if (mass <= 0.0)
+			{
+				sb.Append("0 kg");
+			}
+			else if (mass >= 100.0)
+			{
+				sb.Append(mass.ToString("F1"));
+				sb.Append(" t");
+			}
+			else if (mass >= 10.0)
+			{
+				sb.Append(mass.ToString("F2"));
+				sb.Append(" t");
+			}
+			else if (mass >= 1.0)
+			{
+				sb.Append(mass.ToString("F3"));
+				sb.Append(" t");
+			}
+			else if (mass >= 0.001)
+			{
+				sb.Append((mass * 1000.0).ToString("F1"));
+				sb.Append(" kg");
+			}
+			else
+			{
+				sb.Append((mass * 1000.0 * 1000.0).ToString("F0"));
+				sb.Append(" g");
+			}
+		}
+	}
+
+	public class KsmFormatReadableStorage : KF
+	{
+		public double amount;
+		public double capacity;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, amount, capacity);
+			factoryKsmFormatReadableStorage.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double amount, double capacity)
+		{
+			if (capacity >= 1000000.0)
+			{
+				sb.Append((amount / 1000000.0).ToString("F2"));
+				sb.Append(" / ");
+				sb.Append((capacity / 1000000.0).ToString("F2"));
+				sb.Append(" M");
+			}
+			else if (capacity >= 1000.0)
+			{
+				sb.Append((amount / 1000.0).ToString("F2"));
+				sb.Append(" / ");
+				sb.Append((capacity / 1000.0).ToString("F2"));
+				sb.Append(" k");
+			}
+			else
+			{
+				sb.Append(amount.ToString("F1"));
+				sb.Append(" / ");
+				sb.Append(capacity.ToString("F1"));
+			}
+		}
+	}
+
+	public class KsmFormatReadableAmountCompact : KF
+	{
+		public double amount;
+		public string unit;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, amount, unit);
+			factoryKsmFormatReadableAmountCompact.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double amount, string unit = null)
+		{
+			amount = Math.Abs(amount);
+
+			if (amount >= 1000000.0)
+			{
+				sb.Append((amount / 1000000.0).ToString("F2"));
+				sb.Append(" M");
+			}
+			else if (amount >= 1000.0)
+			{
+				sb.Append((amount / 1000.0).ToString("F2"));
+				sb.Append(" k");
+			}
+			else
+			{
+				sb.Append(amount.ToString("F1"));
+			}
+
+			if (unit != null)
+			{
+				sb.Append(unit);
+			}
 		}
 	}
 

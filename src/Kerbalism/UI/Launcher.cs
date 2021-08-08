@@ -56,7 +56,7 @@ namespace KERBALISM
 				{
 					if (!Lib.IsEditor)
 					{
-						KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical);
+						KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
 						new VesselsManager(window);
 					}
 				};

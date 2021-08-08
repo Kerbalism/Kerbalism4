@@ -279,7 +279,7 @@ namespace KERBALISM
 			{
 				if (!vessels.TryGetValue(vd.VesselId, out SubStepVessel vessel))
 				{
-					if (vd.IsSimulated)
+					if (vd.IsSimulated && vd.Vessel != null)
 					{
 						vessel = new SubStepVessel(vd.Vessel);
 						vessels.Add(vd.VesselId, vessel);
@@ -292,7 +292,7 @@ namespace KERBALISM
 				}
 				else
 				{
-					if (!vd.IsSimulated)
+					if (!vd.IsSimulated || vd.Vessel == null)
 					{
 						vessels.Remove(vd.VesselId);
 						subStepVesselIds.Remove(vd.VesselId);

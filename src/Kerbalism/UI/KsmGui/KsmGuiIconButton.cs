@@ -9,13 +9,13 @@ namespace KERBALISM.KsmGui
 	/// <summary>
 	/// a 16x16 icon that can be clicked
 	/// </summary>
-	public class KsmGuiIconButton : KsmGuiIcon, IKsmGuiInteractable, IKsmGuiButton, IKsmGuiIcon
+	public class KsmGuiIconButton : KsmGuiIcon, IKsmGuiInteractable, IKsmGuiButton
 	{
 		public Button ButtonComponent { get; private set; }
 		private UnityAction onClick;
 
-		public KsmGuiIconButton(KsmGuiBase parent, Texture2D texture, UnityAction onClick = null, string tooltipText = null, int width = 16, int height = 16)
-			: base(parent, texture, tooltipText, width, height)
+		public KsmGuiIconButton(KsmGuiBase parent, Texture2D texture, UnityAction onClick = null, int width = 16, int height = 16)
+			: base(parent, texture, iconWidth: width, iconHeight: height)
 		{
 			ButtonComponent = TopObject.AddComponent<Button>();
 			ButtonComponent.targetGraphic = Image;

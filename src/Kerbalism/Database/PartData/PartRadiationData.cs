@@ -492,8 +492,8 @@ namespace KERBALISM
 
 				// Lib.LogDebug($"{PartData.vesselData.VesselName} - {PartData} - vesselEmitters:{vesselEmittersCount} - emitters:{emitterRaycastTasks.Count} - shields:{coilArrays.Count}");
 
-				// clamp to nominal
-				RadiationRate = Math.Max(RadiationRate, Radiation.Nominal);
+				// clamp to positive
+				RadiationRate = Math.Max(RadiationRate, 0.0);
 				radiationRateDbg = RadiationRate;
 
 				// accumulate total radiation received by this part

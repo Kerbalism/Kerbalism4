@@ -25,6 +25,7 @@ namespace KERBALISM.KsmGui
 		{
 			// Add tooltip controller to the tooltip canvas
 			UIMasterController.Instance.tooltipCanvas.gameObject.AddComponent<KsmGuiTooltipController>();
+			UIMasterController.Instance.tooltipCanvas.gameObject.AddComponent<KsmGuiContextMenu>();
 
 			// create our own canvas as a child of the UIMaster object. this allow :
 			// - using an independant scaling factor

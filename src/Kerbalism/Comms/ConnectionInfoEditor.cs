@@ -5,6 +5,8 @@ namespace KERBALISM
 
 	public sealed class ConnectionInfoEditor : IConnectionInfo
 	{
+		public bool HasActiveAntenna => hasActiveAntenna;
+
 		public bool Linked => maxRange >= maxDsnDistance;
 
 		public double Ec => ec;
@@ -31,6 +33,8 @@ namespace KERBALISM
 		// ====================================================================
 		// VALUES TO SET FOR KERBALISM (API usage)
 		// ====================================================================
+
+		public bool hasActiveAntenna = false;
 
 		/// <summary>
 		/// ec cost while transmitting at baseRate

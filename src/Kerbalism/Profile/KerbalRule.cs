@@ -10,6 +10,13 @@ namespace KERBALISM
 {
 	public class KerbalRule
 	{
+		public enum WarningState
+		{
+			none = 0,
+			warning = 1,
+			danger = 2
+		}
+
 		public const string TOPNODENAME = "KERBAL_RULES";
 		private static StringBuilder sb = new StringBuilder();
 
@@ -24,6 +31,8 @@ namespace KERBALISM
 		public double Level { get; private set; } // convenience property
 		public double ChangeRate { get; private set; } = 0.0;
 		public double LevelChangeRate { get; private set; } = 0.0;
+		public WarningState State { get; private set; } = WarningState.none;
+		public double TimeToMaxValue => ChangeRate != 0.0 ? (MaxValue - Value) / ChangeRate : double.PositiveInfinity;
 		public List<string[]> MaxValueInfo { get; private set; } = new List<string[]>();
 
 		public override string ToString() => Definition.name + " " + Level.ToString("P2") + " (" + LevelChangeRate.ToString("P2") + ") : " + Value.ToString("F5") + "/" + MaxValue.ToString("F5");
@@ -116,6 +125,20 @@ namespace KERBALISM
 			MaxValue = GetMaxValue();
 			Level = Value / MaxValue;
 			LevelChangeRate = ChangeRate / MaxValue;
+			State = GetWarningState();
+		}
+
+		private WarningState GetWarningState()
+		{
+			if (kerbalData.RulesEnabled)
+				return WarningState.none;
+
+			if (Level > Definition.dangerThreshold)
+				return WarningState.danger;
+			else if (Level > Definition.warningThreshold)
+				return WarningState.warning;
+
+			return WarningState.none;
 		}
 
 		private double GetMaxValue()
@@ -217,6 +240,7 @@ namespace KERBALISM
 			Value = Lib.Clamp(Value + (ChangeRate * elapsedSec), 0.0, MaxValue);
 			Level = Value / MaxValue;
 			LevelChangeRate = ChangeRate / MaxValue;
+			State = GetWarningState();
 
 			foreach (KerbalRuleEffect effect in effects)
 			{
@@ -831,8 +855,8 @@ namespace KERBALISM
 				if (count > 0)
 				{
 					int index = Lib.RandomInt(count);
-					File removedFile = null;
-					foreach (File file in drive.files.Values)
+					DriveFile removedFile = null;
+					foreach (DriveFile file in drive.files.Values)
 					{
 						if (index-- == 0)
 						{
@@ -986,9 +1010,9 @@ namespace KERBALISM
 						}
 						break;
 					case LostResource.ResourceSelection.ProfileSupply:
-						foreach (Supply supply in Profile.supplies)
+						foreach (SupplyDefinition supply in Profile.supplies)
 						{
-							if (vd.ResHandler.TryGetResource(supply.resource, out VesselKSPResource kspResourceSupply)
+							if (vd.ResHandler.TryGetResource(supply.name, out VesselKSPResource kspResourceSupply)
 								&& kspResourceSupply.Level > 0.0
 								&& (lostResource.allowMassless || (!lostResource.allowMassless && kspResourceSupply.Density > 0f)))
 							{

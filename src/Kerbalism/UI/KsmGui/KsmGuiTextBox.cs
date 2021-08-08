@@ -11,7 +11,7 @@ namespace KERBALISM.KsmGui
 		public KsmGuiTextBox(KsmGuiBase parent, string text, string tooltipText = null, TextAlignmentOptions alignement = TextAlignmentOptions.TopLeft) : base(parent)
 		{
 			SetLayoutElement(true, true);
-			TextObject = new KsmGuiText(this, text, null, alignement);
+			TextObject = new KsmGuiText(this, text, alignement);
 
 			if (tooltipText != null) SetTooltipText(text);
 		}

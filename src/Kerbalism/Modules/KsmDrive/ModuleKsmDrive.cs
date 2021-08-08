@@ -391,7 +391,7 @@ namespace KERBALISM
 			// (looking at you, RasterPropMonitor)
 			if(moduleHandler != null)
 			{
-				foreach (File file in moduleHandler.files.Values)
+				foreach (DriveFile file in moduleHandler.files.Values)
 					data.Add(file.ConvertToStockData());
 
 				foreach (Sample sample in moduleHandler.samples.Values)

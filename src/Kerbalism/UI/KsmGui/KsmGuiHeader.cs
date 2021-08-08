@@ -24,7 +24,7 @@ namespace KERBALISM.KsmGui
 				image.color = backgroundColor;
 
 
-			TextObject = new KsmGuiText(this, title, null, TextAlignmentOptions.Center);
+			TextObject = new KsmGuiText(this, title, TextAlignmentOptions.Center);
 			TextObject.TextComponent.fontStyle = FontStyles.UpperCase;
 			TextObject.SetLayoutElement(true, false, textPreferredWidth, -1, -1, 16);
 		}

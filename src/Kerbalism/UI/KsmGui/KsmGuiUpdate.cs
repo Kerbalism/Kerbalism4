@@ -35,9 +35,9 @@ namespace KERBALISM.KsmGui
 		{
 			if (updateAction != null)
 			{
-				if (updateFrequency <= 0f || lastUpdate + updateFrequency < Time.time)
+				if (updateFrequency <= 0f || lastUpdate + updateFrequency < Time.unscaledTime)
 				{
-					lastUpdate = Time.time;
+					lastUpdate = Time.unscaledTime;
 
 					Profiler.BeginSample(updateAction.Target + "." + updateAction.Method.Name + "()");
 					updateAction();

@@ -46,8 +46,6 @@ namespace KERBALISM
 
 		public virtual PartDataCollectionBase Parts { get; }
 
-		public virtual List<KerbalData> Kerbals { get; }
-
 		public virtual VesselResHandler ResHandler { get; }
 
 		public virtual IConnectionInfo ConnectionInfo { get; }
@@ -135,9 +133,6 @@ namespace KERBALISM
 
 		/// <summary> [environment] true if vessel is inside a radiation belt</summary>
 		public virtual bool EnvOuterBelt { get; }
-
-		/// <summary> [environment] radiation effective for habitats/EVAs</summary>
-		public virtual double EnvRadiationHabitat { get; }
 
 		public bool EnvStorm => EnvStormRadiation > 0.0;
 

@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-	public class KsmGuiButton : KsmGuiHorizontalLayout, IKsmGuiText, IKsmGuiInteractable, IKsmGuiButton, IKsmGuiIcon
+	public class KsmGuiButton : KsmGuiHorizontalLayout, IKsmGuiText, IKsmGuiInteractable, IKsmGuiButton
 	{
 		public Image ImageComponent { get; private set; }
 		public Button ButtonComponent { get; private set; }
@@ -55,7 +55,7 @@ namespace KERBALISM.KsmGui
 
 			SetIconTextureWithLayout(iconTexture, iconWidth, iconHeight);
 
-			TextObject = new KsmGuiText(this, buttonText, null, TextAlignmentOptions.Center);
+			TextObject = new KsmGuiText(this, buttonText, TextAlignmentOptions.Center);
 			TextObject.SetLayoutElement(true);
 			TextObject.TopTransform.SetParentFixScale(TopTransform);
 
@@ -89,12 +89,12 @@ namespace KERBALISM.KsmGui
 		{
 			if (texture != null && IconObject == null)
 			{
-				IconObject = new KsmGuiIcon(this, texture, null, width, width);
+				IconObject = new KsmGuiIcon(this, texture, width, height);
 				IconObject.TopTransform.SetParentFixScale(TopTransform);
 			}
 
 			if (IconObject != null)
-				IconObject.SetIconTextureWithLayout(texture);
+				IconObject.SetIconTexture(texture);
 		}
 
 		public void SetIconColor(Color color)

@@ -5,15 +5,12 @@ using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-	public class KsmGuiIcon : KsmGuiBase, IKsmGuiIcon
+	public class KsmGuiIcon : KsmGuiBase
 	{
 		public RawImage Image { get; private set; }
 		public RectTransform IconTransform { get; private set; }
 
-		/// <summary> force the size of the icon. This will ignore all layout constraints</summary>
-		public void ForceIconSize(float width, float height) => IconTransform.sizeDelta = new Vector2(width, height);
-
-		public KsmGuiIcon(KsmGuiBase parent, Texture2D texture, string tooltipText = null, int width = 16, int height = 16) : base(parent)
+		public KsmGuiIcon(KsmGuiBase parent, Texture2D texture, int iconWidth = -1, int iconHeight = -1) : base(parent)
 		{
 			// we use a child gameobject because KsmGuiIcon can be used as a button (we need it as a child in this case)
 			// we directly set its size trough anchors / sizeDelta instead of using layout components, this way it can be used
@@ -24,30 +21,36 @@ namespace KERBALISM.KsmGui
 			IconTransform = icon.AddComponent<RectTransform>();
 			icon.AddComponent<CanvasRenderer>();
 
-			Image = TopObject.AddComponent<RawImage>();
+			Image = icon.AddComponent<RawImage>();
 
 			// make sure pivot is at the center
 			IconTransform.pivot = new Vector2(0.5f, 0.5f);
 
-			// set anchors to middle-center
-			IconTransform.anchorMin = new Vector2(0.5f, 0.5f);
-			IconTransform.anchorMax = new Vector2(0.5f, 0.5f);
-
 			// anchor-pivot distance
-			IconTransform.anchoredPosition = new Vector2(0f, 0f);
+			IconTransform.anchoredPosition = Vector2.zero;
 
-			SetIconTextureWithLayout(texture, width, height);
+			SetIconSize(iconWidth, iconHeight);
+			SetIconTexture(texture);
 
 			IconTransform.SetParentFixScale(TopTransform);
-
-			if (tooltipText != null) SetTooltipText(tooltipText);
 		}
 
-		public void SetIconTextureWithLayout(Texture2D texture, int width = 16, int height = 16)
+		public void SetIconSize(int width = -1, int height = -1)
 		{
-			SetLayoutElement(false, false, -1, -1, width, height);
-			Image.texture = texture;
-			IconTransform.sizeDelta = new Vector2(width, height);
+			if (width <= 0 || height <= 0)
+			{
+				// set anchors to stretch in parent
+				IconTransform.anchorMin = Vector2.zero;
+				IconTransform.anchorMax = Vector2.one;
+				IconTransform.sizeDelta = Vector2.zero;
+			}
+			else
+			{
+				// set anchors to middle-center
+				IconTransform.anchorMin = new Vector2(0.5f, 0.5f);
+				IconTransform.anchorMax = new Vector2(0.5f, 0.5f);
+				IconTransform.sizeDelta = new Vector2(width, height);
+			}
 		}
 
 		public void SetIconTexture(Texture2D texture)
@@ -60,9 +63,15 @@ namespace KERBALISM.KsmGui
 			Image.color = color;
 		}
 
+		[Obsolete("Use a Kolor instead")]
 		public void SetIconColor(Lib.Kolor kolor)
 		{
 			Image.color = Lib.KolorToColor(kolor);
+		}
+
+		public void SetIconColor(Kolor kolor)
+		{
+			Image.color = kolor.color;
 		}
 	}
 }

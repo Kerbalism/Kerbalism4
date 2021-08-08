@@ -42,13 +42,13 @@ namespace KERBALISM
 
 		private class XmitFile
 		{
-			public File file;
+			public DriveFile file;
 			public double sciencePerMB; // caching this because it's slow to get
 			public DriveHandler drive;
 			public bool isInBuffer;
-			public File realDriveFile; // reference to the "real" file for files in the buffer drive
+			public DriveFile realDriveFile; // reference to the "real" file for files in the buffer drive
 
-			public XmitFile(File file, DriveHandler drive, double sciencePerMB, bool isInBuffer, File realDriveFile = null)
+			public XmitFile(DriveFile file, DriveHandler drive, double sciencePerMB, bool isInBuffer, DriveFile realDriveFile = null)
 			{
 				this.file = file;
 				this.drive = drive;
@@ -98,7 +98,7 @@ namespace KERBALISM
 			{
 				// reset all files transmit rate
 				foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
-					foreach (File f in drive.files.Values)
+					foreach (DriveFile f in drive.files.Values)
 						f.transmitRate = 0.0;
 
 				// set transmit capacity to 0 and make sure there is nothing in it.
@@ -204,7 +204,7 @@ namespace KERBALISM
 
 			foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
 			{
-				foreach (File f in drive.files.Values)
+				foreach (DriveFile f in drive.files.Values)
 				{
 					// always reset transmit rate
 					f.transmitRate = 0.0;
@@ -212,7 +212,7 @@ namespace KERBALISM
 					// delete empty files that aren't being transmitted
 					if (f.size <= 0.0)
 					{
-						if (vd.TransmitBuffer.files.TryGetValue(f.subjectData, out File bufferFile))
+						if (vd.TransmitBuffer.files.TryGetValue(f.subjectData, out DriveFile bufferFile))
 						{
 							if (bufferFile.size <= 0.0)
 							{
@@ -249,7 +249,7 @@ namespace KERBALISM
 			UnityEngine.Profiling.Profiler.EndSample();
 
 			// add all buffer files to the beginning of the XmitFile list
-			foreach (File f in vd.TransmitBuffer.files.Values)
+			foreach (DriveFile f in vd.TransmitBuffer.files.Values)
 			{
 				// don't transmit empty files
 				if (f.size <= 0.0)

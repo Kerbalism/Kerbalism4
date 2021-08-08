@@ -21,11 +21,13 @@ namespace KERBALISM
 			{
 				baseRate = 0.0;
 				connection.powered = false;
+				connection.hasActiveAntenna = false;
 			}
 			else
 			{
 				baseRate = Settings.DataRateSurfaceExperiment;
 				connection.powered = cluster.IsPowered;
+				connection.hasActiveAntenna = cluster.AntennaParts.Count > 0;
 			}
 		}
 	}

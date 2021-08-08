@@ -291,8 +291,7 @@ namespace KERBALISM
 			if (definition.canPressurize && definition.reclaimStorageFactor > 0.0)
 			{
 				double capacity = volumeLiters * definition.reclaimStorageFactor;
-				double amount = Math.Max(0.0, capacity - (volumeLiters * definition.reclaimFactor));
-				partData.resources.AddResource(definition.reclaimResource, amount, capacity);
+				partData.resources.AddResource(definition.reclaimResource, capacity, capacity);
 			}
 
 			if (Lib.IsEditor)

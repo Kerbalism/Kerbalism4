@@ -74,7 +74,7 @@ namespace KERBALISM
 
 				foreach (var drive in vd.Parts.AllModulesOfType<DriveHandler>())
 				{
-					foreach (File file in drive.files.Values)
+					foreach (DriveFile file in drive.files.Values)
 					{
 						Render_file(vd, p, drive.partData.flightId, file, drive, short_strings && Lib.IsFlight, v);
 					}
@@ -101,7 +101,7 @@ namespace KERBALISM
 			}
 		}
 
-		static void Render_file(VesselData vd, Panel p, uint partId, File file, DriveHandler drive, bool short_strings, Vessel v)
+		static void Render_file(VesselData vd, Panel p, uint partId, DriveFile file, DriveHandler drive, bool short_strings, Vessel v)
 		{
 			// render experiment name
 			string exp_label = Lib.BuildString

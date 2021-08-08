@@ -24,7 +24,7 @@ namespace KERBALISM.Planner
 
 			// resource panels
 			// - add all resources defined in the Profiles Supply configs except EC
-			Profile.supplies.FindAll(k => k.resource != "ElectricCharge").ForEach(k => supplies.Add(k.resource));
+			Profile.supplies.FindAll(k => k.name != "ElectricCharge").ForEach(k => supplies.Add(k.name));
 
 			// special panels
 			// - stress & radiation panels require that a rule using the living_space/radiation modifier exist (current limitation)

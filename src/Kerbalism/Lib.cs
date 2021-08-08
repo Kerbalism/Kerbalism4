@@ -13,6 +13,9 @@ using System.Collections;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using HarmonyLib;
+using KSP.Localization;
+using Debug = UnityEngine.Debug;
 
 namespace KERBALISM
 {
@@ -2211,6 +2214,189 @@ namespace KERBALISM
 			return pv.vesselID;
 		}
 
+		public static void TerminateVesselPopup(Vessel v)
+		{
+			if (v.DiscoveryInfo.Level != DiscoveryLevels.Owned)
+			{
+				PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+					new MultiOptionDialog("StopTrackingObject", Localizer.Format("#autoLOC_481619"), Localizer.Format("#autoLOC_5050047"), HighLogic.UISkin,
+						new DialogGUIButton(Localizer.Format("#autoLOC_481620"), () => TerminateVessel(v)),
+						new DialogGUIButton(Localizer.Format("#autoLOC_481621"), null, true)),
+					persistAcrossScenes: false, HighLogic.UISkin);
+			}
+			else
+			{
+				PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+					new MultiOptionDialog("TerminateMission", Localizer.Format("#autoLOC_481625"), Localizer.Format("#autoLOC_5050048"), HighLogic.UISkin,
+						new DialogGUIButton(Localizer.Format("#autoLOC_481626"), () => TerminateVessel(v)),
+						new DialogGUIButton(Localizer.Format("#autoLOC_481627"), null, true)),
+					persistAcrossScenes: false, HighLogic.UISkin);
+			}
+		}
+
+		public static bool TerminateVessel(Vessel v)
+		{
+			if (v.loaded)
+				return false;
+
+			if (v.DiscoveryInfo.Level != DiscoveryLevels.Owned)
+			{
+				if (SpaceTracking.Instance != null)
+				{
+					MethodInfo buildVesselsListInfo;
+
+					try
+					{
+						buildVesselsListInfo = AccessTools.Method(typeof(SpaceTracking), "buildVesselsList");
+					}
+					catch (Exception e)
+					{
+						Log($"Error terminating vessel from tracking station {e}");
+						return false;
+					}
+
+					Debug.Log("Stopped Tracking " + v.GetDisplayName() + ".");
+					SpaceTracking.StopTrackingObject(v);
+					SpaceTracking.Instance.SetVessel(null, false);
+					buildVesselsListInfo.Invoke(SpaceTracking.Instance, null);
+				}
+				else
+				{
+					Debug.Log("Stopped Tracking " + v.GetDisplayName() + ".");
+					SpaceTracking.StopTrackingObject(v);
+				}
+
+			}
+			else
+			{
+				if (SpaceTracking.Instance != null)
+				{
+					Dictionary<Vessel, MapObject> scaledTargets;
+					MethodInfo buildVesselsListInfo;
+
+					try
+					{
+						FieldInfo scaledTargetsInfo = AccessTools.Field(typeof(SpaceTracking), "scaledTargets");
+						scaledTargets = (Dictionary<Vessel, MapObject>)scaledTargetsInfo.GetValue(SpaceTracking.Instance);
+						buildVesselsListInfo = AccessTools.Method(typeof(SpaceTracking), "buildVesselsList");
+					}
+					catch (Exception e)
+					{
+						Log($"Error terminating vessel from tracking station {e}");
+						return false;
+					}
+
+					GameEvents.onVesselTerminated.Fire(v.protoVessel);
+					SpaceTracking.Instance.SetVessel(null, false);
+					UnityEngine.Object.Destroy(scaledTargets[v].gameObject);
+					scaledTargets.Remove(v);
+					List<ProtoCrewMember> vesselCrew = v.GetVesselCrew();
+					for (int i = 0; i < vesselCrew.Count; i++)
+					{
+						ProtoCrewMember protoCrewMember = vesselCrew[i];
+						Debug.Log("Crewmember " + protoCrewMember.name + " is lost.");
+						protoCrewMember.StartRespawnPeriod();
+					}
+					UnityEngine.Object.DestroyImmediate(v.gameObject);
+					buildVesselsListInfo.Invoke(SpaceTracking.Instance, null);
+				}
+				else
+				{
+					GameEvents.onVesselTerminated.Fire(v.protoVessel);
+					List<ProtoCrewMember> vesselCrew = v.GetVesselCrew();
+					int count = vesselCrew.Count;
+					for (int i = 0; i < count; i++)
+					{
+						ProtoCrewMember protoCrewMember = vesselCrew[i];
+						UnityEngine.Debug.Log("Crewmember " + protoCrewMember.name + " is lost.");
+						protoCrewMember.StartRespawnPeriod();
+					}
+					UnityEngine.Object.DestroyImmediate(v.gameObject);
+				}
+
+				GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
+			}
+
+			return true;
+		}
+
+		public static void RecoverVesselPopup(Vessel v)
+		{
+			PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+				new MultiOptionDialog("Recover Vessel", Localizer.Format("#autoLOC_481635"), Localizer.Format("#autoLOC_5050049"), HighLogic.UISkin,
+					new DialogGUIButton(Localizer.Format("#autoLOC_481636"), () => RecoverVessel(v)),
+					new DialogGUIButton(Localizer.Format("#autoLOC_481637"), null, true)),
+				persistAcrossScenes: false, HighLogic.UISkin);
+		}
+
+		public static bool CanRecoverVessel(Vessel v)
+		{
+			if (!v.IsRecoverable)
+				return false;
+
+			if (v.loaded && FlightGlobals.ClearToSave() == ClearToSaveStatus.NOT_WHILE_ON_A_LADDER)
+				return false;
+
+			return true;
+		}
+
+		public static bool RecoverVessel(Vessel v)
+		{
+			if (!v.IsRecoverable)
+				return false;
+
+			if (v.loaded)
+			{
+				ClearToSaveStatus clearToSaveStatus = FlightGlobals.ClearToSave();
+				if (clearToSaveStatus == ClearToSaveStatus.CLEAR && HighLogic.CurrentGame.Parameters.Flight.CanLeaveToSpaceCenter)
+				{
+					GameEvents.OnVesselRecoveryRequested.Fire(v);
+				}
+				else if (clearToSaveStatus == ClearToSaveStatus.NOT_WHILE_ON_A_LADDER)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (HighLogic.LoadedScene == GameScenes.TRACKSTATION && SpaceTracking.Instance != null)
+				{
+					Dictionary<Vessel, MapObject> scaledTargets;
+					MethodInfo buildVesselsListInfo;
+
+					try
+					{
+						FieldInfo scaledTargetsInfo = AccessTools.Field(typeof(SpaceTracking), "scaledTargets");
+						scaledTargets = (Dictionary<Vessel, MapObject>)scaledTargetsInfo.GetValue(SpaceTracking.Instance);
+						buildVesselsListInfo = AccessTools.Method(typeof(SpaceTracking), "buildVesselsList");
+
+					}
+					catch (Exception e)
+					{
+						Log($"Error recovering vessel from tracking station {e}");
+						return false;
+					}
+
+					SpaceTracking.Instance.SetVessel(null, false);
+					GameEvents.onVesselRecovered.Fire(v.protoVessel, data1: false);
+					UnityEngine.Object.Destroy(scaledTargets[v].gameObject);
+					scaledTargets.Remove(v);
+					UnityEngine.Object.DestroyImmediate(v.gameObject);
+					buildVesselsListInfo.Invoke(SpaceTracking.Instance, null);
+				}
+				else
+				{
+					GameEvents.onVesselRecovered.Fire(v.protoVessel, data1: false);
+					UnityEngine.Object.DestroyImmediate(v.gameObject);
+				}
+
+				GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
+				return true;
+			}
+
+			return false;
+		}
+
 		#endregion
 
 		#region PART
@@ -3006,7 +3192,7 @@ namespace KERBALISM
 					{
 						SubjectData filename = null;
 						int i = Lib.RandomInt(drive.files.Count);
-						foreach (File file in drive.files.Values)
+						foreach (DriveFile file in drive.files.Values)
 						{
 							if (i-- == 0)
 							{
@@ -3191,6 +3377,7 @@ namespace KERBALISM
 		#endregion
 
 		#region CONFIG
+
 		///<summary>get a config node from the config system</summary>
 		public static ConfigNode ParseConfig(string path)
 		{
@@ -3219,6 +3406,17 @@ namespace KERBALISM
 			{
 				return (T)value;
 			}
+			return def_value;
+		}
+
+		public static KERBALISM.Kolor ConfigKolor(ConfigNode cfg, string key, KERBALISM.Kolor def_value)
+		{
+			string val = cfg.GetValue(key);
+			if (!string.IsNullOrEmpty(val) && Serialization.GetParser<KERBALISM.Kolor>().Deserialize(val, out KERBALISM.Kolor kolor))
+			{
+				return kolor;
+			}
+
 			return def_value;
 		}
 

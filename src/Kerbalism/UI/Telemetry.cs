@@ -139,73 +139,7 @@ namespace KERBALISM
 
 		static void Render_supplies(Panel p, Vessel v, VesselData vd)
 		{
-			int supplies = 0;
-			StringBuilder sb = new StringBuilder();
-			// for each supply
-			foreach (Supply supply in Profile.supplies)
-			{
-				// get resource info
-				VesselResource res = vd.ResHandler.GetResource(supply.resource);
 
-				// only show estimate if the resource is present
-				if (res.Capacity <= 1e-10) continue;
-
-				// render panel title, if not done already
-				if (supplies == 0) p.AddSection(Local.TELEMETRY_SUPPLIES);//"SUPPLIES"
-
-				sb.Length = 0;
-
-				switch (supply.warningUIMode)
-				{
-					case Supply.WarningMode.Disabled:
-						sb.Append(Lib.HumanReadableStorage(res.Amount, res.Capacity));
-						sb.Append(" (");
-						sb.Append(res.Level.ToString("P1"));
-						sb.Append(")");
-						break;
-					case Supply.WarningMode.OnFull:
-						if (res.Level < supply.levelThreshold)
-							sb.Append(Lib.Color(res.Level.ToString("P2"), Lib.Kolor.Green));
-						else
-							sb.Append(Lib.Color(res.Level.ToString("P2"), Lib.Kolor.Orange));
-						break;
-					case Supply.WarningMode.OnEmpty:
-						if (res.AvailabilityFactor > 0.0 && res.AvailabilityFactor < 1.0)
-						{
-							sb.Append(Lib.Color(Local.Monitor_depleted, Lib.Kolor.Orange));
-							sb.Append(" - ");
-							sb.Append("satisfaction");
-							sb.Append(" ");
-							sb.Append(Lib.Color(res.AvailabilityFactor.ToString("P1"), Lib.Kolor.Orange));
-						}
-						else
-						{
-							double depletion = res.Depletion;
-							if (depletion > Lib.SecondsInYearExact * 100.0) // more than 100 years = perpetual
-							{
-								sb.Append(Lib.Color(Local.Generic_PERPETUAL, Lib.Kolor.Green));
-							}
-							else if (depletion == 0.0)
-							{
-								sb.Append(Lib.Color(Local.Monitor_depleted, Lib.Kolor.Orange));
-							}
-							else
-							{
-								sb.Append("depletion in");
-								sb.Append(" ");
-								if (res.Level < supply.levelThreshold)
-									sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Orange));
-								else
-									sb.Append(Lib.Color(Lib.HumanReadableDuration(depletion), Lib.Kolor.Green));
-							}
-						}
-						break;
-				}
-
-				// finally, render resource supply
-				p.AddContent(res.Title, sb.ToString(), res.BrokersListTooltip());
-				++supplies;
-			}
 		}
 
 

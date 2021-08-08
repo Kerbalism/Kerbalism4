@@ -52,7 +52,7 @@ namespace KERBALISM.KsmGui
 			Destroy();
 		}
 
-		public void AddButton(string label, Action callback)
+		public KsmGuiTextButton AddButton(string label, Action callback)
 		{
 			void CloseCallback()
 			{
@@ -60,7 +60,7 @@ namespace KERBALISM.KsmGui
 				Destroy();
 			}
 
-			KsmGuiTextButton button = new KsmGuiTextButton(contentParent, label, CloseCallback);
+			return new KsmGuiTextButton(contentParent, label, CloseCallback);
 		}
 	}
 }

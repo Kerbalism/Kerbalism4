@@ -29,7 +29,6 @@
 
 		public void Load(ConfigNode node)
 		{
-			handlerIsEnabled = Lib.ConfigValue(node, "moduleIsEnabled", true);
 			definitionId = Lib.ConfigValue(node, VALUENAME_DEFINITION_ID, string.Empty);
 
 			OnLoad(node);
@@ -37,8 +36,6 @@
 
 		public void Save(ConfigNode node)
 		{
-			node.AddValue("moduleIsEnabled", handlerIsEnabled);
-
 			if (Definition == null)
 			{
 				// Definition will be null until the module has been started.

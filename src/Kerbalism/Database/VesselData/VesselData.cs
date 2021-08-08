@@ -117,7 +117,7 @@ namespace KERBALISM
         /// List of files being transmitted, or empty if nothing is being transmitted <br/>
         /// Note that the transmit rates stored in the File objects can be unreliable, do not use it apart from UI purposes
         /// </summary>
-        public List<File> filesTransmitted;
+        public List<DriveFile> filesTransmitted;
 
 		private VesselLogic.VesselRadiation vesselRadiation = new VesselLogic.VesselRadiation();
 
@@ -139,10 +139,11 @@ namespace KERBALISM
 		public Computer computer;     // store scripts
 
 		// other persisted fields
+		public bool IsUIPinned { get; set; }
+
 		public bool msg_signal;       // message flag: link status
         public bool msg_belt;         // message flag: crossing radiation belt
         public StormData stormData;   // store state of current/next solar storm
-        public Dictionary<string, Supply.SupplyState> supplies; // supplies state data
         public double scienceTransmitted; // how much science points has this vessel earned trough transmission
 		
 
@@ -539,7 +540,7 @@ namespace KERBALISM
 		private void SetInstantiateDefaults(ProtoVessel protoVessel)
 		{
 			simVessel = new SimVessel();
-			filesTransmitted = new List<File>();
+			filesTransmitted = new List<DriveFile>();
 			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
 			CommHandler = CommHandler.GetHandler(this, isSerenityGroundController);
@@ -571,6 +572,8 @@ namespace KERBALISM
 		{
 			isPersisted = node != null;
 
+			IsUIPinned = Lib.ConfigValue(node, nameof(IsUIPinned), false);
+
 			msg_signal = Lib.ConfigValue(node, "msg_signal", false);
 			msg_belt = Lib.ConfigValue(node, "msg_belt", false);
 			cfg_ec = Lib.ConfigValue(node, "cfg_ec", PreferencesMessages.Instance.ec);
@@ -597,6 +600,8 @@ namespace KERBALISM
 
 		protected override void OnSave(ConfigNode node)
 		{
+			node.AddValue(nameof(IsUIPinned), IsUIPinned);
+
 			node.AddValue("msg_signal", msg_signal);
 			node.AddValue("msg_belt", msg_belt);
 			node.AddValue("cfg_ec", cfg_ec);
@@ -768,7 +773,7 @@ namespace KERBALISM
 				EnvironmentUpdate(secSinceLastEval);
 				StateUpdate();
 
-				if (LoadedOrEditor && Parts[0].LoadedPart == null)
+				if (LoadedOrEditor && Parts.Count > 0 && Parts[0].LoadedPart == null)
 					Lib.LogDebug($"Skipping loaded vessel ModuleDataUpdate (part references not set yet) on {VesselName}");
 				else
 					ModuleDataUpdate();

@@ -8,6 +8,8 @@ namespace KERBALISM
 {
 	public interface IConnectionInfo
 	{
+		bool HasActiveAntenna { get; }
+
 		bool Linked { get; }
 
 		double Ec { get; }

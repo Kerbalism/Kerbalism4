@@ -103,7 +103,7 @@ namespace KERBALISM
 
 			foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
 			{
-				foreach (File file in drive.files.Values)
+				foreach (DriveFile file in drive.files.Values)
 				{
 					double subjectValue = file.subjectData.ScienceValue(file.size);
 					file.subjectData.RemoveScienceCollectedInFlight(subjectValue);

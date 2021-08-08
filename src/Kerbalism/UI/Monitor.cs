@@ -549,79 +549,12 @@ namespace KERBALISM
 
 		void Indicator_ec(Panel p, Vessel v, VesselData vd)
 		{
-			if (v.vesselType == VesselType.DeployedScienceController)
-				return;
 
-			VesselKSPResource ec = vd.ResHandler.ElectricCharge;
-			Supply supply = Profile.supplies.Find(k => k.resource == "ElectricCharge");
-			double low_threshold = supply != null ? supply.levelThreshold : 0.15;
-
-			string tooltip = Lib.BuildString
-			(
-			  "<align=left /><b>", Local.Monitor_name, "\t", Local.Monitor_level, "\t" + Local.Monitor_duration, "</b>\n",//name"level"duration
-			  Lib.Color(Lib.BuildString("EC\t", Lib.HumanReadablePerc(ec.Level), "\t", ec.DepletionInfo),
-			  ec.Level <= 0.005 ? Lib.Kolor.Red : ec.Level <= low_threshold ? Lib.Kolor.Orange : Lib.Kolor.None)
-			);
-
-			Texture2D image = ec.Level <= 0.005
-			  ? Textures.battery_red
-			  : ec.Level <= low_threshold
-			  ? Textures.battery_yellow
-			  : Textures.battery_white;
-
-			p.AddRightIcon(image, tooltip, () => { page = MonitorPage.telemetry; });
 		}
 
 		void Indicator_supplies(Panel p, Vessel v, VesselData vd)
 		{
-			List<string> tooltips = new List<string>();
-			uint max_severity = 0;
-			if (vd.CrewCount > 0)
-			{
-				foreach (Supply supply in Profile.supplies)
-				{
-					if (supply.resource == "ElectricCharge")
-						continue;
 
-					VesselResource res = vd.ResHandler.GetResource(supply.resource);
-
-					if (res.Capacity > double.Epsilon)
-					{
-						if (tooltips.Count == 0)
-							tooltips.Add(String.Format("<align=left /><b>{0,-18}\t" + Local.Monitor_level + "\t" + Local.Monitor_duration + "</b>", Local.Monitor_name));//level"duration"name"
-
-						uint severity = 0u;
-						switch (supply.warningUIMode)
-						{
-							case Supply.WarningMode.Disabled:
-								tooltips.Add(String.Format("{0,-18}\t{1}", Lib.Ellipsis(res.Title, 15u), res.Level.ToString("P1")));
-								break;
-							case Supply.WarningMode.OnEmpty:
-								tooltips.Add(Lib.Color(
-									String.Format("{0,-18}\t{1}\t{2}", Lib.Ellipsis(res.Title, 15u), res.Level.ToString("P1"), res.DepletionInfo),//"depleted"
-									res.Level <= 0.005 ? Lib.Kolor.Red : res.Level <= supply.levelThreshold ? Lib.Kolor.Orange : Lib.Kolor.None));
-								severity = res.Level <= 0.005 ? 2u : res.Level <= supply.levelThreshold ? 1u : 0;
-								break;
-							case Supply.WarningMode.OnFull:
-								tooltips.Add(Lib.Color(
-									String.Format("{0,-18}\t{1}\t{2}", Lib.Ellipsis(res.Title, 15u), res.Level.ToString("P1"), "n/a"),
-									res.Level > 0.995 ? Lib.Kolor.Red : res.Level > supply.levelThreshold ? Lib.Kolor.Orange : Lib.Kolor.None));
-								severity = res.Level > 0.995 ? 2u : res.Level > supply.levelThreshold ? 1u : 0;
-								break;
-						}
-
-						max_severity = Math.Max(max_severity, severity);
-					}
-				}
-			}
-
-			Texture2D image = max_severity == 2
-			  ? Textures.box_red
-			  : max_severity == 1
-			  ? Textures.box_yellow
-			  : Textures.box_white;
-
-			p.AddRightIcon(image, string.Join("\n", tooltips.ToArray()), () => { page = MonitorPage.telemetry; });
 		}
 
 		void Indicator_reliability(Panel p, Vessel v, VesselData vd)
