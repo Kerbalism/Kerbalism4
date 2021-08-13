@@ -12,12 +12,11 @@
     <KSPDevPath>C:\MY\PATH\TO\KSP</KSPDevPath>
 
     <!-- REQUIRED : KSP version compilation constant, must match the version you are using for development -->
-    <!-- See GameData\Kerbalism\VersionConfig.xml for valid values, currently we have '15_16' and '17' and '18' -->
-    <KSPDevVersion>18</KSPDevVersion>
+    <!-- See GameData\Kerbalism\VersionConfig.xml for valid values -->
+    <KSPDevVersion>120</KSPDevVersion>
     
     <!-- REQUIRED : must match the version you are using for developmement -->
-    <!-- use "v3.5" for KSP version before 1.8 and "v4.0" for KSP 1.8 and latter versions -->
-    <FrameworkVersionOverride>v4.0</FrameworkVersionOverride>
+    <FrameworkVersionOverride>v4.7.2</FrameworkVersionOverride>
     
     <!-- REQUIRED : set the DebugType for the debug configuration. Possible values : -->
     <!-- "none" : don't generate any debug symbols-->
