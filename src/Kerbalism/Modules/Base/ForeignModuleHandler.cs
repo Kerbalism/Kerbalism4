@@ -20,7 +20,7 @@ namespace KERBALISM
 		public override void SetModuleReferences(PartModule prefabModule, PartModule loadedModule)
 		{
 			this.prefabModule = prefabModule;
-			if (ReferenceEquals(loadedModule, null)) // bypass unity null equality overload
+			if (!ReferenceEquals(loadedModule, null)) // bypass unity null equality overload
 			{
 				this.loadedModule = loadedModule;
 			}

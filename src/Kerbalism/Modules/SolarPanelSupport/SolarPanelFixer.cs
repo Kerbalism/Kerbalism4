@@ -1,3 +1,6 @@
+// TODO: DEPRECIATED : (very) partially re-implemented (only stock module support) as a ModuleHandler
+// Keeping it as a reference until everything is re-implemented
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,7 +15,6 @@ using EdyCommonTools;
 
 namespace KERBALISM
 {
-	// TODO : SolarPanelFixer missing features :
 	// - SSTU automation / better reliability support
 
 	// This module is used to disable stock and other plugins solar panel EC output and provide specific support

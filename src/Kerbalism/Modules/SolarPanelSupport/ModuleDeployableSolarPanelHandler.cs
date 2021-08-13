@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using HarmonyLib;
 using UnityEngine;
 
@@ -10,10 +7,12 @@ namespace KERBALISM
 {
 	public class ModuleDeployableSolarPanelHandler : SolarPanelHandlerBase
 	{
-		private static readonly string[] moduleNames;
-
+		private static string[] moduleNames;
+		
 		static ModuleDeployableSolarPanelHandler()
 		{
+			// TODO : nope, this can't be done here, as other mod assemblies might not be loaded yet when the static constructor is called
+			// move it to ModuleManagerPostLoad
 			List<string> moduleTypes = new List<string>();
 			moduleTypes.Add(nameof(ModuleDeployableSolarPanel));
 			foreach (Type type in AssemblyLoader.GetSubclassesOfParentClass(typeof(ModuleDeployableSolarPanel)))
@@ -27,14 +26,41 @@ namespace KERBALISM
 		public override string[] ModuleTypeNames => moduleNames;
 
 		private ModuleDeployableSolarPanel loadedPanel;
+		private RaycastHit raycastHit;
+		private PersistentTransform sunCatcherPosition;   // middle point of the panel surface (usually). Use only position, panel surface direction depend on the pivot transform, even for static panels.
+		private PersistentTransform sunCatcherPivot;      // If it's a tracking panel, "up" is the pivot axis and "position" is the pivot position. In any case "forward" is the panel surface normal.
 
-		private Transform sunCatcherPosition;   // middle point of the panel surface (usually). Use only position, panel surface direction depend on the pivot transform, even for static panels.
-		private Transform sunCatcherPivot;      // If it's a tracking panel, "up" is the pivot axis and "position" is the pivot position. In any case "forward" is the panel surface normal.
+		private enum PanelType
+		{
+			FlatTracking,
+			FlatNonTracking,
+			CylindricalPivot,
+			CylindricalPartX,
+			CylindricalPartY,
+			CylindricalPartZ,
+			Spherical
+		}
+
+		private PanelType panelType;
+
+		public override void Load(ConfigNode node)
+		{
+			base.Load(node);
+			panelType = Lib.ConfigEnum(node, nameof(panelType), PanelType.FlatNonTracking);
+			sunCatcherPosition = new PersistentTransform(node.GetNode(nameof(sunCatcherPosition)));
+			sunCatcherPivot = new PersistentTransform(node.GetNode(nameof(sunCatcherPivot)));
+		}
+
+		public override void Save(ConfigNode node)
+		{
+			base.Save(node);
+			node.AddValue(nameof(panelType), panelType);
+			sunCatcherPosition?.Save(node.AddNode(nameof(sunCatcherPosition)), VesselData);
+			sunCatcherPivot?.Save(node.AddNode(nameof(sunCatcherPivot)), VesselData);
+		}
 
 		public override void OnStart()
 		{
-			base.OnStart();
-
 			if (IsLoaded)
 			{
 				loadedPanel = (ModuleDeployableSolarPanel)loadedModule;
@@ -43,17 +69,25 @@ namespace KERBALISM
 				loadedPanel.Fields["sunAOA"].guiActive = false;
 				loadedPanel.Fields["flowRate"].guiActive = false;
 				loadedPanel.Fields["status"].guiActive = false;
+				loadedPanel.Fields["status"].guiActiveEditor = false;
+				loadedPanel.showStatus = false;
 
 				GetModuleTransformsAndRate();
 			}
+			else
+			{
+				PersistentTransform.Init(ref sunCatcherPivot, this);
+				PersistentTransform.Init(ref sunCatcherPosition, this);
+			}
+
+			base.OnStart();
 		}
 
 		private void GetModuleTransformsAndRate()
 		{
-			if (sunCatcherPivot == null)
-				sunCatcherPivot = loadedPanel.part.FindModelComponent<Transform>(loadedPanel.pivotName);
-			if (sunCatcherPosition == null)
-				sunCatcherPosition = loadedPanel.part.FindModelTransform(loadedPanel.secondaryTransformName);
+			nominalRate = loadedPanel.resHandler.outputResources[0].rate;
+
+			PersistentTransform.Init(ref sunCatcherPosition, this, loadedPanel.part.FindModelTransform(loadedPanel.secondaryTransformName));
 
 			if (sunCatcherPosition == null)
 			{
@@ -62,69 +96,90 @@ namespace KERBALISM
 				return;
 			}
 
-			// avoid rate lost due to OnStart being called multiple times in the editor
-			if (loadedPanel.resHandler.outputResources[0].rate == 0.0)
-				return;
-
-			// reset target module rate
-			// - This can break mods that evaluate solar panel output for a reason or another (eg: AmpYear, BonVoyage).
-			//   We fix that by exploiting the fact that resHandler was introduced in KSP recently, and most of
-			//   these mods weren't updated to reflect the changes or are not aware of them, and are still reading
-			//   chargeRate. However the stock solar panel ignore chargeRate value during FixedUpdate.
-			//   So we only reset resHandler rate.
-			nominalRate = loadedPanel.resHandler.outputResources[0].rate;
-			loadedPanel.resHandler.outputResources[0].rate = 0.0;
-		}
-
-		protected override double GetOccludedFactor(Vector3d sunDir, out string occludingPart, bool analytic = false)
-		{
-			double occludingFactor = 1.0;
-			occludingPart = null;
-			RaycastHit raycastHit;
-			if (analytic)
-			{
-				if (sunCatcherPosition == null)
-					sunCatcherPosition = loadedPanel.part.FindModelTransform(loadedPanel.secondaryTransformName);
-
-				Physics.Raycast(sunCatcherPosition.position + (sunDir * loadedPanel.raycastOffset), sunDir, out raycastHit, 10000f);
-			}
-			else
-			{
-				raycastHit = loadedPanel.hit;
-			}
-
-			if (raycastHit.collider != null)
-			{
-				Part blockingPart = Part.GetComponentUpwards<Part>(raycastHit.collider.gameObject);
-				if (blockingPart != null)
-				{
-					// avoid panels from occluding themselves
-					if (blockingPart == loadedPanel.part)
-						return occludingFactor;
-
-					occludingPart = blockingPart.partInfo.title;
-				}
-				occludingFactor = 0.0;
-			}
-			return occludingFactor;
-		}
-
-		protected override double GetCosineFactor(Vector3d sunDir, bool analytic = false)
-		{
 			switch (loadedPanel.panelType)
 			{
 				case ModuleDeployableSolarPanel.PanelType.FLAT:
-					if (!analytic)
-						return Math.Max(Vector3d.Dot(sunDir, loadedPanel.trackingDotTransform.forward), 0.0);
-
-					if (loadedPanel.isTracking)
-						return Math.Cos(1.57079632679 - Math.Acos(Vector3d.Dot(sunDir, sunCatcherPivot.up)));
-					else
-						return Math.Max(Vector3d.Dot(sunDir, sunCatcherPivot.forward), 0.0);
-
+					panelType = loadedPanel.isTracking ? PanelType.FlatTracking : PanelType.FlatNonTracking;
+					break;
 				case ModuleDeployableSolarPanel.PanelType.CYLINDRICAL:
-					return Math.Max((1.0 - Math.Abs(Vector3d.Dot(sunDir, loadedPanel.trackingDotTransform.forward))) * (1.0 / Math.PI), 0.0);
+					switch (loadedPanel.alignType)
+					{
+						case ModuleDeployablePart.PanelAlignType.PIVOT:
+							panelType = PanelType.CylindricalPivot;
+							break;
+						case ModuleDeployablePart.PanelAlignType.X:
+							panelType = PanelType.CylindricalPartX;
+							break;
+						case ModuleDeployablePart.PanelAlignType.Y:
+							panelType = PanelType.CylindricalPartY;
+							break;
+						case ModuleDeployablePart.PanelAlignType.Z:
+							panelType = PanelType.CylindricalPartZ;
+							break;
+					}
+					break;
 				case ModuleDeployableSolarPanel.PanelType.SPHERICAL:
+					panelType = PanelType.Spherical;
+					break;
+			}
+
+			if (panelType == PanelType.CylindricalPartX || panelType == PanelType.CylindricalPartY || panelType == PanelType.CylindricalPartZ)
+			{
+				PersistentTransform.Init(ref sunCatcherPivot, this, loadedPanel.part.transform);
+			}
+			else
+			{
+				PersistentTransform.Init(ref sunCatcherPivot, this, loadedPanel.part.FindModelComponent<Transform>(loadedPanel.pivotName));
+			}
+		}
+
+		protected override double GetOccludedFactor(Vector3d sunDir, out string occludingObjectTitle, out bool occluderIsPart)
+		{
+			occludingObjectTitle = null;
+			occluderIsPart = false;
+
+			if (!Physics.Raycast(sunCatcherPosition.Position + (sunDir * loadedPanel.raycastOffset), sunDir, out raycastHit, 10000f, raycastMask))
+				return 1.0;
+
+			Part hittedPart = FlightGlobals.GetPartUpwardsCached(raycastHit.transform.gameObject);
+
+			if (hittedPart != null)
+			{
+				// avoid panels from occluding themselves
+				if (hittedPart == loadedPanel.part)
+					return 1.0;
+
+				occludingObjectTitle = hittedPart.partInfo.title;
+				occluderIsPart = true;
+			}
+			else
+			{
+				occludingObjectTitle = raycastHit.transform.gameObject.name;
+			}
+
+			return 0.0;
+		}
+
+		protected override double GetCosineFactor(Vector3d sunDir)
+		{
+			switch (panelType)
+			{
+				case PanelType.FlatTracking:
+					if (!IsLoaded || isAnalytic)
+						return Math.Cos((Math.PI * 0.5) - Math.Acos(Vector3d.Dot(sunDir, sunCatcherPivot.Up)));
+					else
+						return Math.Max(Vector3d.Dot(sunDir, sunCatcherPivot.Forward), 0.0);
+				case PanelType.FlatNonTracking:
+					return Math.Max(Vector3d.Dot(sunDir, sunCatcherPivot.Forward), 0.0);
+				case PanelType.CylindricalPivot:
+					return Math.Max((1.0 - Math.Abs(Vector3d.Dot(sunDir, sunCatcherPivot.Forward))) * (1.0 / Math.PI), 0.0);
+				case PanelType.CylindricalPartX:
+					return Math.Max((1.0 - Math.Abs(Vector3d.Dot(sunDir, sunCatcherPivot.Right))) * (1.0 / Math.PI), 0.0);
+				case PanelType.CylindricalPartY:
+					return Math.Max((1.0 - Math.Abs(Vector3d.Dot(sunDir, sunCatcherPivot.Forward))) * (1.0 / Math.PI), 0.0);
+				case PanelType.CylindricalPartZ:
+					return Math.Max((1.0 - Math.Abs(Vector3d.Dot(sunDir, sunCatcherPivot.Up))) * (1.0 / Math.PI), 0.0);
+				case PanelType.Spherical:
 					return 0.25;
 				default:
 					return 0.0;
@@ -133,8 +188,8 @@ namespace KERBALISM
 
 		protected override PanelState GetState()
 		{
-			// Detect modified TotalEnergyRate (B9PS switching of the stock module or ROSolar built-in switching)
-			if (loadedPanel.resHandler.outputResources[0].rate != 0.0)
+			// Detect modified module (B9PS switching of the stock module or ROSolar built-in switching)
+			if (loadedPanel.resHandler.outputResources[0].rate != nominalRate)
 			{
 				GetModuleTransformsAndRate();
 			}
@@ -160,9 +215,44 @@ namespace KERBALISM
 			return PanelState.Unknown;
 		}
 
-		protected override void OnLoadedUpdate()
+		public override void OnSetTrackedBody(CelestialBody body)
 		{
-			loadedPanel.flowRate = (float)currentOutput;
+			loadedPanel.trackingBody = body;
+			loadedPanel.GetTrackingBodyTransforms();
+		}
+
+		public override void OnFixedUpdate(double elapsedSec)
+		{
+			base.OnFixedUpdate(elapsedSec);
+
+			// set the stock rate field (functionally not needed, but some mods might be checking it)
+			if (IsLoaded)
+				loadedPanel.flowRate = (float)currentOutput;
+		}
+	}
+
+	// - Prevent the stock raycasts from running
+	[HarmonyPatch(typeof(ModuleDeployableSolarPanel))]
+	[HarmonyPatch(nameof(ModuleDeployableSolarPanel.CalculateTrackingLOS))]
+	class ModuleDeployableSolarPanel_CalculateTrackingLOS
+	{
+		static bool Prefix(ref bool __result, ref string blocker)
+		{
+			__result = false;
+			blocker = string.Empty;
+			return false;
+		}
+	}
+
+	// - Prevent the stock AoA and submerged tests from running
+	// - Force all resource generation to 0
+	[HarmonyPatch(typeof(ModuleDeployableSolarPanel))]
+	[HarmonyPatch(nameof(ModuleDeployableSolarPanel.PostCalculateTracking))]
+	class ModuleDeployableSolarPanel_PostCalculateTracking
+	{
+		static bool Prefix(ModuleDeployableSolarPanel __instance)
+		{
+			return false;
 		}
 	}
 }

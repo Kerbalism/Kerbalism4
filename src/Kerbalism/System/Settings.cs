@@ -134,8 +134,6 @@ namespace KERBALISM
 			LowQualityRendering = Lib.ConfigValue(cfg, "LowQualityRendering", false);
 			UIScale = Lib.ConfigValue(cfg, "UIScale", 1.0f);
 			UIPanelWidthScale = Lib.ConfigValue(cfg, "UIPanelWidthScale", 1.0f);
-			KerbalDeathReputationPenalty = Lib.ConfigValue(cfg, "KerbalDeathReputationPenalty", 100.0f);
-			KerbalBreakdownReputationPenalty = Lib.ConfigValue(cfg, "KerbalBreakdownReputationPenalty", 30f);
 			HibernatingEcFactor = Lib.ConfigValue(cfg, "HibernatingEcFactor", 0.001);
 
 			// save game settings presets
@@ -263,8 +261,6 @@ namespace KERBALISM
 		public static bool LowQualityRendering;                 // use less particles to render the magnetic fields
 		public static float UIScale;                            // scale UI elements by this factor, relative to KSP scaling settings, useful for high PPI screens
 		public static float UIPanelWidthScale;                  // scale UI Panel Width by this factor, relative to KSP scaling settings, useful for high PPI screens
-		public static float KerbalDeathReputationPenalty;       // Reputation penalty when Kerbals dies
-		public static float KerbalBreakdownReputationPenalty;   // Reputation removed when Kerbals loose their marbles in space
 		public static double HibernatingEcFactor;               // % of ec consumed on hibernating probes (ModuleCommand.hibernationMultiplier is ignored by Kerbalism)
 
 		// presets for save game preferences

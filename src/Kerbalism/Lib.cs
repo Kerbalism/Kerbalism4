@@ -2317,6 +2317,11 @@ namespace KERBALISM
 				GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
 			}
 
+			if (HighLogic.LoadedScene == GameScenes.SPACECENTER && KSCVesselMarkers.fetch != null)
+			{
+				KSCVesselMarkers.fetch.StartCoroutine(CallbackUtil.DelayedCallback(1, KSCVesselMarkers.fetch.RefreshMarkers));
+			}
+
 			return true;
 		}
 
@@ -2391,6 +2396,11 @@ namespace KERBALISM
 				}
 
 				GamePersistence.SaveGame("persistent", HighLogic.SaveFolder, SaveMode.OVERWRITE);
+
+				if (HighLogic.LoadedScene == GameScenes.SPACECENTER && KSCVesselMarkers.fetch != null)
+				{
+					KSCVesselMarkers.fetch.StartCoroutine(CallbackUtil.DelayedCallback(1, KSCVesselMarkers.fetch.RefreshMarkers));
+				}
 				return true;
 			}
 
@@ -3758,6 +3768,31 @@ namespace KERBALISM
 			int index = rand.Next(letters.Length);
 			return (string)letters[index];
 		}
+
+		private static string ecAbbreviation;
+		public static string ECAbbreviation
+		{
+			get
+			{
+				if (ecAbbreviation == null)
+				{
+					ecAbbreviation = PartResourceLibrary.Instance.GetDefinition(PartResourceLibrary.ElectricityHashcode).abbreviation;
+				}
+
+				return ecAbbreviation;
+			}
+		}
+
+		public static bool IsPAWOpen(Part part)
+		{
+			return part.PartActionWindow != null && part.PartActionWindow.gameObject.activeSelf;
+		}
+
+		public static bool IsPAWCreated(Part part)
+		{
+			return part.PartActionWindow != null;
+		}
+
 		#endregion
 
 		#region PROTO

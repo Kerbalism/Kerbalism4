@@ -73,7 +73,7 @@ namespace KERBALISM
 		private bool isRescue;  // true if this is a not yet loaded rescue mission vessel
 		private bool isEvaDead; // true if this is an EVA kerbal that we killed
 
-		public override bool LoadedOrEditor => ReferenceEquals(Vessel, null) || Vessel.loaded;
+		public override bool LoadedOrEditor => !ReferenceEquals(Vessel, null) && Vessel.loaded;
 
 		public override bool IsEVA => Vessel.isEVA;
 
@@ -868,7 +868,7 @@ namespace KERBALISM
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
-        private void EnvironmentUpdate(double elapsedSec)
+		private void EnvironmentUpdate(double elapsedSec)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
             isAnalytic = elapsedSec > SubStepSim.subStepInterval * 2.0;
@@ -886,19 +886,21 @@ namespace KERBALISM
 			if (isAnalytic && subStepCount > 0)
 			{
 				// Reset stars
-				for (int i = 0; i < starsIrradiance.Length; i++)
+;				for (int i = 0; i < starsIrradiance.Length; i++)
 					starsIrradiance[i].Reset();
 
 				double directRawFluxTotal = 0.0;
 				irradianceBodiesCore = 0.0;
 
 				// take the "average" as the current step
-				SimStep currentStep = subSteps[subStepCount / 2];
+				// SimStep currentStep = subSteps[subStepCount / 2];
+				// TODO : Can't use a step direction : the current world frame if reference isn't identical to the substep one
 				for (int i = 0; i < starsIrradiance.Length; i++)
 				{
 					StarFlux vesselStarFlux = starsIrradiance[i];
-					vesselStarFlux.direction = currentStep.starFluxes[i].direction;
-					vesselStarFlux.distance = currentStep.starFluxes[i].distance;
+					vesselStarFlux.direction = vesselStarFlux.Star.body.position - position;
+					vesselStarFlux.distance = vesselStarFlux.direction.magnitude;
+					vesselStarFlux.direction /= vesselStarFlux.distance;
 				}
 
 				int starCount = subSteps[0].starFluxes.Length;
@@ -926,7 +928,7 @@ namespace KERBALISM
 
 						directRawFluxTotal += stepStarFlux.directRawFlux;
 
-						if (vesselStarFlux.directFlux > 0.0)
+						if (stepStarFlux.directFlux > 0.0)
 							vesselStarFlux.sunlightFactor += 1.0;
 					}
 
@@ -961,14 +963,13 @@ namespace KERBALISM
 					vesselStarFlux.skinIrradiance /= subStepCountD;
 					vesselStarFlux.skinRadiosity /= subStepCountD;
 
-
 					irradianceAlbedo += vesselStarFlux.bodiesAlbedoFlux;
 					irradianceBodiesEmissive += vesselStarFlux.bodiesEmissiveFlux;
 
 					if (mainStar.directFlux < vesselStarFlux.directFlux)
 						mainStar = vesselStarFlux;
 				}
-
+				
 				irradianceTotal = irradianceStarTotal + irradianceAlbedo + irradianceBodiesEmissive + irradianceBodiesCore;
 			}
 			else

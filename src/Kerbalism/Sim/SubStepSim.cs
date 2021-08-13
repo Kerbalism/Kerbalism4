@@ -178,7 +178,7 @@ namespace KERBALISM
 
 					Lib.LogDebug($"Starting worker thread");
 					workerIsAlive = true;
-					worker = new Thread(new ThreadStart(WorkerLoop));
+					worker = new Thread(WorkerLoop);
 					worker.Start();
 				}
 			}

@@ -188,7 +188,7 @@
     <Compile Include="Modules\Base\KsmModuleDefinition.cs" />
     <Compile Include="Modules\KsmRadiationEmitter\RadiationEmitterDefinition.cs" />
     <Compile Include="Modules\SolarPanelSupport\ModuleDeployableSolarPanelHandler.cs" />
-    <Compile Include="Modules\SolarPanelSupport\SolarPanelHandler.cs" />
+    <Compile Include="Modules\SolarPanelSupport\SolarPanelHandlerBase.cs" />
     <Compile Include="Modules\StockSupport\EditorHandlers.cs" />
     <Compile Include="Modules\StockSupport\KerbalEVAHandler.cs" />
     <Compile Include="Modules\StockSupport\ModuleAsteroidDrillHandler.cs" />
@@ -283,7 +283,7 @@
     <Compile Include="Modules\Laboratory.cs" />
     <Compile Include="Modules\KsmExperiment\ModuleKsmExperiment.cs" />
     <Compile Include="Modules\Reliability.cs" />
-    <Compile Include="Modules\SolarPanelFixer.cs" />
+    <Compile Include="Modules\SolarPanelSupport\SolarPanelFixer.cs" />
     <Compile Include="Events\StockPatches\AsteroidAndCometSurfaceSample.cs" />
     <Compile Include="Profile\Process.cs" />
     <Compile Include="Renderer\LineRenderer.cs" />
