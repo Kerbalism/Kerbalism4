@@ -12,6 +12,8 @@ namespace KERBALISM
 		public static void Init()
 		{
 			// create subsystems
+			new MainUILauncher();
+
 			message = new Message();
 			launcher = new Launcher();
 			window = new Window((uint)Styles.ScaleWidthFloat(300), 0, 0);

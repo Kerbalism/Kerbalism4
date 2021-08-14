@@ -253,8 +253,8 @@
     <Compile Include="UI\KsmGui\KsmGuiSlider.cs" />
     <Compile Include="UI\KsmGui\KsmGuiTextButton.cs" />
     <Compile Include="Database\VesselData\VesselDataShip.cs" />
-    <Compile Include="UI\UIRefactor\EditorUIManager.cs" />
-    <Compile Include="UI\UIRefactor\LauncherFlight.cs" />
+    <Compile Include="UI\UIRefactor\MainUILauncher.cs" />
+    <Compile Include="UI\UIRefactor\MainUIFlight.cs" />
     <Compile Include="UI\UIRefactor\ProcessPopup.cs" />
     <Compile Include="Modules\KsmHabitat\HabitatHandler.cs" />
     <Compile Include="Database\KerbalData.cs" />

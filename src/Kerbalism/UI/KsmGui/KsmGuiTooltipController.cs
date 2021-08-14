@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using KSP.UI;
 using TMPro;
 using UnityEngine;
@@ -10,20 +12,19 @@ namespace KERBALISM.KsmGui
 	public class KsmGuiTooltipController : MonoBehaviour
 	{
 		public static KsmGuiTooltipController Instance { get; private set; }
+		public bool IsVisible { get; private set; }
+		public KsmGuiTooltipBase CurrentTooltip { get; private set; }
+		public RectTransform TopTransform { get; private set; }
+		public RectTransform ContentTransform { get; private set; }
+		public TextMeshProUGUI TextComponent { get; private set; }
 
 		private GameObject tooltipObject;
 		private VerticalLayoutGroup backgroundLayout;
 		private RectTransform textTransform;
-		private TextMeshProUGUI textComponent;
+		private RectTransform tooltipRect;
 		private ContentSizeFitter topFitter;
-		public RectTransform TopTransform { get; private set; }
-		public RectTransform ContentTransform { get; private set; }
-		public bool IsVisible { get; private set; }
-
-		private RectTransform backgroundTranform;
-		private KsmGuiBase content;
-
-		public KsmGuiTooltipBase CurrentTooltip { get; private set; }
+		private CanvasGroup canvasGroup;
+		private Coroutine coroutine;
 
 		private void Awake()
 		{
@@ -55,9 +56,9 @@ namespace KERBALISM.KsmGui
 
 			tooltipObject.AddComponent<CanvasRenderer>();
 
-			CanvasGroup group = tooltipObject.AddComponent<CanvasGroup>();
-			group.interactable = false;
-			group.blocksRaycasts = false;
+			canvasGroup = tooltipObject.AddComponent<CanvasGroup>();
+			canvasGroup.interactable = false;
+			canvasGroup.blocksRaycasts = false;
 
 			VerticalLayoutGroup toplayout = tooltipObject.AddComponent<VerticalLayoutGroup>();
 			toplayout.childAlignment = TextAnchor.UpperLeft;
@@ -72,8 +73,8 @@ namespace KERBALISM.KsmGui
 
 			// first child : 1px white border
 			GameObject border = new GameObject("KsmGuiTooltipBorder");
-			ContentTransform = border.AddComponent<RectTransform>();
-			ContentTransform.SetParentFixScale(TopTransform);
+			tooltipRect = border.AddComponent<RectTransform>();
+			tooltipRect.SetParentFixScale(TopTransform);
 			border.AddComponent<CanvasRenderer>();
 
 			VerticalLayoutGroup borderLayout = border.AddComponent<VerticalLayoutGroup>();
@@ -90,8 +91,8 @@ namespace KERBALISM.KsmGui
 
 			// 2nd child : black background
 			GameObject background = new GameObject("KsmGuiTooltipBackground");
-			backgroundTranform = background.AddComponent<RectTransform>();
-			backgroundTranform.SetParentFixScale(ContentTransform);
+			ContentTransform = background.AddComponent<RectTransform>();
+			ContentTransform.SetParentFixScale(tooltipRect);
 			background.AddComponent<CanvasRenderer>();
 
 			backgroundLayout = background.AddComponent<VerticalLayoutGroup>();
@@ -109,15 +110,15 @@ namespace KERBALISM.KsmGui
 			// last child : text
 			GameObject textObject = new GameObject("KsmGuiTooltipText");
 			textTransform = textObject.AddComponent<RectTransform>();
-			textTransform.SetParentFixScale(backgroundTranform);
+			textTransform.SetParentFixScale(ContentTransform);
 			textObject.AddComponent<CanvasRenderer>();
 
-			textComponent = textObject.AddComponent<TextMeshProUGUI>();
-			textComponent.raycastTarget = false;
-			textComponent.color = KsmGuiStyle.textColor;
-			textComponent.font = KsmGuiStyle.textFont;
-			textComponent.fontSize = KsmGuiStyle.textSize;
-			textComponent.alignment = TextAlignmentOptions.Top;
+			TextComponent = textObject.AddComponent<TextMeshProUGUI>();
+			TextComponent.raycastTarget = false;
+			TextComponent.color = KsmGuiStyle.textColor;
+			TextComponent.font = KsmGuiStyle.textFont;
+			TextComponent.fontSize = KsmGuiStyle.textSize;
+			TextComponent.alignment = TextAlignmentOptions.Top;
 
 			tooltipObject.SetLayerRecursive(5);
 			//KsmGuiBase.ApplyCanvasScalerScale(TopTransform); 
@@ -125,94 +126,82 @@ namespace KERBALISM.KsmGui
 			IsVisible = false;
 		}
 
-		public void ShowTooltip(KsmGuiTooltipBase tooltip, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float maxWidth = -1f, Func<KsmGuiBase> tooltipContent = null)
+		public void SetMaxWidth(int width)
 		{
-			CurrentTooltip = tooltip;
-
-			if (string.IsNullOrEmpty(CurrentTooltip.Text) && tooltipContent == null)
-			{
-				HideTooltip();
-				return;
-			}
-
-			if (maxWidth == -1f)
+			if (width <= 0)
 			{
 				topFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-				
-			}
-			else if (maxWidth == 0f)
-			{
-				topFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-				maxWidth = KsmGuiStyle.tooltipMaxWidth;
-				TopTransform.sizeDelta = new Vector2(maxWidth, TopTransform.sizeDelta.y);
 			}
 			else
 			{
 				topFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-				TopTransform.sizeDelta = new Vector2(maxWidth, TopTransform.sizeDelta.y);
+				TopTransform.sizeDelta = new Vector2(width, TopTransform.sizeDelta.y);
 			}
+		}
 
-			textComponent.enabled = true;
-			textComponent.alignment = textAlignement;
-			textComponent.SetText(CurrentTooltip.Text);
-
-			content?.TopObject.DestroyGameObject();
-
-			if (tooltipContent != null)
-			{
-				topFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-				content = tooltipContent();
-				content.TopTransform.SetParentFixScale(backgroundTranform);
-				content.LayoutOptimizer.enabled = false;
-			}
-
-			// TODO (optimization) : don't instantiate content until tooltip becomes enabled
-			tooltipObject.SetActive(CurrentTooltip.TooltipEnabled);
-
-			LayoutRebuilder.ForceRebuildLayoutImmediate(TopTransform);
-			IsVisible = true;
+		public void ShowTooltip(KsmGuiTooltipBase tooltip)
+		{
+			HideTooltip();
+			CurrentTooltip = tooltip;
+			coroutine = StartCoroutine(TooltipUpdate());
 		}
 
 		public void HideTooltip()
 		{
-			content?.TopObject.DestroyGameObject();
-			CurrentTooltip = null;
 			tooltipObject.SetActive(false);
 			IsVisible = false;
+
+			if (CurrentTooltip != null)
+			{
+				if (coroutine != null)
+				{
+					StopCoroutine(coroutine);
+					coroutine = null;
+				}
+
+				CurrentTooltip.OnHideTooltip();
+				CurrentTooltip = null;
+			}
 		}
 
-		private void Update()
+		private IEnumerator TooltipUpdate()
 		{
-			if (IsVisible)
-			{
-				if (!CurrentTooltip.TooltipEnabled)
-				{
-					tooltipObject.SetActive(false);
-					return;
-				}
-				else
-				{
-					tooltipObject.SetActive(true);
-				}
+			canvasGroup.alpha = 0f;
 
+			// wait a tiny bit before creating the tooltip, so rapid mouse movement over items
+			// doesn't reult in flashing tooltips everywhere (and prevent instantiating useless things)
+			yield return new WaitForSecondsRealtime(0.1f);
+			CurrentTooltip.OnShowTooltip();
+			tooltipObject.SetActive(true);
+			IsVisible = true;
+
+			// wait one frame before making the tooltip visible, so the RectTransform size is updated according to the layout
+			yield return null;
+			canvasGroup.alpha = 1f;
+
+			while (IsVisible)
+			{
 				Vector3 mouseWorldPos;
 				Vector3 position = new Vector3();
 				RectTransformUtility.ScreenPointToWorldPointInRectangle(TopTransform, Input.mousePosition, UIMasterController.Instance.uiCamera, out mouseWorldPos);
 
-				position.x = mouseWorldPos.x - (ContentTransform.rect.width * ContentTransform.lossyScale.x * 0.5f);
+				position.x = mouseWorldPos.x - (tooltipRect.rect.width * tooltipRect.lossyScale.x * 0.5f);
 				position.y = mouseWorldPos.y + 15f;
 
 				if (position.x < -0.5f * Screen.width)
 					position.x = -0.5f * Screen.width;
-				else if (position.x + ContentTransform.rect.width * ContentTransform.lossyScale.x > 0.5f * Screen.width)
-					position.x = 0.5f * Screen.width - ContentTransform.rect.width * ContentTransform.lossyScale.x;
+				else if (position.x + tooltipRect.rect.width * tooltipRect.lossyScale.x > 0.5f * Screen.width)
+					position.x = 0.5f * Screen.width - tooltipRect.rect.width * tooltipRect.lossyScale.x;
 
-				if (position.y + ContentTransform.rect.height * ContentTransform.lossyScale.y > 0.5f * Screen.height)
-					position.y = 0.5f * Screen.height - ContentTransform.rect.height * ContentTransform.lossyScale.y;
+				if (position.y + tooltipRect.rect.height * tooltipRect.lossyScale.y > 0.5f * Screen.height)
+					//position.y = 0.5f * Screen.height - ContentTransform.rect.height * ContentTransform.lossyScale.y;
+					position.y = mouseWorldPos.y - (tooltipRect.rect.height * tooltipRect.lossyScale.y) - 20f;
 
 				TopTransform.position = position;
 
-				textComponent.SetText(CurrentTooltip.Text);
+				CurrentTooltip.OnTooltipUpdate();
+
+				yield return null;
 			}
 		}
 	}

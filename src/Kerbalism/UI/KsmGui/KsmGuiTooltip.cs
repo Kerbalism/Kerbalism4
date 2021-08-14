@@ -7,15 +7,17 @@ namespace KERBALISM.KsmGui
 {
 	public class KsmGuiTooltipBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 	{
-		public virtual string Text => string.Empty;
-		protected TextAlignmentOptions textAlignement;
-		protected float width;
-		protected Func<KsmGuiBase> content;
 		public bool TooltipEnabled { get; set; } = true;
+
+		public virtual void OnShowTooltip() {}
+
+		public virtual void OnHideTooltip() {}
+
+		public virtual void OnTooltipUpdate() {}
 
 		public void OnPointerEnter(PointerEventData eventData)
 		{
-			KsmGuiTooltipController.Instance.ShowTooltip(this, textAlignement, width, content);
+			KsmGuiTooltipController.Instance.ShowTooltip(this);
 		}
 
 		public void OnPointerExit(PointerEventData eventData)
@@ -40,33 +42,82 @@ namespace KERBALISM.KsmGui
 		}
 	}
 
-	public class KsmGuiTooltipStatic : KsmGuiTooltipBase
+	public class KsmGuiTooltipStaticText : KsmGuiTooltipBase
 	{
 		private string tooltipText;
-		public override string Text => tooltipText;
+		private TextAlignmentOptions textAlignement;
+		private int maxWidth;
 
-		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
+		public void Setup(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
+			this.tooltipText = text;
 			this.textAlignement = textAlignement;
-			this.width = width;
-			this.content = content;
+			this.maxWidth = maxWidth;
+		}
 
-			tooltipText = text;
+		public override void OnShowTooltip()
+		{
+			KsmGuiTooltipController controller = KsmGuiTooltipController.Instance;
+			controller.TextComponent.enabled = true;
+			controller.TextComponent.text = tooltipText;
+			controller.SetMaxWidth(maxWidth);
 		}
 	}
 
-	public class KsmGuiTooltipDynamic : KsmGuiTooltipBase
+	public class KsmGuiTooltipDynamicText : KsmGuiTooltipBase
 	{
-		private Func<string> textFunc;
+		public Func<string> textFunc;
+		private TextAlignmentOptions textAlignement;
+		private int maxWidth;
 
-		public override string Text => textFunc();
-
-		public void SetTooltipText(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
+		public void Setup(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
-			this.textAlignement = textAlignement;
-			this.width = width;
-			this.content = content;
 			this.textFunc = textFunc;
+			this.textAlignement = textAlignement;
+			this.maxWidth = maxWidth;
+		}
+
+		public override void OnShowTooltip()
+		{
+			KsmGuiTooltipController controller = KsmGuiTooltipController.Instance;
+			controller.TextComponent.enabled = true;
+			controller.TextComponent.text = textFunc();
+			controller.SetMaxWidth(maxWidth);
+		}
+
+		public override void OnTooltipUpdate()
+		{
+			KsmGuiTooltipController.Instance.TextComponent.text = textFunc();
+		}
+	}
+
+	public class KsmGuiTooltipDynamicContent : KsmGuiTooltipBase
+	{
+		public Func<KsmGuiBase> contentBuilder;
+		public KsmGuiBase content;
+
+		public void Setup(Func<KsmGuiBase> contentBuilder)
+		{
+			this.contentBuilder = contentBuilder;
+		}
+
+		public override void OnShowTooltip()
+		{
+			KsmGuiTooltipController controller = KsmGuiTooltipController.Instance;
+			controller.TextComponent.enabled = false;
+			controller.SetMaxWidth(-1);
+			content = contentBuilder();
+			content.LayoutOptimizer.enabled = false;
+			content.TopTransform.SetParentFixScale(controller.ContentTransform);
+		}
+
+		public override void OnHideTooltip()
+		{
+			if (content != null)
+			{
+				content.TopObject.DestroyGameObject();
+				content = null;
+			}
 		}
 	}
 }

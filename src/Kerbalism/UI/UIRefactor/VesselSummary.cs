@@ -76,7 +76,7 @@ namespace KERBALISM
 				{
 					this.rule = rule;
 					SetUpdateAction(Update);
-					SetTooltipText(string.Empty, TextAlignmentOptions.TopLeft, -1f, CreateTooltip);
+					SetTooltip(CreateTooltip);
 				}
 
 				private void Update()
@@ -178,7 +178,7 @@ namespace KERBALISM
 				name.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 0);
 				name.TopTransform.SetSizeDelta(crewNameColumnWidth, 16);
 
-				name.SetTooltipText(string.Empty, TextAlignmentOptions.Top, -1f, () => new KerbalStockTooltip(kd.stockKerbal));
+				name.SetTooltip(() => new KerbalStockTooltip(kd.stockKerbal));
 
 				int ruleEntryWidth = (contentWidth - crewNameColumnWidth) / kd.rules.Count;
 
@@ -240,7 +240,7 @@ namespace KERBALISM
 				textComponent = new KsmGuiText(this, "", TextAlignmentOptions.Left);
 				textComponent.SetLayoutElement(true, false, -1, -1, -1, 18);
 
-				SetTooltipTextFunc(() => Resource.BrokerListTooltipTMP(false));
+				SetTooltip(() => Resource.BrokerListTooltipTMP(false));
 
 			}
 
@@ -308,12 +308,11 @@ namespace KERBALISM
 			}
 		}
 
-		public VesselSummaryUI(KsmGuiBase parent, bool isPopup, VesselDataBase vesselDataBase) : base(parent, 5, 0, 0, 0, 0, TextAnchor.UpperLeft)
+		public void SetVessel(VesselDataBase vesselDataBase)
 		{
 			vd = vesselDataBase;
-			this.isPopup = isPopup;
 
-			if (vd is VesselData)
+			if (vd is VesselData )
 			{
 				vdFlight = (VesselData)vd;
 				isEditor = false;
@@ -322,10 +321,19 @@ namespace KERBALISM
 			{
 				isEditor = true;
 			}
+		}
 
-			KsmGuiHeader topHeader = new KsmGuiHeader(this, vesselDataBase.VesselName);
+		public VesselSummaryUI(KsmGuiBase parent, bool isPopup) : base(parent, 5, 0, 0, 0, 0, TextAnchor.UpperLeft)
+		{
+			
+			this.isPopup = isPopup;
+
+
+
+			KsmGuiHeader topHeader = new KsmGuiHeader(this, string.Empty);
+			topHeader.SetUpdateAction(() => topHeader.Text = vd.VesselName);
 			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => ((KsmGuiWindow)parent).Close()); //"close"
-																																					//topHeader.Enabled = isPopup;
+			topHeader.Enabled = isPopup;
 
 			summmarySpace = new KsmGuiHorizontalLayout(this, 10);
 			summmarySpace.SetLayoutElement(true, false, contentWidth);
@@ -338,9 +346,9 @@ namespace KERBALISM
 			commsAndScienceContent.SetBoxColor();
 
 			signal = new KsmGuiText(commsAndScienceContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis);  // "45 %, x.xx kB/s", tooltip : current distance, max distance, control path list
-			signal.SetTooltipTextFunc(SignalTooltip, TextAlignmentOptions.TopLeft, 350f);
+			signal.SetTooltip(SignalTooltip, TextAlignmentOptions.TopLeft, 350);
 			transmit = new KsmGuiTextButton(commsAndScienceContent, null, null, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X files, x.xx kB/s" / "telemetry", tooltip : total science transmitted, list of files / rate
-			transmit.SetTooltipTextFunc(TransmitTooltip);
+			transmit.SetTooltip(TransmitTooltip);
 			transmit.SetButtonOnClick(() => vd.DeviceTransmit = !vd.DeviceTransmit);
 			storedData = new KsmGuiText(commsAndScienceContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X Mb", tooltip : science value
 			samples = new KsmGuiText(commsAndScienceContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "X/X", tooltip : science value, weight
@@ -354,11 +362,11 @@ namespace KERBALISM
 			bodyAndBiome = new KsmGuiText(environmentContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Kerbin Highlands", tooltip : full biome name
 			bodyAndBiome.UseEllipsisWithTooltip();
 			situations = new KsmGuiText(environmentContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "Space high (+2)", tooltip : other situations
-			situations.SetTooltipTextFunc(SituationTooltip);
+			situations.SetTooltip(SituationTooltip);
 			temperature = new KsmGuiText(environmentContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "326 K", tooltip : flux details
-			temperature.SetTooltipTextFunc(TemperatureTooltip, TextAlignmentOptions.TopLeft);
+			temperature.SetTooltip(TemperatureTooltip, TextAlignmentOptions.TopLeft);
 			radiation = new KsmGuiText(environmentContent, null, TextAlignmentOptions.TopLeft, false, TextOverflowModes.Ellipsis); // "1.2 rad", tooltip : rad sources details
-			radiation.SetTooltipText(string.Empty, TextAlignmentOptions.Top, -1f, () => new RadiationTooltip(this.vd));
+			radiation.SetTooltip(() => new RadiationTooltip(vd));
 
 			// CREW SPACE
 
@@ -379,7 +387,7 @@ namespace KERBALISM
 				KsmGuiBase spacer = new KsmGuiBase(crewHeader);
 				spacer.SetLayoutElement(true, false, -1, 24);
 				KsmGuiIcon icon = new KsmGuiIcon(spacer, rule.icon, iconWidth: 24, iconHeight: 24);
-				icon.SetTooltipText(rule.TooltipText(), TextAlignmentOptions.Left, 250f);
+				icon.SetTooltip(rule.TooltipText(), TextAlignmentOptions.Left, 250);
 				icon.TopTransform.anchorMin = new Vector2(0.5f, 0.5f);
 				icon.TopTransform.anchorMax = new Vector2(0.5f, 0.5f);
 				icon.TopTransform.sizeDelta = new Vector2(24f, 24f);
@@ -405,7 +413,7 @@ namespace KERBALISM
 			solarExposureText = new KsmGuiText(solarExposure, string.Empty, TextAlignmentOptions.Center, false, TextOverflowModes.Ellipsis);
 			solarExposureText.StaticLayoutStretchInParent();
 			// Tooltip : "Exposure ignoring bodies occlusion" + "Won't change on unloaded vessels\nMake sure to optimize it before switching"
-			solarExposureText.SetTooltipText(Lib.Bold(Local.TELEMETRY_Exposureignoringbodiesocclusion) + "\n" + Lib.Italic(Local.TELEMETRY_Exposureignoringbodiesocclusion_desc));
+			solarExposureText.SetTooltip(Lib.Bold(Local.TELEMETRY_Exposureignoringbodiesocclusion) + "\n" + Lib.Italic(Local.TELEMETRY_Exposureignoringbodiesocclusion_desc));
 
 			// todo : solar storm average protection %
 
@@ -429,20 +437,20 @@ namespace KERBALISM
 			habCol2.SetBoxColor();
 
 			habRadiation = new KsmGuiText(habCol1, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
-			habRadiation.SetTooltipTextFunc(HabRadiationTooltip, TextAlignmentOptions.TopLeft);
+			habRadiation.SetTooltip(HabRadiationTooltip, TextAlignmentOptions.TopLeft);
 			habStormProtection = new KsmGuiText(habCol1, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate);
-			habStormProtection.SetTooltipText(Lib.BuildString("Storm radiation blocked at current vessel orientation", "\n", Lib.Italic("Won't change on unloaded vessels\nMake sure to optimize it before leaving the vessel.")));
+			habStormProtection.SetTooltip(Lib.BuildString("Storm radiation blocked at current vessel orientation", "\n", Lib.Italic("Won't change on unloaded vessels\nMake sure to optimize it before leaving the vessel.")));
 			habPressure = new KsmGuiText(habCol1, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate);
-			habPressure.SetTooltipTextFunc(HabPressureTooltip);
+			habPressure.SetTooltip(HabPressureTooltip);
 			habCO2 = new KsmGuiText(habCol1, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // hab CO2
-			habCO2.SetTooltipTextFunc(HabCO2Tooltip);
+			habCO2.SetTooltip(HabCO2Tooltip);
 
 			habLivingSpace = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
-			habLivingSpace.SetTooltipTextFunc(HabLivingSpaceTooltip);
+			habLivingSpace.SetTooltip(HabLivingSpaceTooltip);
 			habGravity = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // gravity comfort % -> tooltip : planetary G, gravity rings G, gravity rings seats
 			habExercice = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // exercice comfort % -> tooltip : available seats
 			habComforts = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
-			habComforts.SetTooltipTextFunc(() => ComfortInfoBase.GetComfortsInfo(vesselDataBase.Habitat.comforts.Values), TextAlignmentOptions.TopLeft);
+			habComforts.SetTooltip(() => ComfortInfoBase.GetComfortsInfo(vd.Habitat.comforts.Values), TextAlignmentOptions.TopLeft);
 
 			KsmGuiHorizontalLayout shelterConfig = new KsmGuiHorizontalLayout(vesselSpace);
 			shelterConfig.SetLayoutElement(true, false, -1, -1, -1, 18);
@@ -770,9 +778,9 @@ namespace KERBALISM
 			storedData.Text = ks.End();
 
 			if (filesCount > 0)
-				storedData.SetTooltipText(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
+				storedData.SetTooltip(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
 			else
-				storedData.SetTooltipText(string.Empty);
+				storedData.SetTooltip(string.Empty);
 
 
 			ks = KsmString.Get;
@@ -796,9 +804,9 @@ namespace KERBALISM
 			samples.Text = ks.End();
 
 			if (samplesCount > 0)
-				samples.SetTooltipText(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
+				samples.SetTooltip(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
 			else
-				samples.SetTooltipText(string.Empty);
+				samples.SetTooltip(string.Empty);
 
 			int envLabelColumnWidth = 75;
 

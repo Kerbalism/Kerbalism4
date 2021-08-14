@@ -71,7 +71,7 @@ namespace KERBALISM
 
 			// top header
 			KsmGuiHeader topHeader = new KsmGuiHeader(window, data.definition.ExpInfo.Title, default, 120);
-			topHeader.TextObject.SetTooltipText(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(data.VesselData.VesselName), "\n", Local.SCIENCEARCHIVE_onpart, " : ", Lib.Bold(data.partData.Title)));
+			topHeader.TextObject.SetTooltip(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(data.VesselData.VesselName), "\n", Local.SCIENCEARCHIVE_onpart, " : ", Lib.Bold(data.partData.Title)));
 			rndVisibilityButton = new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderRnD, ToggleArchivePanel);//"show science archive"
 			rndVisibilityButton.MoveAsFirstChild();
 			expInfoVisibilityButton = new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderInfo, ToggleExpInfo);//"show experiment info"
@@ -301,14 +301,14 @@ namespace KERBALISM
 				rndArchiveHeader.Enabled = true;
 				rndArchiveView.Enabled = true;
 				rndVisibilityButton.SetIconColor(Lib.Kolor.Yellow);
-				rndVisibilityButton.SetTooltipText(Local.SCIENCEARCHIVE_hidearchive);//"hide science archive"
+				rndVisibilityButton.SetTooltip(Local.SCIENCEARCHIVE_hidearchive);//"hide science archive"
 			}
 			else
 			{
 				rndArchiveHeader.Enabled = false;
 				rndArchiveView.Enabled = false;
 				rndVisibilityButton.SetIconColor(Color.white);
-				rndVisibilityButton.SetTooltipText(Local.SCIENCEARCHIVE_showarchive);//"show science archive"
+				rndVisibilityButton.SetTooltip(Local.SCIENCEARCHIVE_showarchive);//"show science archive"
 			}
 			window.RebuildLayout();
 		}
@@ -319,13 +319,13 @@ namespace KERBALISM
 			{
 				leftPanel.Enabled = false;
 				expInfoVisibilityButton.SetIconColor(Color.white);
-				expInfoVisibilityButton.SetTooltipText(Local.SCIENCEARCHIVE_showexperimentinfo);//"show experiment info"
+				expInfoVisibilityButton.SetTooltip(Local.SCIENCEARCHIVE_showexperimentinfo);//"show experiment info"
 			}
 			else
 			{
 				leftPanel.Enabled = true;
 				expInfoVisibilityButton.SetIconColor(Lib.Kolor.Yellow);
-				expInfoVisibilityButton.SetTooltipText(Local.SCIENCEARCHIVE_hideexperimentinfo);//"hide experiment info"
+				expInfoVisibilityButton.SetTooltip(Local.SCIENCEARCHIVE_hideexperimentinfo);//"hide experiment info"
 				expInfoHeader.TextObject.TextComponent.alignment = TMPro.TextAlignmentOptions.Center; // strange bug
 			}
 			window.RebuildLayout();

@@ -40,6 +40,8 @@ namespace KERBALISM
 		private KsmGuiVerticalLayout pinnedVessels;
 		private KsmGuiVerticalLayout flatVesselList;
 
+		public Action<VesselData> onVesselSelected;
+
 		private bool listChanged = true;
 
 		private CelestialBody bodyFilter;
@@ -82,17 +84,15 @@ namespace KERBALISM
 			filterButton = new KsmGuiTextButton(filtersParent, "Filters", FilterMenu);
 			filterButton.StaticLayout(filterButtonWidth - 5, 20);
 
-
-
 			filters.Add(new VesselTypeFilter(filtersParent, this, 0, Textures.vesselTypeShip, Localizer.Format("#autoLOC_900684"), VesselType.Ship));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 1, Textures.vesselTypeLander, Localizer.Format("#autoLOC_900686"), VesselType.Lander));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 2, Textures.vesselTypeStation, Localizer.Format("#autoLOC_900679"), VesselType.Station));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 3, Textures.vesselTypeProbe, Localizer.Format("#autoLOC_900681"), VesselType.Probe));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 4, Textures.vesselTypeCommsRelay, Localizer.Format("#autoLOC_900687"), VesselType.Relay));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 1, Textures.vesselTypeStation, Localizer.Format("#autoLOC_900679"), VesselType.Station));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 2, Textures.vesselTypeProbe, Localizer.Format("#autoLOC_900681"), VesselType.Probe));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 3, Textures.vesselTypeCommsRelay, Localizer.Format("#autoLOC_900687"), VesselType.Relay));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 4, Textures.vesselTypeLander, Localizer.Format("#autoLOC_900686"), VesselType.Lander));
 			filters.Add(new VesselTypeFilter(filtersParent, this, 5, Textures.vesselTypeRover, Localizer.Format("#autoLOC_900683"), VesselType.Rover));
 			filters.Add(new VesselTypeFilter(filtersParent, this, 6, Textures.vesselTypeBase, Localizer.Format("#autoLoc_6002178"), VesselType.Base));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 7, Textures.vesselTypeAircraft, Localizer.Format("#autoLOC_900685"), VesselType.Plane));
-			filters.Add(new VesselTypeFilter(filtersParent, this, 8, Textures.vesselTypeDeployScience, "Deployed ground part", VesselType.DeployedGroundPart, VesselType.DeployedScienceController, VesselType.DeployedSciencePart));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 7, Textures.vesselTypeDeployScience, "Deployed ground part", VesselType.DeployedGroundPart, VesselType.DeployedScienceController, VesselType.DeployedSciencePart));
+			filters.Add(new VesselTypeFilter(filtersParent, this, 8, Textures.vesselTypeAircraft, Localizer.Format("#autoLOC_900685"), VesselType.Plane));
 			filters.Add(new VesselTypeFilter(filtersParent, this, 9, Textures.vesselTypeEVA, Localizer.Format("#autoLOC_6003088"), VesselType.EVA));
 			filters.Add(new VesselTypeFilter(filtersParent, this, 10, Textures.vesselTypeSpaceObj, Localizer.Format("#autoLoc_6002177"), VesselType.SpaceObject, VesselType.Unknown));
 			filters.Add(new VesselTypeFilter(filtersParent, this, 11, Textures.vesselTypeDebris, Localizer.Format("#autoLOC_900676"), VesselType.Debris, VesselType.DroppedPart));
@@ -320,7 +320,7 @@ namespace KERBALISM
 			{
 				this.types = types;
 				this.manager = manager;
-				SetTooltipText(name);
+				SetTooltip(name);
 				SetValueChangedAction(ValueChanged);
 				SetStateColors(Kolor.Green, Kolor.Orange);
 				StaticLayout(25, 20, filterButtonWidth + (position * 25));
@@ -358,7 +358,7 @@ namespace KERBALISM
 			private VesselsManager manager;
 
 			private KsmGuiIconButton gotoButton;
-			private KsmGuiText vesselName;
+			private KsmGuiTextButton vesselName;
 			private KsmGuiBase bodyInfo;
 			private KsmGuiText bodyName;
 			private KsmGuiIcon situationIcon;
@@ -444,17 +444,17 @@ namespace KERBALISM
 				gotoButton.StaticLayout(20, 22);
 				hPos += (20 + 5);
 
-				vesselName = new KsmGuiText(this, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				vesselName = new KsmGuiTextButton(this, null, OnVesselSelected, null, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				vesselName.StaticLayout(125, 22, hPos);
 				hPos += (125 + 5);
 				vesselName.TextComponent.fontStyle = FontStyles.Bold;
 				//vesselName.UseEllipsisWithTooltip();
-				vesselName.SetTooltipTextFunc(VesselTooltip, TextAlignmentOptions.Top, 250f);
+				vesselName.SetTooltip(VesselTooltip, TextAlignmentOptions.Top, 250);
 
 				bodyInfo = new KsmGuiBase(this);
 				bodyInfo.StaticLayout(65, 22, hPos);
 				hPos += (65 + 5);
-				bodyInfo.SetTooltipTextFunc(SituationTooltip, TextAlignmentOptions.TopLeft, 250f);
+				bodyInfo.SetTooltip(SituationTooltip, TextAlignmentOptions.TopLeft, 250);
 
 				situationIcon = new KsmGuiIcon(bodyInfo, Textures.empty, 20, 20);
 				situationIcon.StaticLayout(20, 22);
@@ -472,26 +472,26 @@ namespace KERBALISM
 				infoIcon = new KsmGuiIcon(this, Textures.ttSun, 20, 20);
 				infoIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
-				infoIcon.SetTooltipTextFunc(InfoTooltip);
+				infoIcon.SetTooltip(InfoTooltip);
 
 				ecIcon = new KsmGuiIcon(this, Textures.ttBattery, 20, 20);
 				ecIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
-				ecIcon.SetTooltipTextFunc(EcTooltip);
+				ecIcon.SetTooltip(EcTooltip);
 
 				suppliesIcon = new KsmGuiIcon(this, Textures.ttBox, 20, 20);
 				suppliesIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
-				suppliesIcon.SetTooltipTextFunc(SuppliesTooltip);
+				suppliesIcon.SetTooltip(SuppliesTooltip);
 
 				rulesIcon = new KsmGuiIcon(this, Textures.ttHeart, 20, 20);
 				rulesIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
-				rulesIcon.SetTooltipContent(() => new RulesTooltip(Vd));
+				rulesIcon.SetTooltip(() => new RulesTooltip(Vd));
 
 				signalMainIcon = new KsmGuiIcon(this, Textures.ttSignalFull, 20, 20);
 				signalMainIcon.StaticLayout(20, 22, hPos);
-				signalMainIcon.SetTooltipTextFunc(CommsTooltip, TextAlignmentOptions.TopLeft);
+				signalMainIcon.SetTooltip(CommsTooltip, TextAlignmentOptions.TopLeft);
 
 				signalLinkIcon = new KsmGuiIcon(signalMainIcon, Textures.ttSignalDirect);
 				signalLinkIcon.Image.raycastTarget = false;
@@ -502,6 +502,11 @@ namespace KERBALISM
 				signalDataIcon.StaticLayout(20, 20, 0, 1);
 
 				Update();
+			}
+
+			private void OnVesselSelected()
+			{
+				manager.onVesselSelected?.Invoke(Vd);
 			}
 
 			private void ContextMenu()
@@ -977,6 +982,8 @@ namespace KERBALISM
 						KsmGuiIcon icon = new KsmGuiIcon(header, Profile.rules[i].icon, 18, 18);
 						icon.StaticLayout(ruleColumnWidth, 18, nameColumnWidth + (i * ruleColumnWidth));
 					}
+
+					Update();
 				}
 
 				public void Update()
@@ -1049,6 +1056,7 @@ namespace KERBALISM
 						{
 							this.rule = rule;
 							SetUpdateAction(Update);
+							Update();
 						}
 
 						private void Update()

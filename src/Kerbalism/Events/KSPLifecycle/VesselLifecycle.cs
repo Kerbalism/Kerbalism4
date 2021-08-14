@@ -17,6 +17,9 @@ namespace KERBALISM.Events
 			if (!__instance.TryGetVesselData(out VesselData vesselData))
 				return;
 
+			if (!vesselData.IsPersisted)
+				return;
+
 			for (int i = 0; i < __instance.protoVessel.protoPartSnapshots.Count; i++)
 			{
 				vesselData.Parts[i].SetProtopartReferenceOnVesselUnload(__instance.protoVessel.protoPartSnapshots[i]);

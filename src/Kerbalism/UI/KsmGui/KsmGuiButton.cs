@@ -59,7 +59,7 @@ namespace KERBALISM.KsmGui
 			TextObject.SetLayoutElement(true);
 			TextObject.TopTransform.SetParentFixScale(TopTransform);
 
-			if (tooltipText != null) SetTooltipText(tooltipText);
+			if (tooltipText != null) SetTooltip(tooltipText);
 		}
 
 		public string Text

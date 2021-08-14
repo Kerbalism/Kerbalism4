@@ -64,7 +64,7 @@ namespace KERBALISM.KsmGui
 				SetLayoutElement(false, false, width-18-5, height);
 			TextObject.TopTransform.SetParentFixScale(TopTransform);
 
-			if (tooltipText != null) SetTooltipText(tooltipText);
+			if (tooltipText != null) SetTooltip(tooltipText);
 		}
 
 		public bool Interactable

@@ -108,8 +108,8 @@ namespace KERBALISM
 
 				if (current_v != selected_v)
 				{
-					currentWindow = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
-					new VesselSummaryUI(currentWindow, false, vd);
+					//currentWindow = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
+					//new VesselSummaryUI(currentWindow, false, vd);
 					current_v = selected_v;
 				}
 

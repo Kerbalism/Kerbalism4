@@ -28,8 +28,8 @@ namespace KERBALISM
 		public static readonly Kolor Science   = new Kolor("Science",   "#6DCFF6", new Color(0.427f, 0.812f, 0.965f)); // ksp science color
 		public static readonly Kolor Cyan      = new Kolor("Cyan",      "#00FFFF", new Color(0.000f, 1.000f, 1.000f)); // cyan
 		public static readonly Kolor LightGrey = new Kolor("LightGrey", "#CCCCCC", new Color(0.800f, 0.800f, 0.800f)); // light grey
-		public static readonly Kolor DarkGrey  = new Kolor("NearBlack", "#999999", new Color(0.600f, 0.600f, 0.600f)); // dark grey
-		public static readonly Kolor NearBlack = new Kolor("NegRate",   "#434343", new Color(0.263f, 0.263f, 0.263f)); // very dark grey	
+		public static readonly Kolor DarkGrey  = new Kolor("DarkGrey",  "#999999", new Color(0.600f, 0.600f, 0.600f)); // dark grey
+		public static readonly Kolor NearBlack = new Kolor("NearBlack", "#434343", new Color(0.263f, 0.263f, 0.263f)); // very dark grey	
 		public static Kolor PosRate => Green;
 		public static Kolor NegRate => Orange;
 

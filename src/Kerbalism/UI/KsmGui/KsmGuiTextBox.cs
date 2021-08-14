@@ -13,7 +13,7 @@ namespace KERBALISM.KsmGui
 			SetLayoutElement(true, true);
 			TextObject = new KsmGuiText(this, text, alignement);
 
-			if (tooltipText != null) SetTooltipText(text);
+			if (tooltipText != null) SetTooltip(text);
 		}
 
 		public string Text

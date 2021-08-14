@@ -106,37 +106,43 @@ namespace KERBALISM.KsmGui
 				UpdateHandler.ForceExecuteCoroutine(fromStart);
 		}
 
-		public void SetTooltipText(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
+		public void SetTooltip(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
 			if (text == null)
 				return;
 
 			if (ReferenceEquals(tooltip, null))
-				tooltip = TopObject.AddComponent<KsmGuiTooltipStatic>();
+				tooltip = TopObject.AddComponent<KsmGuiTooltipStaticText>();
 
-			((KsmGuiTooltipStatic)tooltip).SetTooltipText(text, textAlignement, width, content);
+			((KsmGuiTooltipStaticText)tooltip).Setup(text, textAlignement, maxWidth);
 		}
 
-		public void SetTooltipTextFunc(Func<string> tooltipTextFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, float width = -1f, Func<KsmGuiBase> content = null)
+		public void SetTooltip(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
 			if (ReferenceEquals(tooltip, null))
-				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamic>();
+				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamicText>();
 
-			((KsmGuiTooltipDynamic)tooltip).SetTooltipText(tooltipTextFunc, textAlignement, width, content);
+			((KsmGuiTooltipDynamicText)tooltip).Setup(textFunc, textAlignement, maxWidth);
 		}
 
-		public void SetTooltipContent(Func<KsmGuiBase> content = null)
+		public void SetTooltip(Func<KsmGuiBase> contentBuilder)
 		{
 			if (ReferenceEquals(tooltip, null))
-				tooltip = TopObject.AddComponent<KsmGuiTooltipStatic>();
+				tooltip = TopObject.AddComponent<KsmGuiTooltipDynamicContent>();
 
-			((KsmGuiTooltipStatic)tooltip).SetTooltipText(null, TextAlignmentOptions.Top, -1f, content);
+			((KsmGuiTooltipDynamicContent)tooltip).Setup(contentBuilder);
 		}
 
 		public void SetTooltipEnabled(bool enabled)
 		{
 			if (!ReferenceEquals(tooltip, null))
+			{
 				tooltip.TooltipEnabled = enabled;
+				if (!enabled && KsmGuiTooltipController.Instance.CurrentTooltip == tooltip)
+				{
+					KsmGuiTooltipController.Instance.HideTooltip();
+				}
+			}
 		}
 
 		/// <summary> Add sizing constraints trough a LayoutElement component</summary>

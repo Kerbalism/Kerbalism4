@@ -56,11 +56,11 @@ namespace KERBALISM.KsmGui
 					TextComponent.ForceMeshUpdate();
 					if (TextComponent.isTextTruncated)
 					{
-						SetTooltipText(value);
+						SetTooltip(value);
 					}
 					else
 					{
-						SetTooltipText(string.Empty);
+						SetTooltip(string.Empty);
 					}
 				}
 			}

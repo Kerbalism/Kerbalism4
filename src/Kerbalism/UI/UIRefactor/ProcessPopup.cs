@@ -47,7 +47,7 @@ namespace KERBALISM
 
 			// top header
 			KsmGuiHeader topHeader = new KsmGuiHeader(window, vesselProcess.process.title, default, 120);
-			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltipText(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(vd.VesselName)));
+			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltip(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(vd.VesselName)));
 			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => window.Close());//"close"
 
 			// content panel
@@ -236,7 +236,7 @@ namespace KERBALISM
 
 			private void Update()
 			{
-				resNameText.SetTooltipText(resource.BrokerListTooltipTMP());
+				resNameText.SetTooltip(resource.BrokerListTooltipTMP());
 				usage = baseResRate * window.vesselProcess.AvailableCapacity;
 				resRateText.Text = Lib.HumanReadableRate(usage, "F3", "", true);
 

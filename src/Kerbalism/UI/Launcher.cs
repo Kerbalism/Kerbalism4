@@ -22,13 +22,8 @@ namespace KERBALISM
 			tooltip = new Tooltip();
 
 			GameEvents.onGUIApplicationLauncherReady.Add(Create);
-			GameEvents.onGUIApplicationLauncherDestroyed.Add(Destroy);
 		}
 
-		private void Destroy()
-		{
-			EditorUIManager.OnGUIApplicationLauncherDestroyed();
-		}
 
 		public void Create()
 		{
@@ -49,8 +44,6 @@ namespace KERBALISM
 				  | ApplicationLauncher.AppScenes.TRACKSTATION
 				  | ApplicationLauncher.AppScenes.VAB
 				  | ApplicationLauncher.AppScenes.SPH;
-
-				EditorUIManager.OnGUIApplicationLauncherReady(vesselListLauncher);
 
 				vesselListLauncher.onRightClick = () =>
 				{
