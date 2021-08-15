@@ -361,6 +361,7 @@
     <Compile Include="Utility\CrewSpecs.cs" />
     <Compile Include="Utility\Highlighter.cs" />
     <Compile Include="Utility\Kolor.cs" />
+    <Compile Include="Utility\OcclusionTools.cs" />
     <Compile Include="Utility\StringBuilderExtensions.cs" />
     <Compile Include="Utility\KsmStringFormat.cs" />
     <Compile Include="Utility\KsmString.cs" />
