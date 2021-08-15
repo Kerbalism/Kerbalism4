@@ -177,29 +177,36 @@ namespace KERBALISM.KsmGui
 
 			// wait one frame before making the tooltip visible, so the RectTransform size is updated according to the layout
 			yield return null;
-			canvasGroup.alpha = 1f;
 
 			while (IsVisible)
 			{
-				Vector3 mouseWorldPos;
-				Vector3 position = new Vector3();
-				RectTransformUtility.ScreenPointToWorldPointInRectangle(TopTransform, Input.mousePosition, UIMasterController.Instance.uiCamera, out mouseWorldPos);
-
-				position.x = mouseWorldPos.x - (tooltipRect.rect.width * tooltipRect.lossyScale.x * 0.5f);
-				position.y = mouseWorldPos.y + 15f;
-
-				if (position.x < -0.5f * Screen.width)
-					position.x = -0.5f * Screen.width;
-				else if (position.x + tooltipRect.rect.width * tooltipRect.lossyScale.x > 0.5f * Screen.width)
-					position.x = 0.5f * Screen.width - tooltipRect.rect.width * tooltipRect.lossyScale.x;
-
-				if (position.y + tooltipRect.rect.height * tooltipRect.lossyScale.y > 0.5f * Screen.height)
-					//position.y = 0.5f * Screen.height - ContentTransform.rect.height * ContentTransform.lossyScale.y;
-					position.y = mouseWorldPos.y - (tooltipRect.rect.height * tooltipRect.lossyScale.y) - 20f;
-
-				TopTransform.position = position;
-
 				CurrentTooltip.OnTooltipUpdate();
+
+				if (!CurrentTooltip.TooltipEnabled)
+				{
+					canvasGroup.alpha = 0f;
+				}
+				else
+				{
+					canvasGroup.alpha = 1f;
+
+					Vector3 mouseWorldPos;
+					Vector3 position = new Vector3();
+					RectTransformUtility.ScreenPointToWorldPointInRectangle(TopTransform, Input.mousePosition, UIMasterController.Instance.uiCamera, out mouseWorldPos);
+
+					position.x = mouseWorldPos.x - (tooltipRect.rect.width * tooltipRect.lossyScale.x * 0.5f);
+					position.y = mouseWorldPos.y + 15f;
+
+					if (position.x < -0.5f * Screen.width)
+						position.x = -0.5f * Screen.width;
+					else if (position.x + tooltipRect.rect.width * tooltipRect.lossyScale.x > 0.5f * Screen.width)
+						position.x = 0.5f * Screen.width - tooltipRect.rect.width * tooltipRect.lossyScale.x;
+
+					if (position.y + tooltipRect.rect.height * tooltipRect.lossyScale.y > 0.5f * Screen.height)
+						position.y = mouseWorldPos.y - (tooltipRect.rect.height * tooltipRect.lossyScale.y) - 20f;
+
+					TopTransform.position = position;
+				}
 
 				yield return null;
 			}

@@ -1,4 +1,5 @@
 using System;
+using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -50,15 +51,34 @@ namespace KERBALISM.KsmGui
 
 		public void Setup(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
-			this.tooltipText = text;
+			SetText(text);
 			this.textAlignement = textAlignement;
 			this.maxWidth = maxWidth;
+		}
+
+		public void SetText(string text)
+		{
+			if (string.IsNullOrEmpty(text))
+			{
+				TooltipEnabled = false;
+			}
+			else
+			{
+				TooltipEnabled = true;
+				tooltipText = text;
+
+				if (KsmGuiTooltipController.Instance.CurrentTooltip == this)
+				{
+					KsmGuiTooltipController.Instance.TextComponent.text = tooltipText;
+				}
+			}
 		}
 
 		public override void OnShowTooltip()
 		{
 			KsmGuiTooltipController controller = KsmGuiTooltipController.Instance;
 			controller.TextComponent.enabled = true;
+			controller.TextComponent.alignment = textAlignement;
 			controller.TextComponent.text = tooltipText;
 			controller.SetMaxWidth(maxWidth);
 		}
@@ -69,6 +89,7 @@ namespace KERBALISM.KsmGui
 		public Func<string> textFunc;
 		private TextAlignmentOptions textAlignement;
 		private int maxWidth;
+		private string text;
 
 		public void Setup(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
@@ -81,13 +102,25 @@ namespace KERBALISM.KsmGui
 		{
 			KsmGuiTooltipController controller = KsmGuiTooltipController.Instance;
 			controller.TextComponent.enabled = true;
+			controller.TextComponent.alignment = textAlignement;
 			controller.TextComponent.text = textFunc();
 			controller.SetMaxWidth(maxWidth);
 		}
 
 		public override void OnTooltipUpdate()
 		{
-			KsmGuiTooltipController.Instance.TextComponent.text = textFunc();
+			text = textFunc();
+
+			if (string.IsNullOrEmpty(text))
+			{
+				TooltipEnabled = false;
+			}
+			else
+			{
+				TooltipEnabled = true;
+			}
+
+			KsmGuiTooltipController.Instance.TextComponent.text = text;
 		}
 	}
 

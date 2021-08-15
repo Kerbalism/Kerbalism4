@@ -108,13 +108,19 @@ namespace KERBALISM.KsmGui
 
 		public void SetTooltip(string text, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)
 		{
-			if (text == null)
-				return;
-
 			if (ReferenceEquals(tooltip, null))
+			{
 				tooltip = TopObject.AddComponent<KsmGuiTooltipStaticText>();
-
-			((KsmGuiTooltipStaticText)tooltip).Setup(text, textAlignement, maxWidth);
+				((KsmGuiTooltipStaticText)tooltip).Setup(text, textAlignement, maxWidth);
+			}
+			else if (tooltip is KsmGuiTooltipStaticText staticTextTooltip)
+			{
+				staticTextTooltip.SetText(text);
+			}
+			else
+			{
+				Lib.Log($"Can't set tooltip text : tooltip isn't defined or isn't a static text tooltip", Lib.LogLevel.Error);
+			}
 		}
 
 		public void SetTooltip(Func<string> textFunc, TextAlignmentOptions textAlignement = TextAlignmentOptions.Top, int maxWidth = 300)

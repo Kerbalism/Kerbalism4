@@ -39,6 +39,7 @@ namespace KERBALISM.KsmGui
 			TextComponent.overflowMode = TextOverflowModes.Ellipsis;
 			TextComponent.enableWordWrapping = true;
 			useEllipsisWithTooltip = true;
+			SetTooltip(string.Empty);
 		}
 
 		public string Text
