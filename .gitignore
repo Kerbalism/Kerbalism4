@@ -400,5 +400,6 @@ BuildSystem/BinariesDebug
 BuildSystem/BinariesRelease
 BuildSystem/References/KSPReferenceDlls
 !BuildSystem/References/KSPReferenceZips/KSP-*.7z
+!**/[Pp]ackages/KSPBurst*/
 
 

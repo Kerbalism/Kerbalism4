@@ -66,25 +66,17 @@
   <!-- //////////////////// REFERENCES ///////////////////// -->
   <!-- ///////////////////////////////////////////////////// -->
   <ItemGroup>
-    <!-- Nuget packages -->
+    <!-- Nuget packages & other dependencies-->
     <Reference Include="0Harmony, Version=2.0.4.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Lib.Harmony.2.0.4\lib\net45\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Flee.Net45, Version=1.0.0.0, Culture=neutral, PublicKeyToken=951a102ce2413032, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Flee.1.2.2\lib\net45\Flee.Net45.dll</HintPath>
     </Reference>
-    <!-- Unity/Mono extra framework Dlls, from the repo gamedata folder -->
-    <Reference Include="$(GameDataKerbalismPathPR)\Lib\System.IO.Compression.dll">
-      <Name>System.IO.Compression</Name>
-      <HintPath>$(GameDataKerbalismPathPR)\Lib\System.IO.Compression.dll</HintPath>
+    <Reference Include="..\..\packages\KSPBurst*\Plugins\*.dll">
+      <Name>KSPBurst (all provided dlls)</Name>
       <Private>False</Private>
     </Reference>
-    <Reference Include="$(GameDataKerbalismPathPR)\Lib\System.IO.Compression.FileSystem.dll">
-      <Name>System.IO.Compression.FileSystem</Name>
-      <HintPath>$(GameDataKerbalismPathPR)\Lib\System.IO.Compression.FileSystem.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- Harmony reference, from the repo gamedata folder -->
     <!-- System Dlls from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
     <Reference Include="$(EffectiveKSPDllPath)\System.dll">
       <Name>System</Name>

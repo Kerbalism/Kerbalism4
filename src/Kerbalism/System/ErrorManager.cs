@@ -172,213 +172,25 @@ namespace KERBALISM
 
 		private static void BugReportDialog()
 		{
-			if (!CreateReport(out string zipFileName, out string zipFileFolderPath, out string zipFilePath))
-				return;
+			// TODO : integrate with the KSPBugReport plugin
+			//if (!CreateReport(out string zipFileName, out string zipFileFolderPath, out string zipFilePath))
+			//	return;
 			
-			PopupDialog.SpawnPopupDialog(new Vector2(0.0f, 1.0f),
-				new Vector2(0.0f, 1.0f),
-				new MultiOptionDialog(
-					"bugreportcreated",
-					$"<size=14>Zip file : {Lib.Color(zipFileName, Lib.Kolor.Orange, true)}</size>\n<size=14>In folder : {Lib.Color(zipFileFolderPath, Lib.Kolor.Orange, true)}</size>\n\n" ,
-					"Bug report created",
-					HighLogic.UISkin,
-					new Rect(0.1f, 0.9f, 400, 60f),
-					new DialogGUIButton("Open folder containing zip file", delegate { System.Diagnostics.Process.Start(zipFileFolderPath); }, 200.0f, 30.0f, false),
-					new DialogGUIButton("Open zip file", delegate { System.Diagnostics.Process.Start(zipFilePath); }, 200.0f, 30.0f, false),
-					new DialogGUIButton("Close", null, 200.0f, 30.0f, true)
-				),
-				true,
-				HighLogic.UISkin,
-				false);
-		}
-
-		#endregion
-
-		#region DEBUG MENU EXTRA OPTIONS
-
-		// Adding the ALT+F12 menu options trough DebugScreen.AddContentItem() will add them to beginning of the list unless the 
-		// DebugScreen instane has already been fully initialized once, which happens the first time it is opened.
-		// So to have our options at the end of the list, we are using a patch on DebugScreenConsole.Start(), choosen because it seems to
-		// be called quite late in the DebugScreen initialization.
-
-		public static void SetupPatches()
-		{
-			MethodInfo debugScreenConsole_Start = typeof(DebugScreenConsole).GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic);
-			MethodInfo postfix = typeof(ErrorManager).GetMethod(nameof(DebugScreenConsole_Start_Postfix), BindingFlags.Static | BindingFlags.NonPublic);
-			Loader.HarmonyInstance.Patch(debugScreenConsole_Start, null, new HarmonyMethod(postfix));
-		}
-
-		private static bool debugScreenBugReportOptionsCreated = false;
-
-		private static void DebugScreenConsole_Start_Postfix()
-		{
-			if (debugScreenBugReportOptionsCreated)
-				return;
-
-			debugScreenBugReportOptionsCreated = true;
-
-			UITreeView.Item parent = DebugScreen.AddContentItem(null, "bugreport", "Bug report", null, null);
-			DebugScreen.AddContentItem(parent, "createreport", "Create report", null, CreateReportFromDebugScreen);
-			DebugScreen.AddContentItem(parent, "openreport", "Open last report", null, OpenReportFromDebugScreen);
-			DebugScreen.AddContentItem(parent, "openfolder", "Open report folder", null, OpenFolderFromDebugScreen);
-		}
-
-		private static string lastReportPath = string.Empty;
-		private static string lastReportFolderPath = string.Empty;
-
-		private static void CreateReportFromDebugScreen()
-		{
-			if (CreateReport(out string zipFileName, out lastReportFolderPath, out lastReportPath))
-			{
-				ScreenMessages.PostScreenMessage($"Bug report :\n{Lib.Color(zipFileName, Lib.Kolor.Orange, true)}\ncreated in folder :\n{Lib.Color(lastReportFolderPath, Lib.Kolor.Orange, true)}", 10f, ScreenMessageStyle.UPPER_CENTER, true);
-			}
-			else
-			{
-				ScreenMessages.PostScreenMessage($"Error while creating bug report", 3f, ScreenMessageStyle.UPPER_CENTER, Color.red);
-			}
-		}
-
-		private static void OpenReportFromDebugScreen()
-		{
-			if (!string.IsNullOrEmpty(lastReportPath) && System.IO.File.Exists(lastReportPath))
-			{
-				System.Diagnostics.Process.Start(lastReportPath);
-			}
-			else
-			{
-				ScreenMessages.PostScreenMessage($"No bug report to open, please create one first.", 3f, ScreenMessageStyle.UPPER_CENTER, Color.red);
-			}
-		}
-
-		private static void OpenFolderFromDebugScreen()
-		{
-			if (!string.IsNullOrEmpty(lastReportFolderPath) && Directory.Exists(lastReportFolderPath))
-			{
-				System.Diagnostics.Process.Start(lastReportFolderPath);
-			}
-			else
-			{
-				ScreenMessages.PostScreenMessage($"No bug report to open, please create one first.", 3f, ScreenMessageStyle.UPPER_CENTER, Color.red);
-			}
-		}
-
-		#endregion
-
-		#region BUG REPORT CREATION
-
-		private static bool CreateReport(out string zipFileName, out string zipFileFolderPath, out string zipFilePath)
-		{
-			string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "KSP.log");
-			string mmCacheFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameData", "ModuleManager.ConfigCache");
-			zipFileFolderPath = System.Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-			if (string.IsNullOrEmpty(zipFileFolderPath))
-			{
-				zipFileFolderPath = AppDomain.CurrentDomain.BaseDirectory;
-			}
-
-			zipFileFolderPath = Path.Combine(zipFileFolderPath, "KSPBugReports");
-
-			try
-			{
-				Directory.CreateDirectory(zipFileFolderPath);
-			}
-			catch (Exception e)
-			{
-				Lib.Log($"Could not create directory {zipFileFolderPath}\n{e.ToString()}", Lib.LogLevel.Warning);
-				zipFileName = zipFilePath = string.Empty;
-				return false;
-			}
-
-			string fileName = "KSPBugReport_" + DateTime.Now.ToString(@"yyyy-MM-dd_HHmmss");
-			zipFileName = fileName + ".zip";
-			zipFilePath = Path.Combine(zipFileFolderPath, zipFileName);
-
-			Lib.Log($"Creating bug report : {zipFilePath}");
-
-			using (ZipArchive archive = ZipFile.Open(zipFilePath, ZipArchiveMode.Create))
-			{
-				try
-				{
-					if (System.IO.File.Exists(logFilePath))
-					{
-						ForceFlushKspLogToDisk();
-						using (Stream fileStream = System.IO.File.Open(logFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-						{
-							ZipArchiveEntry zipArchiveEntry = archive.CreateEntry("KSP.log", System.IO.Compression.CompressionLevel.Optimal);
-							using (Stream entryStream = zipArchiveEntry.Open())
-							{
-								fileStream.CopyTo(entryStream);
-							}
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					Lib.Log($"Could not zip KSP.log\n{e.ToString()}", Lib.LogLevel.Warning);
-					archive.Dispose();
-					return false;
-				}
-
-				try
-				{
-					if (System.IO.File.Exists(mmCacheFilePath))
-					{
-						using (Stream fileStream = System.IO.File.Open(mmCacheFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-						{
-							ZipArchiveEntry zipArchiveEntry = archive.CreateEntry("ModuleManager.ConfigCache", System.IO.Compression.CompressionLevel.Optimal);
-							using (Stream entryStream = zipArchiveEntry.Open())
-							{
-								fileStream.CopyTo(entryStream);
-							}
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					Lib.Log($"Could not zip ModuleManager.ConfigCache\n{e.ToString()}", Lib.LogLevel.Warning);
-				}
-
-				try
-				{
-					if (HighLogic.CurrentGame != null && Lib.IsGameRunning)
-					{
-						Game game = HighLogic.CurrentGame.Updated();
-						game.startScene = GameScenes.SPACECENTER;
-						ConfigNode configNode = new ConfigNode();
-						game.Save(configNode);
-						configNode = configNode.nodes[0];
-
-						ZipArchiveEntry zipArchiveEntry = archive.CreateEntry(HighLogic.SaveFolder + ".sfs", System.IO.Compression.CompressionLevel.Optimal);
-						using (Stream entryStream = zipArchiveEntry.Open())
-						{
-							using (StreamWriter writer = new StreamWriter(entryStream))
-							{
-								writer.Write(configNode.ToString());
-								writer.Flush();
-							}
-						}
-					}
-					else
-					{
-						Lib.Log($"Could not add savegame to bug report, no save loaded or saving not available in current scene");
-					}
-				}
-				catch (Exception e)
-				{
-					Lib.Log($"Could not zip savegame\n{e.ToString()}", Lib.LogLevel.Warning);
-				}
-			}
-			return true;
-		}
-
-		public static void ForceFlushKspLogToDisk()
-		{
-			if (GameSettings.LOG_INSTANT_FLUSH)
-				return;
-
-			GameSettings.LOG_INSTANT_FLUSH = true;
-			Lib.Log("Flushing KSP.log to disk...");
-			GameSettings.LOG_INSTANT_FLUSH = false;
+			//PopupDialog.SpawnPopupDialog(new Vector2(0.0f, 1.0f),
+			//	new Vector2(0.0f, 1.0f),
+			//	new MultiOptionDialog(
+			//		"bugreportcreated",
+			//		$"<size=14>Zip file : {Lib.Color(zipFileName, Lib.Kolor.Orange, true)}</size>\n<size=14>In folder : {Lib.Color(zipFileFolderPath, Lib.Kolor.Orange, true)}</size>\n\n" ,
+			//		"Bug report created",
+			//		HighLogic.UISkin,
+			//		new Rect(0.1f, 0.9f, 400, 60f),
+			//		new DialogGUIButton("Open folder containing zip file", delegate { System.Diagnostics.Process.Start(zipFileFolderPath); }, 200.0f, 30.0f, false),
+			//		new DialogGUIButton("Open zip file", delegate { System.Diagnostics.Process.Start(zipFilePath); }, 200.0f, 30.0f, false),
+			//		new DialogGUIButton("Close", null, 200.0f, 30.0f, true)
+			//	),
+			//	true,
+			//	HighLogic.UISkin,
+			//	false);
 		}
 
 		#endregion

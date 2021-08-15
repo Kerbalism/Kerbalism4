@@ -67,7 +67,6 @@ namespace KERBALISM
 			HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
 			// Add other patches
-			ErrorManager.SetupPatches();
 			B9PartSwitch.Init();
 
 			// register loading callbacks
