@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Generic;
-using UnityEngine;
-using KSP.Localization;
-
 
 namespace KERBALISM
 {
@@ -23,11 +19,12 @@ namespace KERBALISM
                 var avgDuration = PreferencesRadiation.Instance.AvgStormDuration;
 
                 // retry after 5 * average storm duration + jitter (to avoid recalc spikes)
-                bd.storm_generation = now + avgDuration * 5 + avgDuration * Lib.RandomDouble();
+                bd.storm_generation = now + avgDuration * (5 + Lib.RandomDouble());
 
                 var rb = Radiation.Info(sun);
                 var activity = rb.solar_cycle > 0 ? rb.SolarActivity() : 1.0;
 
+                // StormFrequency is the likelihood of a storm every (5 * avg duration) interval.
                 if (Lib.RandomDouble() < activity * PreferencesRadiation.Instance.stormFrequency)
                 {
                     // storm duration depends on current solar activity
@@ -49,78 +46,34 @@ namespace KERBALISM
                     // show warning message only if you're lucky...
                     bd.display_warning = Lib.RandomFloat() < SunObservationQuality(sun);
 
-
-#if DEBUG_RADIATION
-					Lib.Log("Storm on " + body + " will start in " + Lib.HumanReadableDuration(bd.storm_time - now) + " and last for " + Lib.HumanReadableDuration(bd.storm_duration));
-				}
-				else
-				{
-					Lib.Log("No storm on " + body + ", will retry in " + Lib.HumanReadableDuration(bd.storm_generation - now));
-#endif
+                    Lib.LogDebug($"Storm on {body} starts in { Lib.HumanReadableDuration(bd.storm_time - now) }.  Duration: { Lib.HumanReadableDuration(bd.storm_duration) }");
                 }
             }
 
-            if (bd.storm_time + bd.storm_duration < now)
+            if (bd.storm_state == StormData.StormState.inprogress && bd.storm_time + bd.storm_duration < now)
             {
                 // storm is over
                 bd.Reset();
             }
-            else if (bd.storm_time < now && bd.storm_time + bd.storm_duration > now)
+            else if (bd.storm_state == StormData.StormState.inbound && bd.storm_time < now)
             {
-                // storm in progress
-                bd.storm_state = 2;
+                bd.storm_state = StormData.StormState.inprogress;
             }
-            else if (bd.storm_time > now)
+            else if (bd.storm_state == StormData.StormState.none && bd.storm_time > now)
             {
-                // storm incoming
-                bd.storm_state = 1;
+                bd.storm_state = StormData.StormState.inbound;
             }
         }
 
-        public static void Update(CelestialBody body, double elapsed_s)
+        public static void Update(CelestialBody body)
         {
-			// do nothing if storms are disabled
-			if (!Features.Radiation) return;
+            // do nothing if storms are disabled
+            if (!Features.Radiation) return;
 
-            StormData bd = DB.Storm(body.name);
-            CreateStorm(bd, body, body.orbit.semiMajorAxis);
-
-            // send messages
-
-            if (Body_is_relevant(body))
-            {
-                switch (bd.storm_state)
-                {
-                    case 2:
-                        if (bd.msg_storm < 2)
-                        {
-							Message.Post(Severity.danger, Local.Storm_msg1.Format("<b>" + body.name + "</b>"),//"The coronal mass ejection hit <<1>> system  //Lib.BuildString( )
-								Lib.BuildString(Local.Storm_msg1text, " ", Lib.HumanReadableDuration(bd.displayed_duration)));//"Storm duration:"
-                        }
-                        break;
-
-                    case 1:
-                        if (bd.msg_storm < 1 && bd.display_warning)
-                        {
-                            var tti = bd.storm_time - Planetarium.GetUniversalTime();
-							Message.Post(Severity.warning, Local.Storm_msg2.Format("<b>" + body.name + "</b>"),//Lib.BuildString("Our observatories report a coronal mass ejection directed toward <<1>> system")
-								Lib.BuildString(Local.Storm_msg2text," ", Lib.HumanReadableDuration(tti)));//"Time to impact:"
-                        }
-                        break;
-
-                    case 0:
-                        if (bd.msg_storm == 2)
-                        {
-                            Message.Post(Severity.relax, Local.Storm_msg3.Format("<b>" + body.name + "</b>"));//Lib.BuildString("The solar storm at <<1>> system is over")
-                        }
-                        break;
-                }
-            }
-
-            bd.msg_storm = bd.storm_state;
+            UpdateCommon(DB.Storm(body.name), body: body);
         }
 
-        public static void Update(Vessel v, VesselData vd, double elapsed_s)
+        public static void Update(Vessel v, VesselData vd)
         {
             // do nothing if storms are disabled
             if (!Features.Radiation) return;
@@ -128,44 +81,57 @@ namespace KERBALISM
             // only consider vessels in interplanetary space
             if (!Sim.IsStar(v.mainBody)) return;
 
-			// disregard EVAs
-			if (v.isEVA) return;
+            // disregard EVAs
+            if (v.isEVA) return;
 
-            var bd = vd.stormData;
-            CreateStorm(bd, v.mainBody, vd.MainStar.distance);
+            UpdateCommon(vd.stormData, vd: vd);
+        }
 
-            if (vd.cfg_storm)
-            {
-                switch (bd.storm_state)
-                {
-                    case 0: // no storm
-                        if (bd.msg_storm == 2)
-                        {
-							// send message
-							Message.Post(Severity.relax, Local.Storm_msg4.Format("<b>" + v.vesselName + "</b>"));//Lib.BuildString("The solar storm around <<1>> is over")
-                            vd.msg_signal = false; // used to avoid sending 'signal is back' messages en-masse after the storm is over
-                        }
-                        break;
+        private static void UpdateCommon(StormData bd, CelestialBody body = null, VesselData vd = null)
+        {
+            if (body is object)
+                CreateStorm(bd, body, body.orbit.semiMajorAxis);
+            else
+                CreateStorm(bd, vd.MainBody, vd.MainStar.distance);
 
-                    case 2: // storm in progress
-                        if (bd.msg_storm < 2)
-                        {
-							Message.Post(Severity.danger, Local.Storm_msg5.Format("<b>" + v.vesselName + "</b>"),//Lib.BuildString("The coronal mass ejection hit <<1>>)
-							  Lib.BuildString(Local.Storm_msg1text, " ", Lib.HumanReadableDuration(bd.displayed_duration)));//"Storm duration:"
-                        }
-                        break;
-
-                    case 1: // storm incoming
-                        if (bd.msg_storm < 1 && bd.display_warning)
-                        {
-                            var tti = bd.storm_time - Planetarium.GetUniversalTime();
-							Message.Post(Severity.warning, Local.Storm_msg6.Format("<b>" + v.vesselName + "</b>"),//Lib.BuildString("Our observatories report a coronal mass ejection directed toward <<1>>)
-								Lib.BuildString(Local.Storm_msg2text, " ", Lib.HumanReadableDuration(tti)));//"Time to impact:
-                        }
-						break;
-                }
-            }
+            if (vd == null || vd.cfg_storm)
+                MessageStorm(bd, body, vd);
             bd.msg_storm = bd.storm_state;
+        }
+
+        private static void MessageStorm(StormData bd, CelestialBody body = null, VesselData vd = null)
+        {
+            // Only message on state change
+            if (bd.storm_state == bd.msg_storm) return;
+
+            switch (bd.storm_state)
+            {
+                case StormData.StormState.inprogress:
+                    string s1 = body is object ? Local.Storm_msg1.Format($"<b>{body.name}</b>")
+                                                : Local.Storm_msg5.Format($"<b>{vd.VesselName}</b>");
+                    Message.Post(Severity.danger, s1, Lib.BuildString(Local.Storm_msg1text, " ", Lib.HumanReadableDuration(bd.displayed_duration)));
+                    break;
+
+                case StormData.StormState.inbound:
+                    if (bd.display_warning)
+                    {
+                        var tti = bd.storm_time - Planetarium.GetUniversalTime();
+                        string s2 = body is object ? Local.Storm_msg2.Format($"<b>{body.name}</b>")
+                                                    : Local.Storm_msg6.Format($"<b>{vd.VesselName}</b>");
+                        Message.Post(Severity.warning, s2, Lib.BuildString(Local.Storm_msg2text, " ", Lib.HumanReadableDuration(tti)));
+                    }
+                    break;
+
+                case StormData.StormState.none:
+                    {
+                        string s3 = body is object ? Local.Storm_msg3.Format($"<b>{body.name}</b>")
+                                                    : Local.Storm_msg4.Format($"<b>{vd.VesselName}</b>");
+                        Message.Post(Severity.relax, s3);
+                        if (vd != null)
+                            vd.msg_signal = false; // Avoid spamming 'signal is back' messages after the storm is over
+                    }
+                    break;
+            }
         }
 
 
@@ -216,7 +182,7 @@ namespace KERBALISM
         }
 
 
-        // used by the engine to update one body per-step
+        // Identify bodies that we should not generate storms for
         public static bool Skip_body(CelestialBody body)
         {
             // skip all bodies if storms are disabled
@@ -237,14 +203,14 @@ namespace KERBALISM
         public static bool Incoming(VesselData vd)
         {
 			var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
-            return bd.storm_state == 1 && bd.display_warning;
+            return bd.storm_state == StormData.StormState.inbound && bd.display_warning;
         }
 
         /// <summary>return true if a storm is in progress</summary>
         public static bool InProgress(VesselData vd)
         {
 			var bd = Sim.IsStar(vd.Vessel.mainBody) ? vd.stormData : DB.Storm(Sim.GetParentPlanet(vd.Vessel.mainBody).name);
-            return bd.storm_state == 2;
+            return bd.storm_state == StormData.StormState.inprogress;
         }
 
 		internal static float SunObservationQuality(CelestialBody sun)
