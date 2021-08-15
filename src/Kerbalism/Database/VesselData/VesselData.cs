@@ -1,11 +1,10 @@
-using Flee.PublicTypes;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace KERBALISM
 {
-    public partial class VesselData : VesselDataBase
+	public partial class VesselData : VesselDataBase
 	{
 		public List<SimStep> subSteps = new List<SimStep>();
 		private SimVessel simVessel;
@@ -73,7 +72,7 @@ namespace KERBALISM
 		private bool isRescue;  // true if this is a not yet loaded rescue mission vessel
 		private bool isEvaDead; // true if this is an EVA kerbal that we killed
 
-		public override bool LoadedOrEditor => !ReferenceEquals(Vessel, null) && Vessel.loaded;
+		public override bool LoadedOrEditor => Vessel is object && Vessel.loaded;
 
 		public override bool IsEVA => Vessel.isEVA;
 
@@ -119,7 +118,7 @@ namespace KERBALISM
         /// </summary>
         public List<DriveFile> filesTransmitted;
 
-		private VesselLogic.VesselRadiation vesselRadiation = new VesselLogic.VesselRadiation();
+		private readonly VesselLogic.VesselRadiation vesselRadiation = new VesselLogic.VesselRadiation();
 
 		#endregion
 
@@ -149,6 +148,8 @@ namespace KERBALISM
 
 		// persist that so we don't have to do an expensive check every time
 		public bool IsSerenityGroundController => isSerenityGroundController; bool isSerenityGroundController;
+
+		public byte[] surfaceOcclusion;
 
 		#endregion
 
@@ -288,7 +289,7 @@ namespace KERBALISM
 		/// Negative if there is no solar panel on the vessel
 		/// </summary>
 		public override double SolarPanelsAverageExposure => solarPanelsAverageExposure; double solarPanelsAverageExposure = -1.0;
-        private List<double> solarPanelsExposure = new List<double>(); // values are added by SolarPanelFixer, then cleared by VesselData once solarPanelsAverageExposure has been computed
+        private readonly List<double> solarPanelsExposure = new List<double>(); // values are added by SolarPanelFixer, then cleared by VesselData once solarPanelsAverageExposure has been computed
         public void SaveSolarPanelExposure(double exposure) => solarPanelsExposure.Add(exposure); // meant to be called by SolarPanelFixer
 
 		/// <summary>true if at least a component has malfunctioned or had a critical failure</summary>
@@ -587,8 +588,6 @@ namespace KERBALISM
 			cfg_show = Lib.ConfigValue(node, "cfg_show", true);
 			cfg_orbit = Lib.ConfigValue(node, "cfg_orbits", true);
 
-			
-
 			isSerenityGroundController = Lib.ConfigValue(node, "isSerenityGroundController", false);
 
 			solarPanelsAverageExposure = Lib.ConfigValue(node, "solarPanelsAverageExposure", -1.0);
@@ -596,6 +595,9 @@ namespace KERBALISM
 
 			stormData = new StormData(node.GetNode("StormData"));
 			computer = new Computer(node.GetNode("computer"));
+
+			var b64 = Lib.ConfigValue(node, "surfaceOcclusion", string.Empty);
+			surfaceOcclusion = string.IsNullOrEmpty(b64) ? new byte[512] : Utility.OcclusionTools.Decompress(Convert.FromBase64String(b64));
 		}
 
 		protected override void OnSave(ConfigNode node)
@@ -623,11 +625,49 @@ namespace KERBALISM
 			stormData.Save(node.AddNode("StormData"));
 			computer.Save(node.AddNode("computer"));
 
-			if (Vessel != null)
-				Lib.LogDebug("VesselData saved for vessel " + Vessel.vesselName);
-			else
-				Lib.LogDebug("VesselData saved for vessel (Vessel is null)");
+			if (Vessel != null && Vessel.loaded)
+			{
+				string[] surfaceOcclusionLayers = { LayerMask.LayerToName(10), LayerMask.LayerToName(15) };
+				surfaceOcclusion = TestSurfaceOcclusion(Vessel, LayerMask.GetMask(surfaceOcclusionLayers));
+			}
 
+			node.AddValue("surfaceOcclusion", Convert.ToBase64String(Utility.OcclusionTools.Compress(surfaceOcclusion)));
+
+			Lib.LogDebug($"VesselData saved for vessel { Vessel?.vesselName ?? "(null)" }");
+		}
+
+		private byte[] TestSurfaceOcclusion(Vessel v, int layerMask)
+		{
+			if (v is null || v.mainBody is null)
+				return new byte[512];
+			var tools = Utility.OcclusionTools.Instance;
+			var origin = v.GetWorldPos3D();
+			var cb = v.mainBody;
+			var north = cb.GetSurfaceNVector(90, 0);
+			var outward = cb.GetSurfaceNVector(v.latitude, v.longitude);
+			var boresight = Vector3.RotateTowards(outward, north, Mathf.PI / 2, 0);  // Point towards north, tangent to surface
+
+			var commands = new Unity.Collections.NativeArray<RaycastCommand>(tools.points512.Length, Unity.Collections.Allocator.TempJob);
+			var results = new Unity.Collections.NativeArray<RaycastHit>(tools.points512.Length, Unity.Collections.Allocator.TempJob);
+			const float distance = 100000f;
+
+			// Build the raycaster
+			for (int i = 0; i < tools.points512.Length; i++)
+			{
+				var q = tools.points512[i];
+				var dir = Unity.Mathematics.math.mul(q, boresight);
+				commands[i] = new RaycastCommand(origin, dir, distance, layerMask, 1);
+			}
+			RaycastCommand.ScheduleBatch(commands, results, 1).Complete();
+
+			var res = new byte[results.Length];
+			for (int i = 0; i < results.Length; i++)
+			{
+				res[i] = (byte)(results[i].collider != null ? 1 : 0);
+			}
+			commands.Dispose();
+			results.Dispose();
+			return res;
 		}
 
 		#endregion
@@ -1050,7 +1090,7 @@ namespace KERBALISM
 
 		#region EVENTS
 
-		private static List<PartData> transferredParts = new List<PartData>();
+		private static readonly List<PartData> transferredParts = new List<PartData>();
 
 		/// <summary>
 		/// Called from Callbacks, just after a part has been decoupled (undocking) or detached (usually a joint failure)
@@ -1063,7 +1103,7 @@ namespace KERBALISM
 			if (!oldVessel.TryGetVesselDataTemp(out VesselData oldVD))
 				return;
 
-			if (newVessel.TryGetVesselData(out VesselData newVD))
+			if (newVessel.TryGetVesselData(out var _))
 			{
 				Lib.LogDebugStack($"Decoupled/Undocked vessel {newVessel.vesselName} exists already, can't transfer partdatas !", Lib.LogLevel.Error);
 				return;
@@ -1082,7 +1122,7 @@ namespace KERBALISM
 
 			oldVD.OnVesselWasModified();
 
-			newVD = new VesselData(newVessel, transferredParts);
+			var newVD = new VesselData(newVessel, transferredParts);
 			transferredParts.Clear();
 
 			DB.AddNewVesselData(newVD);
