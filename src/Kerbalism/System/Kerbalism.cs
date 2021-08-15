@@ -6,6 +6,7 @@ using HarmonyLib;
 using KSP.UI.Screens;
 using KSP.Localization;
 using System.Collections;
+using System.Linq;
 
 namespace KERBALISM
 {
@@ -61,10 +62,7 @@ namespace KERBALISM
 		sealed class Unloaded_data { public double time; }; //< reference wrapper
 		static Dictionary<Guid, Unloaded_data> unloaded = new Dictionary<Guid, Unloaded_data>();
 
-		// used to update storm data on one body per step
-		static int storm_index;
-		class Storm_data { public double time; public CelestialBody body; };
-		static List<Storm_data> storm_bodies = new List<Storm_data>();
+		private static readonly List<CelestialBody> storm_bodies = new List<CelestialBody>();
 
 		// equivalent to TimeWarp.fixedDeltaTime
 		// note: stored here to avoid converting it to double every time
@@ -157,13 +155,8 @@ namespace KERBALISM
 					BackgroundResources.DisableBackgroundResources();
 
 					// prepare storm data
-					foreach (CelestialBody body in FlightGlobals.Bodies)
-					{
-						if (Storm.Skip_body(body))
-							continue;
-						Storm_data sd = new Storm_data { body = body };
-						storm_bodies.Add(sd);
-					}
+					foreach (CelestialBody body in FlightGlobals.Bodies.Where(b => !Storm.Skip_body(b)))
+						storm_bodies.Add(body);
 				}
 				catch (Exception e)
 				{
@@ -366,14 +359,6 @@ namespace KERBALISM
 					vd.Evaluate(elapsed_s);
 					//UnityEngine.Profiling.Profiler.EndSample();
 
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Radiation");
-					// show belt warnings
-					Radiation.BeltWarnings(v, vd);
-
-					// update storm data
-					Storm.Update(v, vd, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
 					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Comms");
 					CommsMessages.Update(v, vd, elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
@@ -443,14 +428,6 @@ namespace KERBALISM
 				last_vd.Evaluate(last_time);
 				//UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Radiation");
-				// show belt warnings
-				Radiation.BeltWarnings(last_v, last_vd);
-
-				// update storm data
-				Storm.Update(last_v, last_vd, last_time);
-				UnityEngine.Profiling.Profiler.EndSample();
-
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Comms");
 				CommsMessages.Update(last_v, last_vd, last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
@@ -477,15 +454,21 @@ namespace KERBALISM
 				unloaded.Remove(last_vd.VesselId);
 			}
 
-			// update storm data for one body per-step
-			if (storm_bodies.Count > 0)
+			// Update storm data
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Radiation");
+			foreach (var stormBody in storm_bodies)
 			{
-				storm_bodies.ForEach(k => k.time += elapsed_s);
-				Storm_data sd = storm_bodies[storm_index];
-				Storm.Update(sd.body, sd.time);
-				sd.time = 0.0;
-				storm_index = (storm_index + 1) % storm_bodies.Count;
+				Storm.Update(stormBody);
 			}
+			foreach (Vessel v in FlightGlobals.Vessels)
+			{
+				if (v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
+				{
+					Storm.Update(v, vd);
+					Radiation.BeltWarnings(v, vd);
+				}
+			}
+			UnityEngine.Profiling.Profiler.EndSample();
 
 			fuWatch.Stop();
 		}
