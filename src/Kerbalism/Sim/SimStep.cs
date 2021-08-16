@@ -117,7 +117,7 @@ namespace KERBALISM
 					continue;
 
 				if (Sim.RayHitSphere(occludingBody.stepCacheOcclusionDiff, mainBodyDirection, occludingBody.radius, altitude))
-				return false;
+					return false;
 			}
 
 			return true;

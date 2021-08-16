@@ -55,8 +55,11 @@ namespace KERBALISM
 		{
 			base.Save(node);
 			node.AddValue(nameof(panelType), panelType);
-			sunCatcherPosition?.Save(node.AddNode(nameof(sunCatcherPosition)), VesselData);
-			sunCatcherPivot?.Save(node.AddNode(nameof(sunCatcherPivot)), VesselData);
+
+			sunCatcherPosition?.UpdateVesselRelativeReferences(VesselData);
+			sunCatcherPosition?.Save(node.AddNode(nameof(sunCatcherPosition)));
+			sunCatcherPivot?.UpdateVesselRelativeReferences(VesselData);
+			sunCatcherPivot?.Save(node.AddNode(nameof(sunCatcherPivot)));
 		}
 
 		public override void OnStart()
@@ -81,6 +84,12 @@ namespace KERBALISM
 			}
 
 			base.OnStart();
+		}
+
+		public override void OnBecomingUnloaded()
+		{
+			sunCatcherPosition?.UpdateVesselRelativeReferences(VesselData);
+			sunCatcherPivot?.UpdateVesselRelativeReferences(VesselData);
 		}
 
 		private void GetModuleTransformsAndRate()
@@ -165,7 +174,7 @@ namespace KERBALISM
 			switch (panelType)
 			{
 				case PanelType.FlatTracking:
-					if (!IsLoaded || isAnalytic)
+					if (!IsLoaded || isSubstepping)
 						return Math.Cos((Math.PI * 0.5) - Math.Acos(Vector3d.Dot(sunDir, sunCatcherPivot.Up)));
 					else
 						return Math.Max(Vector3d.Dot(sunDir, sunCatcherPivot.Forward), 0.0);

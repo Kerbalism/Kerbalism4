@@ -150,7 +150,6 @@
     <Compile Include="Events\KSPLifecycle\PartModuleLifecycle.cs" />
     <Compile Include="Events\UI.cs" />
     <Compile Include="Events\KSPLifecycle\VesselLifecycle.cs" />
-    <Compile Include="Modules\Base\APIModuleHandler.cs" />
     <Compile Include="Modules\Base\ForeignModuleHandler.cs" />
     <Compile Include="Modules\Base\IB9Switchable.cs" />
     <Compile Include="Modules\Base\IModuleHandlerInteractable.cs" />

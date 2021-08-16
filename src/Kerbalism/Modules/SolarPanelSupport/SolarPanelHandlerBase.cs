@@ -64,10 +64,9 @@ namespace KERBALISM
 					}
 
 					if (persistentTransformRef == null)
-						persistentTransformRef = new PersistentTransform(transform);
-					else
-						persistentTransformRef.transform = transform;
+						persistentTransformRef = new PersistentTransform();
 
+					persistentTransformRef.transform = transform;
 					persistentTransformRef.handler = handler;
 				}
 				else
@@ -77,9 +76,15 @@ namespace KERBALISM
 				}
 			}
 
-			private PersistentTransform(Transform transform)
+			private PersistentTransform() {}
+
+			public void UpdateVesselRelativeReferences(VesselDataBase vd)
 			{
-				this.transform = transform;
+				if (transform != null && vd is VesselData vdFlight)
+				{
+					vesselRelativePosition = vdFlight.Vessel.transform.position - transform.position;
+					vesselRelativeRotation = transform.rotation * Quaternion.Inverse(vdFlight.Vessel.transform.rotation);
+				}
 			}
 
 			public PersistentTransform(ConfigNode node)
@@ -91,14 +96,8 @@ namespace KERBALISM
 				vesselRelativeRotation = Lib.ConfigValue(node, nameof(vesselRelativeRotation), Quaternion.identity);
 			}
 
-			public void Save(ConfigNode node, VesselDataBase vd)
+			public void Save(ConfigNode node)
 			{
-				if (vd.LoadedOrEditor && vd is VesselData vdFlight)
-				{
-					vesselRelativePosition = vdFlight.Vessel.transform.position - transform.position;
-					vesselRelativeRotation = transform.rotation * Quaternion.Inverse(vdFlight.Vessel.transform.rotation);
-				}
-
 				node.AddValue(nameof(vesselRelativePosition), vesselRelativePosition);
 				node.AddValue(nameof(vesselRelativeRotation), vesselRelativeRotation);
 			}
@@ -184,7 +183,7 @@ namespace KERBALISM
 		private bool isSubmerged = false;
 
 		// computed fields
-		protected bool isAnalytic;
+		protected bool isSubstepping;
 		public double currentOutput;
 		private string rateFormat;
 		private ExposureState exposureState;
@@ -267,6 +266,16 @@ namespace KERBALISM
 			else rateFormat = "F1";
 		}
 
+		public override void OnBecomingLoaded()
+		{
+			OnStart();
+		}
+
+		public override void OnBecomingUnloaded()
+		{
+			base.OnBecomingUnloaded();
+		}
+
 		private void ManualStarTrackingPopup()
 		{
 			// Assemble the buttons
@@ -294,7 +303,7 @@ namespace KERBALISM
 
 		public override void OnFixedUpdate(double elapsedSec)
 		{
-			isAnalytic = ((VesselData)VesselData).EnvIsAnalytic;
+			isSubstepping = ((VesselData)VesselData).IsSubstepping;
 
 			StateUpdate(elapsedSec);
 
@@ -387,7 +396,7 @@ namespace KERBALISM
 					// Ideally, for landed vessels, we need to factor in the terrain occlusion at the sim level by mass-raycasting 
 					// the terrain in all directions, saving that data, and checking the individual substeps against it.
 					bool occluderIsPart = false;
-					if (IsLoaded && !isAnalytic)
+					if (IsLoaded && !isSubstepping)
 					{
 						occlusionFactor = GetOccludedFactor(starFlux.direction, out occludingObject, out occluderIsPart);
 					}

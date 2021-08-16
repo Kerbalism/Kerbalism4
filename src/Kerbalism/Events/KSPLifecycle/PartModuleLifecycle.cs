@@ -57,7 +57,7 @@ namespace KERBALISM.Events
 				if (!(handler is IPersistentModuleHandler persistentHandler))
 					return;
 
-				// note : this check might not be failproof to mods (KCT/Scrapyard...) doing flight vessel to ShipConstruct conversions. Need some testing.
+				// TODO : this check might not be failproof to mods (KCT/Scrapyard...) doing flight vessel to ShipConstruct conversions. Need some testing.
 				if (persistentHandler.FlightId != 0)
 				{
 					node.AddValue(ModuleHandler.VALUENAME_FLIGHTID, persistentHandler.FlightId);
@@ -78,7 +78,6 @@ namespace KERBALISM.Events
 					{
 						Lib.Log($"FlightId isn't affected on {__instance.moduleName} for persistent {handler.GetType().Name} on part {__instance.part.name}", Lib.LogLevel.Warning);
 					}
-
 				}
 			}
 		}

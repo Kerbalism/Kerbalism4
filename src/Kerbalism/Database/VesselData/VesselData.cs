@@ -160,7 +160,7 @@ namespace KERBALISM
 		/// [environment] true when timewarping faster at 10000x or faster. When true, some fields are updated more frequently
 		/// and their evaluation is changed to an analytic, timestep-independant and vessel-position-independant mode.
 		/// </summary>
-		public bool EnvIsAnalytic => isAnalytic; bool isAnalytic;
+		public bool IsSubstepping => isSubstepping; bool isSubstepping;
 
 		public override CelestialBody MainBody => mainBody; CelestialBody mainBody;
 
@@ -871,7 +871,7 @@ namespace KERBALISM
 		private void EnvironmentUpdate(double elapsedSec)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
-            isAnalytic = elapsedSec > SubStepSim.subStepInterval * 2.0;
+            isSubstepping = elapsedSec > SubStepSim.subStepInterval * 2.0;
 
 			// Those must be evaluated before the Sim / StepSim is evaluated
 			Vector3d position = Lib.VesselPosition(Vessel);
@@ -883,7 +883,7 @@ namespace KERBALISM
 
 
 			int subStepCount = subSteps.Count;
-			if (isAnalytic && subStepCount > 0)
+			if (isSubstepping && subStepCount > 0)
 			{
 				// Reset stars
 ;				for (int i = 0; i < starsIrradiance.Length; i++)

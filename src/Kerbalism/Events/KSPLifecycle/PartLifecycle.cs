@@ -41,7 +41,7 @@ namespace KERBALISM.Events
 			}
 			else if (PartData.TryGetLoadedPartData(part, out PartData partData))
 			{
-				partData.OnLoadedDestroy();
+				partData.OnLoadedPartDestroyed();
 			}
 		}
 	}
@@ -140,6 +140,8 @@ namespace KERBALISM.Events
 					return;
 				}
 
+				// The part didn't exist previously : instantiate it and its modules
+				// TODO : we need to somehow handle just pulled out of inventory parts. Currently, any persisted data on those will be lost.
 				if (!vd.Parts.TryGet(__instance, out PartData partData))
 				{
 					Lib.LogDebug($"Instantiating PartData for {__instance.name} on {__instance.vessel.vesselName}");
@@ -166,10 +168,15 @@ namespace KERBALISM.Events
 					partData.Start();
 
 				}
+				// the part exists but was unloaded
 				else if (!partData.IsLoaded)
 				{
-					Lib.LogDebug($"Acquiring PartData references for {__instance.name} on {__instance.vessel.vesselName}");
-					partData.SetPartReference(__instance);
+					Lib.LogDebug($"Acquiring loaded references for previously unloaded {__instance.name} on {__instance.vessel.vesselName}");
+					partData.OnAfterLoad(__instance);
+				}
+				else
+				{
+					Lib.LogDebug($"Already loaded part {__instance.name} is being started again on {__instance.vessel.vesselName}", Lib.LogLevel.Warning);
 				}
 			}
 		}

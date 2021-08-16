@@ -12,6 +12,20 @@ namespace KERBALISM.Events
 	[HarmonyPatch("Unload")]
 	class Vessel_Unload
 	{
+		static void Prefix(Vessel __instance)
+		{
+			if (!__instance.TryGetVesselData(out VesselData vesselData))
+				return;
+
+			if (!vesselData.IsPersisted)
+				return;
+
+			foreach (PartData partData in vesselData.Parts)
+			{
+				partData.OnBeforeUnload();
+			}
+		}
+
 		static void Postfix(Vessel __instance)
 		{
 			if (!__instance.TryGetVesselData(out VesselData vesselData))
@@ -20,9 +34,9 @@ namespace KERBALISM.Events
 			if (!vesselData.IsPersisted)
 				return;
 
-			for (int i = 0; i < __instance.protoVessel.protoPartSnapshots.Count; i++)
+			foreach (ProtoPartSnapshot protoPart in __instance.protoVessel.protoPartSnapshots)
 			{
-				vesselData.Parts[i].SetProtopartReferenceOnVesselUnload(__instance.protoVessel.protoPartSnapshots[i]);
+				vesselData.VesselParts[protoPart.flightID].OnAfterUnload(protoPart);
 			}
 		}
 	}

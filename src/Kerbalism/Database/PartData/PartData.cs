@@ -47,7 +47,6 @@ namespace KERBALISM
 		private ProtoPartSnapshot protoPart;
 
 		public bool IsLoaded { get; private set; }
-		private bool initialized = false;
 
 		public PartRadiationData radiationData;
 		public PartVolumeAndSurface.Definition volumeAndSurface;
@@ -100,21 +99,99 @@ namespace KERBALISM
 				flightPartDatas.Add(flightId, this);
 		}
 
-		public void SetPartReference(Part part)
+		/// <summary>
+		/// Called by the Part.Start() patch. Set the part and partmodule references, instantiate loaded context handlers.
+		/// Called when a previously unloaded vessel becomes loaded (this isn't used for the initially loaded vessel on scene start)
+		/// </summary>
+		public void OnAfterLoad(Part part)
 		{
 			IsLoaded = true;
 			loadedPart = part;
+			protoPart = null;
 			loadedPartDatas[part.GetInstanceID()] = this;
+
+			for (int i = modules.Count - 1; i >= 0; i--)
+			{
+				ModuleHandler moduleHandler = modules[i];
+
+				// Remove handlers that don't have the loaded context
+				if ((moduleHandler.Activation & ModuleHandler.ActivationContext.Loaded) == 0)
+				{
+					modules.RemoveAt(i);
+					continue;
+				}
+
+				// acquire the loaded module reference
+				PartModule module = loadedPart.Modules[PartPrefab.Modules.IndexOf(moduleHandler.PrefabModuleBase)];
+				ModuleHandler.loadedHandlersByModuleInstanceId[module.GetInstanceID()] = moduleHandler;
+				moduleHandler.SetModuleReferences(moduleHandler.PrefabModuleBase, module);
+
+				if (module is KsmPartModule ksmModule)
+					ksmModule.ModuleHandler = moduleHandler;
+
+				moduleHandler.OnBecomingLoaded();
+			}
+
+			for (var i = 0; i < loadedPart.Modules.Count; i++)
+			{
+				// if the module is type we haven't a handler for, continue
+				if (!ModuleHandler.TryGetModuleHandlerType(loadedPart.Modules[i].moduleName, out ModuleHandler.ModuleHandlerType handlerType))
+					continue;
+
+				// instantiate handlers that don't have the unloaded context and have the loaded context
+				if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) == 0 && (handlerType.activation & ModuleHandler.ActivationContext.Loaded) != 0)
+				{
+					ModuleHandler.NewLoaded(handlerType, loadedPart.Modules[i], i, this, false);
+				}
+			}
 		}
 
-		// TODO : Vessel.Load() patch !!!
+		/// <summary>
+		/// Called when loadedPart.OnDestroy() is called by unity. Handled through GameEvents.onPartDestroyed.
+		/// Responsible for cleaning up all references to the loaded Part and PartModules
+		/// </summary>
+		public void OnLoadedPartDestroyed()
+		{
+			for (int i = modules.Count - 1; i >= 0; i--)
+			{
+				int instanceID = modules[i].LoadedModuleBase.GetInstanceID();
+				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
+				ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
+				ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
+			}
+
+			IsLoaded = false;
+			loadedPartDatas.Remove(loadedPart.GetInstanceID());
+			loadedPart = null;
+		}
+
+		/// <summary>
+		/// Called by the Vessel.Unload() patch for every part. Notify modules of the incoming state change, and remove loaded-only module handlers.
+		/// </summary>
+		public void OnBeforeUnload()
+		{
+			for (int i = modules.Count - 1; i >= 0; i--)
+			{
+				modules[i].OnBecomingUnloaded();
+
+				// If the handler doesn't have the unloaded activation context, remove it
+				// For non-persistent handlers we have no way to find the corresponding protomodule if the vessel goes from loaded to unloaded.
+				// So also remove any non-persistent handlers. In case the handler has both the loaded and unloaded context, it will be recreated
+				// in the SetProtopartReferenceOnVesselUnload() call.
+				if ((modules[i].Activation & ModuleHandler.ActivationContext.Unloaded) == 0 || !(modules[i] is IPersistentModuleHandler))
+				{
+					modules.RemoveAt(i);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Called by the Vessel.Unload() patch for every part. Set the protopart reference and the protomodule reference, and instantiate unloaded-context handlers
 		/// </summary>
-		public void SetProtopartReferenceOnVesselUnload(ProtoPartSnapshot protoPart)
+		public void OnAfterUnload(ProtoPartSnapshot protoPart)
 		{
 			this.protoPart = protoPart;
+			IsLoaded = false;
 
 			foreach (ProtoPartModuleSnapshot protoModule in protoPart.modules)
 			{
@@ -138,38 +215,6 @@ namespace KERBALISM
 			}
 		}
 
-		/// <summary>
-		/// Must be called when loadedPart.OnDestroy() is called by unity. Handled through GameEvents.onPartDestroyed.
-		/// Note that in the case of a vessel being unloaded, this is called before SetProtopartReferenceOnVesselUnload()
-		/// </summary>
-		public void OnLoadedDestroy()
-		{
-			IsLoaded = false;
-			loadedPartDatas.Remove(loadedPart.GetInstanceID());
-
-			foreach (PartModule module in loadedPart.Modules)
-			{
-				int instanceID = module.GetInstanceID();
-				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
-				ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
-				ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
-			}
-
-			loadedPart = null;
-
-			for (int i = 0; i < modules.Count; i++)
-			{
-				// If the handler doesn't have the unloaded activation context, remove it
-				// For non-persistent handlers we have no way to find the corresponding protomodule if the vessel goes from loaded to unloaded.
-				// So also remove any non-persistent handlers. In case the handler has both the loaded and unloaded context, it will be recreated
-				// in the SetProtopartReferenceOnVesselUnload() call.
-				if ((modules[i].Activation & ModuleHandler.ActivationContext.Unloaded) == 0 || !(modules[i] is IPersistentModuleHandler))
-				{
-					modules.RemoveAt(i);
-				}
-			}
-		}
-
 		public void Start()
 		{
 			if (Started)
@@ -184,16 +229,6 @@ namespace KERBALISM
 				handler.Start();
 			}
 		}
-
-		//public void PostInstantiateSetup()
-		//{
-		//	if (initialized)
-		//		return;
-
-		//	radiationData.PostInstantiateSetup();
-
-		//	initialized = true;
-		//}
 
 		/// <summary> Must be called if the part is destroyed </summary>
 		public void PartWillDie()

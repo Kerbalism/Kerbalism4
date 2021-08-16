@@ -411,7 +411,7 @@ namespace KERBALISM
 			}
 #endif
 
-			if (vd.EnvIsAnalytic)
+			if (vd.IsSubstepping)
 			{
 				// if we are switching to analytic mode and the vessel is landed, get an average exposure over a day
 				// TODO : maybe check the rotation speed of the body, this might be inaccurate for tidally-locked bodies (test on the mun ?)

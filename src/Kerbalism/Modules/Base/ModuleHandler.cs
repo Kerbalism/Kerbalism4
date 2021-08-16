@@ -416,6 +416,11 @@ namespace KERBALISM
 		/// </summary>
 		public PartData partData;
 
+		/// <summary>
+		/// Is the vessel loaded ? Is this to check if you can safely use the loaded module and protoModule references
+		/// Note that the loaded state can change at any time, so in case you're doing loaded-dependant initialization code,
+		/// you will need to override the 
+		/// </summary>
 		public bool IsLoaded => partData.IsLoaded;
 
 		public VesselDataBase VesselData => partData?.vesselData;
@@ -545,9 +550,19 @@ namespace KERBALISM
 		public virtual void OnVesselDataUpdate() { }
 
 		/// <summary>
-		/// Called only once for the life of the part, when the part is about to be definitely removed.
+		/// Called only once for the life of the part, when the part is about to be definitely removed from the game.
 		/// </summary>
 		public virtual void OnFlightPartWillDie() { }
+
+		/// <summary>
+		/// Called when a previously unloaded handler is becoming loaded. This is always followed by the PartModule.OnStart() call
+		/// </summary>
+		public virtual void OnBecomingLoaded() { }
+
+		/// <summary>
+		/// Called when a previously loaded handler will become unloaded
+		/// </summary>
+		public virtual void OnBecomingUnloaded() { }
 
 		#endregion
 
