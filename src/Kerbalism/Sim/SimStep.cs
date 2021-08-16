@@ -113,8 +113,11 @@ namespace KERBALISM
 				if (occludingBody == MainBody)
 					continue;
 
+				if (!occludingBody.stepCacheIsOccluding)
+					continue;
+
 				if (Sim.RayHitSphere(occludingBody.stepCacheOcclusionDiff, mainBodyDirection, occludingBody.radius, altitude))
-					return false;
+				return false;
 			}
 
 			return true;
@@ -129,6 +132,9 @@ namespace KERBALISM
 			foreach (SimBody occludingBody in Bodies)
 			{
 				if (occludingBody == mainPlanet)
+					continue;
+
+				if (!occludingBody.stepCacheIsOccluding)
 					continue;
 
 				if (Sim.RayHitSphere(occludingBody.stepCacheOcclusionDiff, vesselToPlanet, occludingBody.radius, distance))
@@ -155,6 +161,9 @@ namespace KERBALISM
 				foreach (SimBody occludingBody in Bodies)
 				{
 					if (occludingBody == sun)
+						continue;
+
+					if (!occludingBody.stepCacheIsOccluding)
 						continue;
 
 					if (Sim.RayHitSphere(occludingBody.stepCacheOcclusionDiff, starFlux.direction, occludingBody.radius, starFlux.distance))
