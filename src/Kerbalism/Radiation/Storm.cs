@@ -181,7 +181,6 @@ namespace KERBALISM
             return false;
         }
 
-
         // Identify bodies that we should not generate storms for
         public static bool Skip_body(CelestialBody body)
         {
@@ -198,6 +197,8 @@ namespace KERBALISM
             // do not skip the body
             return false;
         }
+
+        public static bool VesselIsRelevant(VesselData vd) => Features.Radiation && vd.IsSimulated && Sim.IsStar(vd.MainBody) && !vd.IsEVA;
 
         /// <summary>return true if a storm is incoming</summary>
         public static bool Incoming(VesselData vd)

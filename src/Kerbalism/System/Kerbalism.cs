@@ -62,7 +62,9 @@ namespace KERBALISM
 		sealed class Unloaded_data { public double time; }; //< reference wrapper
 		static Dictionary<Guid, Unloaded_data> unloaded = new Dictionary<Guid, Unloaded_data>();
 
-		private static readonly List<CelestialBody> storm_bodies = new List<CelestialBody>();
+		private static readonly List<CelestialBody> stormBodies = new List<CelestialBody>();
+		private static readonly List<VesselData> stormVessels = new List<VesselData>();
+		private static readonly List<VesselData> radiationVessels = new List<VesselData>();
 
 		// equivalent to TimeWarp.fixedDeltaTime
 		// note: stored here to avoid converting it to double every time
@@ -156,7 +158,7 @@ namespace KERBALISM
 
 					// prepare storm data
 					foreach (CelestialBody body in FlightGlobals.Bodies.Where(b => !Storm.Skip_body(b)))
-						storm_bodies.Add(body);
+						stormBodies.Add(body);
 				}
 				catch (Exception e)
 				{
@@ -454,23 +456,34 @@ namespace KERBALISM
 				unloaded.Remove(last_vd.VesselId);
 			}
 
+			// TODO: Only do this periodically!
+			RefreshWorkingVesselLists();
+
 			// Update storm data
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Radiation");
-			foreach (var stormBody in storm_bodies)
-			{
+			foreach (var stormBody in stormBodies)
 				Storm.Update(stormBody);
-			}
+			foreach (var vd in stormVessels)
+				Storm.Update(vd.Vessel, vd);
+			foreach (var vd in radiationVessels)
+				Radiation.BeltWarnings(vd.Vessel, vd);
+			UnityEngine.Profiling.Profiler.EndSample();
+
+			fuWatch.Stop();
+		}
+
+		private static void RefreshWorkingVesselLists()
+		{
+			stormVessels.Clear();
+			radiationVessels.Clear();
 			foreach (Vessel v in FlightGlobals.Vessels)
 			{
 				if (v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
 				{
-					Storm.Update(v, vd);
-					Radiation.BeltWarnings(v, vd);
+					if (Storm.VesselIsRelevant(vd)) stormVessels.Add(vd);
+					radiationVessels.Add(vd);
 				}
 			}
-			UnityEngine.Profiling.Profiler.EndSample();
-
-			fuWatch.Stop();
 		}
 
 		#endregion
