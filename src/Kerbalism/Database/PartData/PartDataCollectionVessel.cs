@@ -86,7 +86,7 @@ namespace KERBALISM
 				// case by checking if the part prefab is null
 				if (ReferenceEquals(protopart.partPrefab, null))
 				{
-					Lib.LogDebug($"Skipping PartData creation for removed part {protopart.partName} on vessel {vesselData.VesselName}");
+					Lib.LogDebug($"Skipping PartData creation for {protopart.partName} on {vesselData.VesselName}\nVessel will be deleted by KSP, as the part doesn't exist anymore due to a configuration change");
 					continue;
 				}
 

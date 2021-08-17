@@ -9,13 +9,6 @@ using UnityEngine;
 
 namespace KERBALISM
 {
-	/*
-	 TODO :
-		- activationContext handling needs to be thorougly tested
-		- activationContext handling not implemented for the unloaded vessel going loaded case ?
-		
-	 */
-
 	public static class PartModuleExtensions
 	{
 		public static T GetModuleHandler<T>(this PartModule module) where T : ModuleHandler
@@ -46,6 +39,7 @@ namespace KERBALISM
 			public readonly string handlerTypeName;
 			public readonly string[] moduleTypeNames;
 			public readonly bool isPersistent;
+			public readonly bool isKsmModule;
 			public readonly ActivationContext activation;
 
 			public readonly Func<ModuleHandler> activator;
@@ -63,6 +57,7 @@ namespace KERBALISM
 				moduleTypeNames = dummyInstance.ModuleTypeNames;
 				isPersistent = dummyInstance is IPersistentModuleHandler;
 				activation = dummyInstance.Activation;
+				isKsmModule = dummyInstance.GetType().IsSubclassOf(typeof(KsmModuleHandler));
 			}
 
 			public override string ToString() => handlerTypeName;
@@ -339,23 +334,26 @@ namespace KERBALISM
 			partData.modules.Add(moduleHandler);
 
 			moduleHandler.handlerIsEnabled = Lib.ConfigValue(handlerNode, nameof(handlerIsEnabled), true);
-			((IPersistentModuleHandler)moduleHandler).Load(handlerNode);
+
+			IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)moduleHandler;
+			persistentHandler.Load(handlerNode);
 			
 
 			// handlerFlightIdsByModuleInstanceId is populated in the PartModule.Load() PostFix harmony patch
 			if (handlerFlightIdsByModuleInstanceId.TryGetValue(module.GetInstanceID(), out int flightId))
 			{
-				((IPersistentModuleHandler) moduleHandler).FlightId = flightId; // populated in 
+				persistentHandler.FlightId = flightId;
+				persistentFlightModuleHandlers.Add(flightId, persistentHandler);
 			}
 
 			Lib.LogDebug($"Instantiated persisted {moduleHandler} for {partData} on {partData.vesselData}");
 		}
 
-		public static void NewFlightFromProto(ModuleHandlerType handlerType, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, PartData partData)
+		public static ModuleHandler NewFlightFromProto(ModuleHandlerType handlerType, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, PartData partData)
 		{
 			// TODO : optimisation, search the part once and find the prefab in the caller (PartDataCollectionVessel ctor) instead of redoing it for each module
 			if (!Lib.TryFindModulePrefab(protoPart, protoModule, out PartModule modulePrefab))
-				return;
+				return null;
 
 			ModuleHandler moduleHandler = handlerType.activator.Invoke();
 
@@ -365,6 +363,10 @@ namespace KERBALISM
 				persistentHandler.FlightId = flightId;
 				Lib.Proto.Set(protoModule, VALUENAME_FLIGHTID, flightId);
 			}
+			else
+			{
+				moduleHandler.handlerIsEnabled = Lib.Proto.GetBool(protoModule, nameof(PartModule.isEnabled), true);
+			}
 
 			moduleHandler.partData = partData;
 			moduleHandler.SetModuleReferences(modulePrefab, null);
@@ -372,6 +374,8 @@ namespace KERBALISM
 			partData.modules.Add(moduleHandler);
 
 			Lib.LogDebug($"Instantiated new {moduleHandler} for {partData} on {partData.vesselData}");
+
+			return moduleHandler;
 		}
 
 		public static void NewPersistedFlightFromProto(ModuleHandlerType handlerType, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, PartData partData, ConfigNode handlerNode, int flightId)

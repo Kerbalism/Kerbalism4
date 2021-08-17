@@ -483,13 +483,12 @@ namespace KERBALISM
 			}
 		}
 
-		public override void OnDestroy()
+		public void OnDestroy()
 		{
 			OnDetach();
 			part.OnEditorDetach -= OnDetach;
 			part.RemoveOnMouseEnter(PartOnMouseEnter);
 			part.RemoveOnMouseExit(PartOnMouseExit);
-			base.OnDestroy();
 		}
 
 		private void OnDetach()

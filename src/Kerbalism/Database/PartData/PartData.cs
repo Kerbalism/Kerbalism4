@@ -143,6 +143,15 @@ namespace KERBALISM
 				{
 					ModuleHandler.NewLoaded(handlerType, loadedPart.Modules[i], i, this, false);
 				}
+
+				// TODO : KsmStart() is supposed to happen after B9PS subtype switching.
+				// We are calling this from the Part.Start() prefix, so it won't be the case...
+				if (handlerType.isKsmModule)
+				{
+					KsmPartModule ksmModule = (KsmPartModule)loadedPart.Modules[i];
+					ksmModule.KsmStart();
+					ksmModule.SetupActions();
+				}
 			}
 		}
 
@@ -154,10 +163,17 @@ namespace KERBALISM
 		{
 			for (int i = modules.Count - 1; i >= 0; i--)
 			{
-				int instanceID = modules[i].LoadedModuleBase.GetInstanceID();
-				ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
-				ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
-				ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
+				if (modules[i].LoadedModuleBase != null)
+				{
+					int instanceID = modules[i].LoadedModuleBase.GetInstanceID();
+					ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
+					ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
+					ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
+				}
+				else if (!ReferenceEquals(modules[i].LoadedModuleBase, null))
+				{
+					Lib.Log($"Can't clean up loaded module dictionaries, a module exists but is already destroyed !!!", Lib.LogLevel.Error);
+				}
 			}
 
 			IsLoaded = false;
@@ -166,7 +182,7 @@ namespace KERBALISM
 		}
 
 		/// <summary>
-		/// Called by the Vessel.Unload() patch for every part. Notify modules of the incoming state change, and remove loaded-only module handlers.
+		/// Called by the Vessel.Unload() prefix for every part. Notify modules of the incoming state change, and remove loaded-only module handlers.
 		/// </summary>
 		public void OnBeforeUnload()
 		{
@@ -186,7 +202,7 @@ namespace KERBALISM
 		}
 
 		/// <summary>
-		/// Called by the Vessel.Unload() patch for every part. Set the protopart reference and the protomodule reference, and instantiate unloaded-context handlers
+		/// Called by the Vessel.Unload() postfix for every part. Set the protopart reference and the protomodule reference, and instantiate unloaded-context handlers
 		/// </summary>
 		public void OnAfterUnload(ProtoPartSnapshot protoPart)
 		{
@@ -207,10 +223,11 @@ namespace KERBALISM
 						continue;
 					}
 				}
-
-				if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
+				else if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
 				{
-					ModuleHandler.NewFlightFromProto(handlerType, protoPart, protoModule, this);
+					ModuleHandler unloadedHandler = ModuleHandler.NewFlightFromProto(handlerType, protoPart, protoModule, this);
+					unloadedHandler.FirstSetup();
+					unloadedHandler.Start();
 				}
 			}
 		}

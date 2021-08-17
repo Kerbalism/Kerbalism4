@@ -97,7 +97,7 @@ namespace KERBALISM
 		// - Activate() the new subtype and apply its config to the module
 		// This allow to :
 		// - Avoid useless deactivation/activation cycles and reconfiguration cycles, especially when instantiating existing (persisted) modules
-		// - Identify the exact nature of the switch event so the handler can handle them without accordingly
+		// - Identify the exact nature of the switch event so the handler can handle them accordingly
 		// To do this, we rely on the assumption that our module only support two specific switch actions :
 		// - switching the KsmModuleDefinition through B9PS changing the KsmPartModule.definition KSPField
 		// - switching the module enabled/disabled state through B9PS changing the KsmPartModule.switchModuleEnabled KSPField

@@ -1127,9 +1127,7 @@ namespace KERBALISM
 			Lib.LogDebug($"Coupling complete from vessel, vd.partcount={fromVD.Parts.Count}, v.partcount={fromVessel.parts.Count} ({fromVessel.vesselName})");
 		}
 
-		/// <summary>
-		/// Called from Callbacks, just after a part has been coupled (docking, KIS attached part...)
-		/// </summary>
+
 		public static void OnPartWillDie(Part part)
 		{
 			if (!part.vessel.TryGetVesselDataTemp(out VesselData vd))

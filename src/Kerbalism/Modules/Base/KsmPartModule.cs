@@ -130,20 +130,5 @@ namespace KERBALISM
 
 			ModuleHandler.NewForPrefab(this);
 		}
-
-
-		public virtual void OnDestroy()
-		{
-			// clear loaded module reference to avoid memory leaks
-			if (moduleHandler != null)
-			{
-				moduleHandler.loadedModule = null;
-			}
-		}
-
-		public override void OnStart(StartState state)
-		{
-			base.OnStart(state);
-		}
 	}
 }
