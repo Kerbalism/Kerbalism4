@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using ThreadState = System.Threading.ThreadState;
 
 namespace KERBALISM
 {
@@ -50,6 +51,13 @@ namespace KERBALISM
 		private static double currentUT;
 		private static int bodyCount;
 		private static double lastStepUT;
+
+		private static bool workerDone;
+		private static bool workerStepsDone;
+		private static bool workerCatchupDone;
+
+
+
 		private static Dictionary<Guid, SubStepVessel> vessels = new Dictionary<Guid, SubStepVessel>();
 		private static List<Guid> subStepVesselIds = new List<Guid>();
 
@@ -180,6 +188,7 @@ namespace KERBALISM
 					workerIsAlive = true;
 					worker = new Thread(WorkerLoop);
 					worker.Start();
+					workerDone = true;
 				}
 			}
 			else
@@ -191,6 +200,9 @@ namespace KERBALISM
 
 		public static void Synchronize()
 		{
+			if (worker == null)
+				return;
+
 			MiniProfiler.lastFuTicks = fuWatch.ElapsedTicks;
 			fuWatch.Restart();
 
@@ -198,31 +210,56 @@ namespace KERBALISM
 
 			subStepsToCompute = (int)(TimeWarp.fetch.warpRates[7] * 0.02 * 1.5 / subStepInterval);
 
-			object __lockObj = workerLock;
-			bool __lockWasTaken = false;
-			try
+			int maxWaitMs = 0;
+			bool hasToWait = !workerDone;
+			otherWatch.Reset();
+			otherWatch.Start();
+			while (worker.ThreadState == ThreadState.Running)
 			{
-				System.Threading.Monitor.TryEnter(__lockObj, 1, ref __lockWasTaken);
-				if (__lockWasTaken)
-				{
-					ThreadSafeSynchronize();
-					WorkerLoadCheck();
-				}
-				else
-				{
-					// maxUT is read from the worker thread in only one place, between step evaluation
-					// so i guess (hope) it's ok to increment it even if we don't have a lock for it
-					// Incrementing it will allow the worker thread to go forward using the old parameters,
-					// instead of having to compute twice the normal amount of steps during the next FU.
-					maxUT = Planetarium.GetUniversalTime() + (subStepsToCompute * subStepInterval);
-					Lib.LogDebug("Could not acquire lock !", Lib.LogLevel.Warning);
-				}
+				maxWaitMs++;
+				Thread.Sleep(0);
+			}
+			otherWatch.Stop();
+
+			if (hasToWait)
+			{
+				Lib.Log($"Main thread had to wait {otherWatch.Elapsed.TotalMilliseconds:F3}ms for the worker thread", Lib.LogLevel.Warning);
+			}
+
+			ThreadSafeSynchronize();
+			WorkerLoadCheck();
+			workerStepsDone = false;
+			workerCatchupDone = false;
+			worker.Resume();
+
+			//object __lockObj = workerLock;
+			//bool __lockWasTaken = false;
+			//try
+			//{
+			//	System.Threading.Monitor.TryEnter(__lockObj, 20, ref __lockWasTaken);
+			//	if (__lockWasTaken)
+			//	{
+			//		ThreadSafeSynchronize();
+			//		WorkerLoadCheck();
+			//	}
+			//	else
+			//	{
+			//		// maxUT is read from the worker thread in only one place, between step evaluation
+			//		// so i guess (hope) it's ok to increment it even if we don't have a lock for it
+			//		// Incrementing it will allow the worker thread to go forward using the old parameters,
+			//		// instead of having to compute twice the normal amount of steps during the next FU.
+			//		maxUT = Planetarium.GetUniversalTime() + (subStepsToCompute * subStepInterval);
+			//		Lib.LogDebug("Could not acquire lock !", Lib.LogLevel.Warning);
+			//	}
 				
-			}
-			finally
-			{
-				if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
-			}
+			//}
+			//finally
+			//{
+			//	workerStepsDone = false;
+			//	workerCatchupDone = false;
+			//	if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
+			//	worker.Resume();
+			//}
 
 			UnityEngine.Profiling.Profiler.EndSample();
 
@@ -319,6 +356,7 @@ namespace KERBALISM
 
 		static Stopwatch fuWatch = new Stopwatch();
 		static Stopwatch workerWatch = new Stopwatch();
+		static Stopwatch otherWatch = new Stopwatch();
 
 		static long currentWorkerTicks;
 
@@ -329,39 +367,47 @@ namespace KERBALISM
 				if (!workerIsAlive)
 					worker.Abort();
 
+				DoWorkerStep();
+				//Thread.Sleep(0);
 
-				object __lockObj = workerLock;
-				bool __lockWasTaken = false;
-				try
-				{
-					System.Threading.Monitor.Enter(__lockObj, ref __lockWasTaken);
-					DoWorkerStep();
-				}
-				finally
-				{
-					if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
-				}
 
-				// Let the CPU breathe a bit. I'm not sure this is strictly needed, but it seems that not
-				// doing it can cause other threads to hang. In particular, KSP + a running unity profiler will 
-				// hang if this isn't called. It doesn't seem to affect the performance of the worker thread.
-				// From the Thread.Sleep() docs :
-				// If the value of the millisecondsTimeout argument is zero, the thread relinquishes
-				// the remainder of its time slice to any thread of equal priority that is ready to run.
-				// If there are no other threads of equal priority that are ready to run, execution of
-				// the current thread is not suspended.
-				Thread.Sleep(0);
+				//object __lockObj = workerLock;
+				//bool __lockWasTaken = false;
+				//try
+				//{
+				//	System.Threading.Monitor.Enter(__lockObj, ref __lockWasTaken);
+				//	DoWorkerStep();
+				//}
+				//finally
+				//{
+				//	if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
+				//}
+
+				//// Let the CPU breathe a bit. I'm not sure this is strictly needed, but it seems that not
+				//// doing it can cause other threads to hang. In particular, KSP + a running unity profiler will 
+				//// hang if this isn't called. It doesn't seem to affect the performance of the worker thread.
+				//// From the Thread.Sleep() docs :
+				//// If the value of the millisecondsTimeout argument is zero, the thread relinquishes
+				//// the remainder of its time slice to any thread of equal priority that is ready to run.
+				//// If there are no other threads of equal priority that are ready to run, execution of
+				//// the current thread is not suspended.
+				//Thread.Sleep(0);
 			}
 		}
 
 		private static void DoWorkerStep()
 		{
+
 			if (lastStepUT < maxUT)
 			{
 				workerWatch.Restart();
 				ComputeNextStep();
 				workerWatch.Stop();
 				currentWorkerTicks += workerWatch.ElapsedTicks;
+			}
+			else
+			{
+				workerStepsDone = true;
 			}
 
 			if (vesselsInNeedOfCatchup.Count > 0)
@@ -373,6 +419,15 @@ namespace KERBALISM
 
 				workerWatch.Stop();
 				currentWorkerTicks += workerWatch.ElapsedTicks;
+			}
+			else
+			{
+				workerCatchupDone = true;
+			}
+
+			if (workerStepsDone && workerCatchupDone)
+			{
+				worker.Suspend();
 			}
 		}
 
