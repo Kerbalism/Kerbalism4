@@ -10,14 +10,14 @@ namespace KERBALISM.Utility
 {
 	public class OcclusionTools : IDisposable
 	{
-		public NativeArray<quaternion> points512, points1024, points2048;
+		public NativeArray<float3> points512, points1024, points2048;
 		private const float Lattice_epsilon = 0.36f;
 
 		public OcclusionTools()
 		{
-			points512 = new NativeArray<quaternion>(512, Allocator.Persistent);
-			points1024 = new NativeArray<quaternion>(1024, Allocator.Persistent);
-			points2048 = new NativeArray<quaternion>(2048, Allocator.Persistent);
+			points512 = new NativeArray<float3>(512, Allocator.Persistent);
+			points1024 = new NativeArray<float3>(1024, Allocator.Persistent);
+			points2048 = new NativeArray<float3>(2048, Allocator.Persistent);
 			var x512 = new SpherePointsJob(512, Lattice_epsilon)
 			{
 				results = points512,
@@ -51,12 +51,12 @@ namespace KERBALISM.Utility
 			if (points2048.IsCreated) points2048.Dispose();
 		}
 
-		public quaternion GetNearestQuaternion(in NativeArray<quaternion> points, float3 vec)
+		public float3 GetNearestDirection(in NativeArray<float3> points, float3 vec)
 		{
 			var dots = new NativeArray<float>(points.Length, Allocator.TempJob);
 			var job = new DotProductJob
 			{
-				quaternions = points,
+				directions = points,
 				vec = vec,
 				dot = dots
 			}.Schedule(points.Length, 16);
@@ -69,15 +69,13 @@ namespace KERBALISM.Utility
 
 		public struct DotProductJob : IJobParallelFor
 		{
-			[ReadOnly] public NativeArray<quaternion> quaternions;
+			[ReadOnly] public NativeArray<float3> directions;
 			[ReadOnly] public float3 vec;
 			[WriteOnly] public NativeArray<float> dot;
 
 			public void Execute(int index)
 			{
-				var fwd = new float3(0, 0, 1);
-				float3 a = math.mul(quaternions[index], fwd);
-				dot[index] = math.dot(a, vec);
+				dot[index] = math.dot(directions[index], vec);
 			}
 		}
 
@@ -87,7 +85,7 @@ namespace KERBALISM.Utility
 		{
 			[ReadOnly] public int points;
 			[ReadOnly] public float epsilon;
-			[WriteOnly] public NativeArray<quaternion> results;
+			[WriteOnly] public NativeArray<float3> results;
 			private const float GoldenRatio = 1.61803398875f;   //(1 + math.sqrt(5)) / 2;
 			private const float ThetaConstantTerm = 2 * math.PI / GoldenRatio;
 			private readonly float denomRecip;
@@ -103,11 +101,11 @@ namespace KERBALISM.Utility
 			{
 				if (Unity.Burst.CompilerServices.Hint.Unlikely(index == 0))
 				{
-					results[index] = quaternion.identity;
+					results[index] = new float3(0, 0, 1);
 				}
 				else if (Unity.Burst.CompilerServices.Hint.Unlikely(index == points - 1))
 				{
-					results[index] = quaternion.Euler(180, 0, 0);
+					results[index] = new float3(0, 0, -1);
 				}
 				else
 				{
@@ -116,10 +114,9 @@ namespace KERBALISM.Utility
 					float cosPhi = 1 - num * denomRecip;
 					float sinPhi = math.sqrt(1 - cosPhi * cosPhi);
 					math.sincos(theta, out float sinTheta, out float cosTheta);
-					var res = new float3(cosTheta * sinPhi,
+					results[index] = new float3(cosTheta * sinPhi,
 											sinTheta * sinPhi,
 											cosPhi);
-					results[index] = Quaternion.FromToRotation(new float3(0, 0, 1), res);
 				}
 			}
 		}
