@@ -44,19 +44,11 @@ namespace KERBALISM
 		private static int laggingLagChecks;
 		private static int nonLaggingLagChecks;
 
-		private static Thread worker;
-		private static readonly object workerLock = new object();
-		private static bool workerIsAlive;
 		private static double maxUT;
 		private static double currentUT;
 		private static int bodyCount;
 		private static double lastStepUT;
-
-		private static bool workerDone;
-		private static bool workerStepsDone;
-		private static bool workerCatchupDone;
-
-
+		private static string errorMessage;
 
 		private static Dictionary<Guid, SubStepVessel> vessels = new Dictionary<Guid, SubStepVessel>();
 		private static List<Guid> subStepVesselIds = new List<Guid>();
@@ -174,98 +166,39 @@ namespace KERBALISM
 			nonLaggingLagChecks = 0;
 		}
 
+		private static ManualResetEvent waitHandle = new ManualResetEvent(true);
+
 		public static void OnFixedUpdate()
 		{
-			if (Lib.IsGameRunning)
-			{
-				Synchronize();
-				if (!workerIsAlive)
-				{
-					if (worker != null)
-						worker.Abort();
-
-					Lib.LogDebug($"Starting worker thread");
-					workerIsAlive = true;
-					worker = new Thread(WorkerLoop);
-					worker.Start();
-					workerDone = true;
-				}
-			}
-			else
-			{
-				workerIsAlive = false;
-			}
-		}
-
-
-		public static void Synchronize()
-		{
-			if (worker == null)
+			if (!Lib.IsGameRunning)
 				return;
 
 			MiniProfiler.lastFuTicks = fuWatch.ElapsedTicks;
 			fuWatch.Restart();
 
-			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.SubStepSim.Update");
-
 			subStepsToCompute = (int)(TimeWarp.fetch.warpRates[7] * 0.02 * 1.5 / subStepInterval);
 
-			int maxWaitMs = 0;
-			bool hasToWait = !workerDone;
-			otherWatch.Reset();
-			otherWatch.Start();
-			while (worker.ThreadState == ThreadState.Running)
-			{
-				maxWaitMs++;
-				Thread.Sleep(0);
-			}
+			otherWatch.Restart();
+			waitHandle.WaitOne();
 			otherWatch.Stop();
+			MiniProfiler.workerLag = otherWatch.Elapsed.TotalMilliseconds;
 
-			if (hasToWait)
+			if (errorMessage != null)
 			{
-				Lib.Log($"Main thread had to wait {otherWatch.Elapsed.TotalMilliseconds:F3}ms for the worker thread", Lib.LogLevel.Warning);
+				Lib.Log(errorMessage, Lib.LogLevel.Warning);
+				errorMessage = null;
 			}
 
-			ThreadSafeSynchronize();
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.SubStepSim.Update");
+			Synchronize();
 			WorkerLoadCheck();
-			workerStepsDone = false;
-			workerCatchupDone = false;
-			worker.Resume();
-
-			//object __lockObj = workerLock;
-			//bool __lockWasTaken = false;
-			//try
-			//{
-			//	System.Threading.Monitor.TryEnter(__lockObj, 20, ref __lockWasTaken);
-			//	if (__lockWasTaken)
-			//	{
-			//		ThreadSafeSynchronize();
-			//		WorkerLoadCheck();
-			//	}
-			//	else
-			//	{
-			//		// maxUT is read from the worker thread in only one place, between step evaluation
-			//		// so i guess (hope) it's ok to increment it even if we don't have a lock for it
-			//		// Incrementing it will allow the worker thread to go forward using the old parameters,
-			//		// instead of having to compute twice the normal amount of steps during the next FU.
-			//		maxUT = Planetarium.GetUniversalTime() + (subStepsToCompute * subStepInterval);
-			//		Lib.LogDebug("Could not acquire lock !", Lib.LogLevel.Warning);
-			//	}
-				
-			//}
-			//finally
-			//{
-			//	workerStepsDone = false;
-			//	workerCatchupDone = false;
-			//	if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
-			//	worker.Resume();
-			//}
-
 			UnityEngine.Profiling.Profiler.EndSample();
 
+			waitHandle.Reset();
+			ThreadPool.QueueUserWorkItem(x => RunSubStepSim());
 		}
 
-		private static void ThreadSafeSynchronize()
+		private static void Synchronize()
 		{
 			MiniProfiler.lastWorkerTicks = currentWorkerTicks;
 			currentWorkerTicks = 0;
@@ -360,74 +293,39 @@ namespace KERBALISM
 
 		static long currentWorkerTicks;
 
-		public static void WorkerLoop()
+		private static void RunSubStepSim()
 		{
-			while (true)
+			try
 			{
-				if (!workerIsAlive)
-					worker.Abort();
+				while (lastStepUT < maxUT || vesselsInNeedOfCatchup.Count > 0)
+				{
+					if (lastStepUT < maxUT)
+					{
+						workerWatch.Restart();
+						ComputeNextStep();
+						workerWatch.Stop();
+						currentWorkerTicks += workerWatch.ElapsedTicks;
+					}
 
-				DoWorkerStep();
-				//Thread.Sleep(0);
+					if (vesselsInNeedOfCatchup.Count > 0)
+					{
+						workerWatch.Restart();
 
+						if (vesselsInNeedOfCatchup.Peek().TryComputeMissingSteps())
+							vesselsInNeedOfCatchup.Dequeue();
 
-				//object __lockObj = workerLock;
-				//bool __lockWasTaken = false;
-				//try
-				//{
-				//	System.Threading.Monitor.Enter(__lockObj, ref __lockWasTaken);
-				//	DoWorkerStep();
-				//}
-				//finally
-				//{
-				//	if (__lockWasTaken) System.Threading.Monitor.Exit(__lockObj);
-				//}
-
-				//// Let the CPU breathe a bit. I'm not sure this is strictly needed, but it seems that not
-				//// doing it can cause other threads to hang. In particular, KSP + a running unity profiler will 
-				//// hang if this isn't called. It doesn't seem to affect the performance of the worker thread.
-				//// From the Thread.Sleep() docs :
-				//// If the value of the millisecondsTimeout argument is zero, the thread relinquishes
-				//// the remainder of its time slice to any thread of equal priority that is ready to run.
-				//// If there are no other threads of equal priority that are ready to run, execution of
-				//// the current thread is not suspended.
-				//Thread.Sleep(0);
+						workerWatch.Stop();
+						currentWorkerTicks += workerWatch.ElapsedTicks;
+					}
+				}
 			}
-		}
-
-		private static void DoWorkerStep()
-		{
-
-			if (lastStepUT < maxUT)
+			catch (Exception e)
 			{
-				workerWatch.Restart();
-				ComputeNextStep();
-				workerWatch.Stop();
-				currentWorkerTicks += workerWatch.ElapsedTicks;
+				errorMessage = $"Sim thread has crashed\n{e.Message}\n{e.StackTrace}";
 			}
-			else
+			finally
 			{
-				workerStepsDone = true;
-			}
-
-			if (vesselsInNeedOfCatchup.Count > 0)
-			{
-				workerWatch.Restart();
-
-				if (vesselsInNeedOfCatchup.Peek().TryComputeMissingSteps())
-					vesselsInNeedOfCatchup.Dequeue();
-
-				workerWatch.Stop();
-				currentWorkerTicks += workerWatch.ElapsedTicks;
-			}
-			else
-			{
-				workerCatchupDone = true;
-			}
-
-			if (workerStepsDone && workerCatchupDone)
-			{
-				worker.Suspend();
+				waitHandle.Set();
 			}
 		}
 
