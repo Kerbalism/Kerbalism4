@@ -122,8 +122,8 @@ namespace KERBALISM.KsmGui
 			handleTransform.anchorMin = new Vector2(0f, 0f);
 			handleTransform.anchorMax = new Vector2(1f, 1f);
 			handleTransform.pivot = new Vector2(0.5f, 0.5f);
-			handleTransform.anchoredPosition = new Vector2(-4f, -4f); // relative to sliding area width
-			handleTransform.sizeDelta = new Vector2(-4f, -4f); // relative to sliding area width
+			handleTransform.anchoredPosition = new Vector2(-5f, -5f); // relative to sliding area width
+			handleTransform.sizeDelta = new Vector2(-6f, -6f); // relative to sliding area width
 			scrollbarComponent.handleRect = handleTransform;
 
 			Image handleImage = scrollbarHandle.AddComponent<Image>();
