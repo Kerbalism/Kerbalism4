@@ -93,6 +93,9 @@ namespace KERBALISM
 			node.AddValue(nameof(subStepInterval), subStepInterval);
 		}
 
+		// TODO: WorkerLoadCheck doesn't work anymore, since the substep sim can't be lagging behind the main thread anymore
+		// This need to be reimplemented by checking the time the main thread had to wait for the substep sim thread
+		// That time is known in the "otherWatch" StopWatch.
 		private static void WorkerLoadCheck()
 		{
 			if (lastMaxWarprate != TimeWarp.fetch.warpRates[maxWarpRateIndex])
