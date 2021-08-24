@@ -87,6 +87,8 @@ namespace KERBALISM
 		public static bool UIVisible => KERBALISM.Events.GameEventsUI.UIVisible;
 
 		public Vessel lastLaunchedVessel;
+		public SteppedSim.SubStepSim subStepSimJobs;
+
 
 		#endregion
 
@@ -242,6 +244,9 @@ namespace KERBALISM
 			if (Lib.IsEditor)
 				return;
 
+			subStepSimJobs = new SteppedSim.SubStepSim();
+			subStepSimJobs.Init();
+
 			Lib.LogDebug("Creating vessels...");
 
 			foreach (Vessel vessel in FlightGlobals.Vessels)
@@ -326,6 +331,7 @@ namespace KERBALISM
 			VesselData last_vd = null;
 
 			// synchronize the threaded environment simulation
+			subStepSimJobs.OnFixedUpdate();
 			SubStepSim.OnFixedUpdate();
 
 			// credit science at regular interval
