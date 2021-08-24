@@ -237,7 +237,8 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.FrameCollector");
-			GatherFrames(FrameList, Bodies, Vessels, BodyIndex, relativePositions, worldPositions, rotations);
+			//GatherFrames(FrameList, Bodies, Vessels, BodyIndex, relativePositions, worldPositions, rotations, bodyDataGlobalArray, vesselDataGlobalArray);
+			GatherFrames(FrameList, Bodies.Count, Vessels.Count, bodyDataGlobalArray, vesselDataGlobalArray);
 			Profiler.EndSample();
 
 			// Do things
@@ -324,65 +325,21 @@ namespace KERBALISM.SteppedSim
 			}
 		}
 
-		// This method is really slow...
-		public void GatherFrames(
-			List<SubstepFrame> frameList,
-			in List<CelestialBody> bodies,
-			in List<Vessel> vessels,
-			in Dictionary<CelestialBody, int> bodyLookupIndex,
-			in NativeArray<double3> relPositions,
-			in NativeArray<double3> worldPositions,
-			in NativeArray<RotationCondition> rotations)
+		public void GatherFrames(List<SubstepFrame> frameList, int numBodies, int numVessels, in NativeArray<SubstepBody> bodyDataGlobalArray, in NativeArray<SubstepVessel> vesselDataGlobalArray)
 		{
-			// Build out compute frames.
 			// Each frame has a timestamp, a list of SubStepBodies and SubStepVessels
 			frameList.Clear();
-			int globalIndex = 0;
-			foreach (var ut in timestepsSource)
+			int frameSize = numBodies + numVessels;
+			for (int i=0; i< timestepsSource.Length; i++)
 			{
-				Profiler.BeginSample("Kerbalism.RunSubstepSim.FrameCollector.Acquire");
+				var ut = timestepsSource[i];
 				var frame = SubstepFrame.Acquire();
-				frame.Init(ut, bodies.Count, vessels.Count);
-				Profiler.EndSample();
-
-				Profiler.BeginSample("Kerbalism.RunSubstepSim.FrameCollector.FillBody");
-				int bodyIndex = 0;
-				foreach (var body in bodies)
-				{
-					frame.bodies[bodyIndex++] = new SubstepBody
-					{
-						position = worldPositions[globalIndex],
-						radius = body.Radius,
-						bodyFrame = rotations[globalIndex].celestialFrame,
-					};
-					globalIndex++;
-				}
-				Profiler.EndSample();
-
-				Profiler.BeginSample("Kerbalism.RunSubstepSim.FrameCollector.FillVessel");
-
-				int vesselIndex = 0;
-				foreach (var vessel in vessels)
-				{
-					frame.vessels[vesselIndex++] = new SubstepVessel
-					{
-						position = worldPositions[globalIndex],
-						relPosition = relPositions[globalIndex],
-						rotation = rotations[globalIndex].angle,
-						isLanded = vessel.Landed,
-						LLA = new double3(vessel.latitude, vessel.longitude, vessel.altitude + vessel.mainBody.Radius),
-						mainBodyIndex = bodyLookupIndex[vessel.mainBody],
-					};
-					globalIndex++;
-				}
-				Profiler.EndSample();
-
-				Profiler.BeginSample("Kerbalism.RunSubstepSim.FrameCollector.Add");
+				frame.Init(ut,numBodies, numVessels);
+				frame.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * frameSize, numBodies));
+				frame.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * frameSize + numBodies, numVessels));
 				frameList.Add(frame);
-				Profiler.EndSample();
 			}
 		}
-
 
 		private bool ValidateComputations(in List<CelestialBody> bodies, in List<Vessel> vessels, in SubstepFrame frame, bool checkVessels = false)
 		{
