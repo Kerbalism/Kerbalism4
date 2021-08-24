@@ -10,20 +10,26 @@ namespace KERBALISM.SteppedSim.Jobs
 	struct UnrollPositionComputationsJob : IJobParallelFor
 	{
 		[ReadOnly] public int numOrbits;
+		[ReadOnly] public int numBodies;
 
-		public UnrollPositionComputationsJob(int numOrbits) : this()
+		public UnrollPositionComputationsJob(int numOrbits, int numBodies) : this()
 		{
 			this.numOrbits = numOrbits;
+			this.numBodies = numBodies;
 		}
 
 		[ReadOnly] public NativeArray<double> times;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubStepOrbit> orbits;
 		[ReadOnly] public NativeArray<RotationCondition> rotations;
 		[ReadOnly] public NativeArray<SparseSimData> sparseData;
+		[ReadOnly] public NativeArray<SubstepBody> bodyTemplates;
+		[ReadOnly] public NativeArray<SubstepVessel> vesselTemplates;
 		[WriteOnly] public NativeArray<double> timesCompute;
 		[WriteOnly] public NativeArray<SubStepOrbit> orbitsCompute;
 		[WriteOnly] public NativeArray<RotationCondition> rotationsCompute;
 		[WriteOnly] public NativeArray<SparseSimData> sparseDataCompute;
+		[WriteOnly] public NativeArray<SubstepBody> bodyTemplatesCompute;
+		[WriteOnly] public NativeArray<SubstepVessel> vesselTemplatesCompute;
 
 		// index = timestep we are on, each timestep has numOrbits indices.
 		public void Execute(int index)
@@ -35,6 +41,8 @@ namespace KERBALISM.SteppedSim.Jobs
 				orbitsCompute[offset] = orbits[i];
 				rotationsCompute[offset] = rotations[i];
 				sparseDataCompute[offset] = sparseData[i];
+				bodyTemplatesCompute[offset] = i < numBodies ? bodyTemplates[i] : default;
+				vesselTemplatesCompute[offset] = i < numBodies ? default : vesselTemplates[i - numBodies];
 				offset++;
 			}
 		}
@@ -76,6 +84,7 @@ namespace KERBALISM.SteppedSim.Jobs
 		[ReadOnly] public NativeArray<SubStepOrbit> orbitsCompute;
 		[ReadOnly] public NativeArray<RotationCondition> rotationsCompute;
 		[ReadOnly] public NativeArray<SparseSimData> sparseDataCompute;
+		[ReadOnly] public NativeArray<SubstepVessel> vesselTemplatesCompute;
 		[ReadOnly] public double3 defaultPos;
 		[WriteOnly] public NativeArray<double3> relPositions;
 
@@ -93,7 +102,7 @@ namespace KERBALISM.SteppedSim.Jobs
 				int blockStart = blockNum * numOrbitsPerTimestep;
 				int parentBodyIndex = blockStart + orbitsCompute[index].refBodyIndex;
 
-				var relPos = GetRelSurfacePosition(sparseData.latLonAlt);
+				var relPos = GetRelSurfacePosition(vesselTemplatesCompute[index].LLA);
 				var rp = new Vector3d(relPos.x, relPos.y, relPos.z);
 				var rpw = rotationsCompute[parentBodyIndex].celestialFrame.LocalToWorld(rp.xzy);
 				relPositions[index] = new double3(rpw.x, rpw.y, rpw.z);
@@ -153,4 +162,37 @@ namespace KERBALISM.SteppedSim.Jobs
 		// Copied from CelestialBody
 		//private Vector3d GetWorldSurfacePosition(double lat, double lon, double alt) => this.BodyFrame.LocalToWorld(this.GetRelSurfacePosition(lat, lon, alt).xzy).xzy + this.position;
 	}
+
+	[BurstCompile]
+	struct BuildBodyAndVesselHolders : IJobParallelFor
+	{
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepBody> bodyTemplatesUnrolled;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselTemplatesUnrolled;
+		[ReadOnly] public NativeArray<RotationCondition> rotations;
+		[ReadOnly] public NativeArray<double3> relPositions;
+		[ReadOnly] public NativeArray<double3> worldPositions;
+		[WriteOnly] public NativeArray<SubstepBody> bodyData;
+		[WriteOnly] public NativeArray<SubstepVessel> vesselData;
+
+		public void Execute(int index)
+		{
+			// This data could be nonsense but sort it out later when pulling from the array, rather than here.
+			bodyData[index] = new SubstepBody
+			{
+				bodyFrame = rotations[index].celestialFrame,
+				position = worldPositions[index],
+				radius = bodyTemplatesUnrolled[index].radius
+			};
+			vesselData[index] = new SubstepVessel
+			{
+				isLanded = vesselTemplatesUnrolled[index].isLanded,
+				position = worldPositions[index],
+				relPosition = relPositions[index],
+				rotation = rotations[index].angle,
+				LLA = vesselTemplatesUnrolled[index].LLA,
+				mainBodyIndex = vesselTemplatesUnrolled[index].mainBodyIndex
+			};
+		}
+	}
+
 }

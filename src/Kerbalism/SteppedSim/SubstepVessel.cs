@@ -31,4 +31,5 @@ namespace KERBALISM.SteppedSim
 	*	Compute core flux baseline (falls off with distance^2)
 	*	Calculate albedo flux (can't re-emit sun if it can't see the sun)
 	*	Can probably skip the 3 microWatts/m^2 of the CMB...
+	*	*/
 }

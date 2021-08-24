@@ -16,7 +16,6 @@ namespace KERBALISM.SteppedSim
 		internal bool isVessel;
 		internal bool isLandedVessel;
 		internal bool isValidOrbit;
-		internal double3 latLonAlt;
 	}
 
 	public struct RotationCondition
@@ -46,7 +45,7 @@ namespace KERBALISM.SteppedSim
 		private readonly List<CelestialBody> Bodies = new List<CelestialBody>();
 		private readonly List<Vessel> Vessels = new List<Vessel>();
 		private readonly Dictionary<CelestialBody, int> BodyIndex = new Dictionary<CelestialBody, int>();
-		private CelestialBody placeholderBody;
+		private readonly CelestialBody placeholderBody;
 
 		private readonly List<SubstepFrame> FrameList = new List<SubstepFrame>();
 
@@ -56,6 +55,9 @@ namespace KERBALISM.SteppedSim
 		private NativeArray<double> timestepsSource;
 		private NativeArray<RotationCondition> rotationsSource;
 		private NativeArray<SparseSimData> sparseDataSource;
+
+		private NativeArray<SubstepBody> bodyTemplates;
+		private NativeArray<SubstepVessel> vesselTemplates;
 
 		//private NativeArray<double3> relativePositions;
 		//private NativeArray<RotationCondition> rotations;
@@ -157,7 +159,6 @@ namespace KERBALISM.SteppedSim
 					isVessel = false,
 					isLandedVessel = false,
 					isValidOrbit = body.orbit != null,
-					latLonAlt = double3.zero
 				};
 				rotationsSource[i++] = new RotationCondition()
 				{
@@ -177,7 +178,6 @@ namespace KERBALISM.SteppedSim
 					isVessel = true,
 					isLandedVessel = v.Landed,
 					isValidOrbit = v.orbit != null && !v.Landed,
-					latLonAlt = new double3(v.latitude, v.longitude, v.altitude + v.mainBody.Radius)
 				};
 				// TODO: Fixme!
 				rotationsSource[i++] = new RotationCondition()
@@ -208,13 +208,20 @@ namespace KERBALISM.SteppedSim
 			JobHandle.ScheduleBatchedJobs();
 
 			// This is effectively what SubStepBody.Update() and SubStepVessel.Synchronize() do.
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.RegenerateOrbits");
 			rotationsSource = new NativeArray<RotationCondition>(Bodies.Count + Vessels.Count, Allocator.TempJob);
 			sparseDataSource = new NativeArray<SparseSimData>(Bodies.Count + Vessels.Count, Allocator.TempJob);
 			RegenerateOrbits(Bodies, Vessels, Orbits, placeholderBody);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.CreateTemplates");
+			CreateTemplates(out bodyTemplates, out vesselTemplates);
+			Profiler.EndSample();
 
 			PositionComputeFactory.ComputePositions(timestepsSource,
 				rotationsSource,
 				sparseDataSource,
+				bodyTemplates,
+				vesselTemplates,
 				Orbits,
 				BodyIndex,
 				Bodies[0].position,
@@ -222,7 +229,9 @@ namespace KERBALISM.SteppedSim
 				out var computeWorldPosJob,
 				out NativeArray<RotationCondition> rotations,
 				out NativeArray<double3> relativePositions,
-				out NativeArray<double3> worldPositions);
+				out NativeArray<double3> worldPositions,
+				out NativeArray<SubstepBody> bodyDataGlobalArray,
+				out NativeArray<SubstepVessel> vesselDataGlobalArray);
 
 			computeWorldPosJob.Complete();
 			Profiler.EndSample();
@@ -252,9 +261,14 @@ namespace KERBALISM.SteppedSim
 			rotationsSource.Dispose();
 			sparseDataSource.Dispose();
 
+			bodyTemplates.Dispose();
+			vesselTemplates.Dispose();
+
 			rotations.Dispose();
 			relativePositions.Dispose();
 			worldPositions.Dispose();
+			bodyDataGlobalArray.Dispose();
+			vesselDataGlobalArray.Dispose();
 			Profiler.EndSample();
 		}
 
@@ -281,6 +295,35 @@ namespace KERBALISM.SteppedSim
 			}
 		}
 		*/
+		private void CreateTemplates(out NativeArray<SubstepBody> bodyTemplates, out NativeArray<SubstepVessel> vesselTemplates)
+		{
+			bodyTemplates = new NativeArray<SubstepBody>(FlightGlobals.Bodies.Count, Allocator.TempJob);
+			int i = 0;
+			foreach (var body in Bodies)
+			{
+				bodyTemplates[i++] = new SubstepBody
+				{
+					bodyFrame = body.BodyFrame,
+					position = double3.zero,
+					radius = body.Radius,
+				};
+			}
+			vesselTemplates = new NativeArray<SubstepVessel>(Vessels.Count, Allocator.TempJob);
+			i = 0;
+			foreach (var vessel in Vessels)
+			{
+				vesselTemplates[i++] = new SubstepVessel
+				{
+					position = double3.zero,
+					relPosition = double3.zero,
+					rotation = 0,
+					isLanded = vessel.Landed,
+					LLA = new double3(vessel.latitude, vessel.longitude, vessel.altitude + vessel.mainBody.Radius),
+					mainBodyIndex = BodyIndex[vessel.mainBody],
+				};
+			}
+		}
+
 		// This method is really slow...
 		public void GatherFrames(
 			List<SubstepFrame> frameList,
