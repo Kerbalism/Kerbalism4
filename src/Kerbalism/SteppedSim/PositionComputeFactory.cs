@@ -12,7 +12,7 @@ namespace KERBALISM.SteppedSim
 		internal static void ComputePositions(
 			in NativeArray<double> timestepsSource,
 			in NativeArray<RotationCondition> rotationsSource,
-			in NativeArray<SparseSimData> sparseDataSource,
+			in NativeArray<SubstepComputeFlags> flagsSource,
 			in NativeArray<SubstepBody> bodyTemplates,
 			in NativeArray<SubstepVessel> vesselTemplates,
 			in List<(Orbit, CelestialBody)> Orbits,
@@ -30,6 +30,7 @@ namespace KERBALISM.SteppedSim
 
 			int numSteps = timestepsSource.Length;
 			int numBodies = bodyTemplates.Length;
+			int numVessels = vesselTemplates.Length;
 
 			var stepOrbitsSource = new NativeArray<SubStepOrbit>(Orbits.Count, Allocator.TempJob);
 			int numOrbits = 0;
@@ -39,79 +40,102 @@ namespace KERBALISM.SteppedSim
 			}
 			Profiler.EndSample();
 
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateFirst6");
 			int sz = numSteps * numOrbits;
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateIndicesSource");
+			var indicesSource = new NativeArray<int2>(numOrbits, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateIndices");
+			var indices = new NativeArray<int2>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateSteps");
 			var timestepsUnrolled = new NativeArray<double>(sz, Allocator.TempJob);
-			var stepOrbitsUnrolled = new NativeArray<SubStepOrbit>(sz, Allocator.TempJob);
-			var rotationsUnrolled = new NativeArray<RotationCondition>(sz, Allocator.TempJob);
-			var sparseDataUnrolled = new NativeArray<SparseSimData>(sz, Allocator.TempJob);
-			var bodyTemplatesUnrolled = new NativeArray<SubstepBody>(sz, Allocator.TempJob);
-			var vesselTemplatesUnrolled = new NativeArray<SubstepVessel>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateFlags");
+			var flagsUnrolled = new NativeArray<SubstepComputeFlags>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateRotationsOutput");
+			rotations = new NativeArray<RotationCondition>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateRelPositions");
+			relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateWorldPositions");
+			worldPositions = new NativeArray<double3>(sz, Allocator.TempJob);
 			Profiler.EndSample();
 
 			stepGeneratorJob.Complete();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.MakeAndScheduleJobs");
-
-			var computeSetJob = new UnrollPositionComputationsJob(numOrbits, numBodies)
+			var buildIndexesJob = new BuildIndexes
 			{
-				times = timestepsSource,
-				bodyTemplates = bodyTemplates,
-				vesselTemplates = vesselTemplates,
-				orbits = stepOrbitsSource,
-				rotations = rotationsSource,
-				sparseData = sparseDataSource,
-				timesCompute = timestepsUnrolled,
-				orbitsCompute = stepOrbitsUnrolled,
-				rotationsCompute = rotationsUnrolled,
-				sparseDataCompute = sparseDataUnrolled,
-				bodyTemplatesCompute = bodyTemplatesUnrolled,
-				vesselTemplatesCompute = vesselTemplatesUnrolled,
+				numBodies = numBodies,
+				numVessels = numVessels,
+				indices = indicesSource
+			}.Schedule();
+			var unrollIndicesJob = new Unroll<int2>(numOrbits)
+			{
+				input = indicesSource,
+				output = indices
+			}.Schedule(numSteps, 1, buildIndexesJob);
+			var unrollIndicesDeallocatedJob = indicesSource.Dispose(unrollIndicesJob);
+			var unrollFlagsJob = new Unroll<SubstepComputeFlags>(numOrbits)
+			{
+				input = flagsSource,
+				output = flagsUnrolled
+			}.Schedule(numSteps, 1);
+			var unrollTimestepsJob = new UnrollSingle<double>(numOrbits)
+			{
+				input = timestepsSource,
+				output = timestepsUnrolled
 			}.Schedule(numSteps, 1);
 			JobHandle.ScheduleBatchedJobs();
 
-			rotations = new NativeArray<RotationCondition>(sz, Allocator.TempJob);
 			var computeRotationsJob = new RotationsComputeJob
 			{
+				frameSize = numOrbits,
 				PlanetariumInverseRotAngle = Planetarium.InverseRotAngle,
 				times = timestepsUnrolled,
-				rotationsIn = rotationsUnrolled,
+				rotationsIn = rotationsSource,
 				rotationsOut = rotations
-			}.Schedule(sz, 16, computeSetJob);
-			
-			relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
+			}.Schedule(sz, 16, JobHandle.CombineDependencies(unrollIndicesDeallocatedJob, unrollTimestepsJob, unrollFlagsJob));
+
 			//var defPos = Bodies[0].position;
 			var computeRelPositionsJob = new NaiveOrbitComputeJob
 			{
 				numTimesteps = numSteps,
 				numOrbitsPerTimestep = numOrbits,
+				indices = indices,
+				vesselTemplates = vesselTemplates,
+				orbitsSource = stepOrbitsSource,
 				timesCompute = timestepsUnrolled,
-				orbitsCompute = stepOrbitsUnrolled,
-				sparseDataCompute = sparseDataUnrolled,
-				vesselTemplatesCompute = vesselTemplatesUnrolled,
+				flagsArr = flagsUnrolled,
 				rotationsCompute = rotations,
+				defaultPos = new double3(defPos.x, defPos.y, defPos.z).xzy,
 				relPositions = relativePositions,
-				defaultPos = new double3(defPos.x, defPos.y, defPos.z).xzy
 			}.Schedule(sz, 1, computeRotationsJob);
 
-			worldPositions = new NativeArray<double3>(sz, Allocator.TempJob);
 			var computeWorldPositionJob = new ComputeWorldspacePositionsJob
 			{
 				numOrbits = numOrbits,
 				timesCompute = timestepsUnrolled,
-				orbitsCompute = stepOrbitsUnrolled,
-				sparseData = sparseDataUnrolled,
-				rotations = rotations,
+				orbitsSource = stepOrbitsSource,
+				flagsData = flagsUnrolled,
 				relPositions = relativePositions,
 				worldPositions = worldPositions,
 			}.Schedule(numSteps, 4, computeRelPositionsJob);
 			JobHandle.ScheduleBatchedJobs();
 
+			Profiler.EndSample();
+
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateFinalVesselAndBodyData");
 			bodyData = new NativeArray<SubstepBody>(sz, Allocator.TempJob);
 			vesselData = new NativeArray<SubstepVessel>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+
 			finalJob = new BuildBodyAndVesselHolders
 			{
-				bodyTemplatesUnrolled = bodyTemplatesUnrolled,
-				vesselTemplatesUnrolled = vesselTemplatesUnrolled,
+				bodySourceData = bodyTemplates,
+				vesselSourceData = vesselTemplates,
+				indices = indices,
 				rotations = rotations,
 				relPositions = relativePositions,
 				worldPositions = worldPositions,
@@ -119,7 +143,6 @@ namespace KERBALISM.SteppedSim
 				vesselData = vesselData,
 			}.Schedule(sz, 16, computeWorldPositionJob);
 
-			Profiler.EndSample();
 			//computeWorldPositionJob.Complete();
 
 		}

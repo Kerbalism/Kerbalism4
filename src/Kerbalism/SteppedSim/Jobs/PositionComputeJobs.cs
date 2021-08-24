@@ -6,68 +6,88 @@ using Unity.Mathematics;
 
 namespace KERBALISM.SteppedSim.Jobs
 {
+	// input = array<int> timesteps (ts0, ts1, ts2, ts3) for 4 frames
+	// index = frame #
+	// output = fully unrolled
+	// framesize = size of frames
 	[BurstCompile]
-	struct UnrollPositionComputationsJob : IJobParallelFor
+	public struct UnrollSingle<T> : IJobParallelFor where T : struct
 	{
-		[ReadOnly] public int numOrbits;
-		[ReadOnly] public int numBodies;
-
-		public UnrollPositionComputationsJob(int numOrbits, int numBodies) : this()
+		[ReadOnly] public int framesize;
+		[ReadOnly] public NativeArray<T> input;
+		[WriteOnly] public NativeArray<T> output;
+		public UnrollSingle(int framesize) : this()
 		{
-			this.numOrbits = numOrbits;
-			this.numBodies = numBodies;
+			this.framesize = framesize;
 		}
-
-		[ReadOnly] public NativeArray<double> times;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubStepOrbit> orbits;
-		[ReadOnly] public NativeArray<RotationCondition> rotations;
-		[ReadOnly] public NativeArray<SparseSimData> sparseData;
-		[ReadOnly] public NativeArray<SubstepBody> bodyTemplates;
-		[ReadOnly] public NativeArray<SubstepVessel> vesselTemplates;
-		[WriteOnly] public NativeArray<double> timesCompute;
-		[WriteOnly] public NativeArray<SubStepOrbit> orbitsCompute;
-		[WriteOnly] public NativeArray<RotationCondition> rotationsCompute;
-		[WriteOnly] public NativeArray<SparseSimData> sparseDataCompute;
-		[WriteOnly] public NativeArray<SubstepBody> bodyTemplatesCompute;
-		[WriteOnly] public NativeArray<SubstepVessel> vesselTemplatesCompute;
-
-		// index = timestep we are on, each timestep has numOrbits indices.
 		public void Execute(int index)
 		{
-			int offset = numOrbits * index;
-			for (int i = 0; i < numOrbits; i++)
-			{
-				timesCompute[offset] = times[index];
-				orbitsCompute[offset] = orbits[i];
-				rotationsCompute[offset] = rotations[i];
-				sparseDataCompute[offset] = sparseData[i];
-				bodyTemplatesCompute[offset] = i < numBodies ? bodyTemplates[i] : default;
-				vesselTemplatesCompute[offset] = i < numBodies ? default : vesselTemplates[i - numBodies];
-				offset++;
-			}
+			int offset = framesize * index;
+			for (int i = 0; i < framesize; i++, offset++)
+				output[offset] = input[index];
+		}
+	}
+
+	// Copy reference frame (input) into unrolled list (output) at each frame (index)
+	[BurstCompile]
+	public struct Unroll<T> : IJobParallelFor where T : struct
+	{
+		[ReadOnly] public int count;
+		[ReadOnly] public NativeArray<T> input;
+		[WriteOnly] public NativeArray<T> output;
+		public Unroll(int count) : this()
+		{
+			this.count = count;
+		}
+		public void Execute(int index)
+		{
+			int offset = count * index;
+			output.Slice(offset, count).CopyFrom(input.Slice(0, count));
+			//for (int i = 0; i < count; i++, offset++)
+//				output[offset] = input[i];
 		}
 	}
 
 	[BurstCompile]
-	struct RotationsComputeJob : IJobParallelFor
+	public struct BuildIndexes : IJob
+	{
+		[ReadOnly] public int numBodies;
+		[ReadOnly] public int numVessels;
+		[WriteOnly] public NativeArray<int2> indices;
+
+		public void Execute()
+		{
+			for (int i=0; i < numBodies; i++)
+				indices[i] = new int2(i, -1);
+			for (int i=0; i < numVessels; i++)
+				indices[numBodies + i] = new int2(-1, i);
+		}
+	}
+
+	[BurstCompile]
+	public struct RotationsComputeJob : IJobParallelFor
 	{
 		[ReadOnly] public double PlanetariumInverseRotAngle;
+		[ReadOnly] public int frameSize;
 		[ReadOnly] public NativeArray<double> times;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<RotationCondition> rotationsIn;
+		[ReadOnly] public NativeArray<RotationCondition> rotationsIn;
 		[WriteOnly] public NativeArray<RotationCondition> rotationsOut;
 
 		public void Execute(int index)
 		{
-			var dt = times[index] - rotationsIn[index].frameTime;
-			var vel = rotationsIn[index].velocity;
-			var ang = 360 + rotationsIn[index].angle + vel * dt;
+			var srcIndex = index % frameSize;
+			var srcRotation = rotationsIn[srcIndex];
+
+			var dt = times[index] - srcRotation.frameTime;
+			var vel = srcRotation.velocity;
+			var ang = 360 + srcRotation.angle + vel * dt;
 			var directRotAngle = (ang - PlanetariumInverseRotAngle) % 360.0;
 			Planetarium.CelestialFrame frame = default;
 			Planetarium.CelestialFrame.PlanetaryFrame(0.0, 90.0, directRotAngle, ref frame);
 			rotationsOut[index] = new RotationCondition
 			{
 				frameTime = times[index],
-				axis = rotationsIn[index].axis,
+				axis = srcRotation.axis,
 				velocity = vel,
 				celestialFrame = frame,
 				angle = ang % 360,
@@ -76,33 +96,38 @@ namespace KERBALISM.SteppedSim.Jobs
 	}
 
 	[BurstCompile]
-	struct NaiveOrbitComputeJob : IJobParallelFor
+	public struct NaiveOrbitComputeJob : IJobParallelFor
 	{
 		[ReadOnly] public int numTimesteps;
 		[ReadOnly] public int numOrbitsPerTimestep;
+		[ReadOnly] public NativeArray<int2> indices;
+		[ReadOnly] public NativeArray<SubstepVessel> vesselTemplates;
+		[ReadOnly] public NativeArray<SubStepOrbit> orbitsSource;
 		[ReadOnly] public NativeArray<double> timesCompute;
-		[ReadOnly] public NativeArray<SubStepOrbit> orbitsCompute;
+		[ReadOnly] public NativeArray<SubstepComputeFlags> flagsArr;
 		[ReadOnly] public NativeArray<RotationCondition> rotationsCompute;
-		[ReadOnly] public NativeArray<SparseSimData> sparseDataCompute;
-		[ReadOnly] public NativeArray<SubstepVessel> vesselTemplatesCompute;
 		[ReadOnly] public double3 defaultPos;
 		[WriteOnly] public NativeArray<double3> relPositions;
 
 		public void Execute(int index)
 		{
-			var sparseData = sparseDataCompute[index];
-			if (Unity.Burst.CompilerServices.Hint.Likely(sparseData.isValidOrbit))
-				relPositions[index] = orbitsCompute[index].getRelativePositionAtUT(timesCompute[index]);
-			else if (Unity.Burst.CompilerServices.Hint.Unlikely(sparseData.isLandedVessel))
+			var flags = flagsArr[index];
+			var srcIndex = index % numOrbitsPerTimestep;
+			var orbit = orbitsSource[srcIndex];
+
+			if (Unity.Burst.CompilerServices.Hint.Likely(flags.isValidOrbit))
+				relPositions[index] = orbit.getRelativePositionAtUT(timesCompute[index]);
+			else if (Unity.Burst.CompilerServices.Hint.Unlikely(flags.isLandedVessel))
 			{
 				// relPositions is in worldspace.  Convert the CB-localspace from GetRelSurfacePosition to worldspace, too.
 				//relPositions[index] = GetRelSurfacePosition(sparseDataCompute[index].latLonAlt);
 
 				int blockNum = index / numOrbitsPerTimestep;
 				int blockStart = blockNum * numOrbitsPerTimestep;
-				int parentBodyIndex = blockStart + orbitsCompute[index].refBodyIndex;
+				int parentBodyIndex = blockStart + orbit.refBodyIndex;
+				int vesselIndex = indices[index].y;
 
-				var relPos = GetRelSurfacePosition(vesselTemplatesCompute[index].LLA);
+				var relPos = GetRelSurfacePosition(vesselTemplates[vesselIndex].LLA);
 				var rp = new Vector3d(relPos.x, relPos.y, relPos.z);
 				var rpw = rotationsCompute[parentBodyIndex].celestialFrame.LocalToWorld(rp.xzy);
 				relPositions[index] = new double3(rpw.x, rpw.y, rpw.z);
@@ -134,9 +159,8 @@ namespace KERBALISM.SteppedSim.Jobs
 	{
 		[ReadOnly] public int numOrbits;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> timesCompute;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubStepOrbit> orbitsCompute;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SparseSimData> sparseData;
-		[ReadOnly] public NativeArray<RotationCondition> rotations;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubStepOrbit> orbitsSource;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepComputeFlags> flagsData;
 		[ReadOnly] public NativeArray<double3> relPositions;
 		public NativeArray<double3> worldPositions;
 
@@ -144,19 +168,17 @@ namespace KERBALISM.SteppedSim.Jobs
 		public void Execute(int index)
 		{
 			int baseOffset = index * numOrbits;
-			for (int i = baseOffset; i < baseOffset + numOrbits; i++)
+			for (int j=0; j < numOrbits; j++)
 			{
-				var sparse = sparseData[i];
-				var obt = orbitsCompute[i];
+				var obt = orbitsSource[j];
 				var parentIndex = obt.refBodyIndex;
+
+				int i = j + baseOffset;
+				var sparse = flagsData[i];
 
 				bool getWorldOffset = (sparse.isLandedVessel || sparse.isValidOrbit) && parentIndex >= 0;
 				var parentWorldPos = Unity.Burst.CompilerServices.Hint.Likely(getWorldOffset) ? worldPositions[parentIndex + baseOffset] : double3.zero;
 				worldPositions[i] = relPositions[i].xzy + parentWorldPos;
-
-				//				var offset = (!obt.valid || parentIndex < 0) ? double3.zero : worldPositions[parentIndex + baseOffset];
-				//				worldPositions[i] = relPositions[i].xzy + offset;
-
 			}
 		}
 		// Copied from CelestialBody
@@ -166,8 +188,9 @@ namespace KERBALISM.SteppedSim.Jobs
 	[BurstCompile]
 	struct BuildBodyAndVesselHolders : IJobParallelFor
 	{
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepBody> bodyTemplatesUnrolled;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselTemplatesUnrolled;
+		[ReadOnly] public NativeArray<SubstepBody> bodySourceData;
+		[ReadOnly] public NativeArray<SubstepVessel> vesselSourceData;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<int2> indices;
 		[ReadOnly] public NativeArray<RotationCondition> rotations;
 		[ReadOnly] public NativeArray<double3> relPositions;
 		[ReadOnly] public NativeArray<double3> worldPositions;
@@ -176,22 +199,24 @@ namespace KERBALISM.SteppedSim.Jobs
 
 		public void Execute(int index)
 		{
-			// This data could be nonsense but sort it out later when pulling from the array, rather than here.
-			bodyData[index] = new SubstepBody
-			{
-				bodyFrame = rotations[index].celestialFrame,
-				position = worldPositions[index],
-				radius = bodyTemplatesUnrolled[index].radius
-			};
-			vesselData[index] = new SubstepVessel
-			{
-				isLanded = vesselTemplatesUnrolled[index].isLanded,
-				position = worldPositions[index],
-				relPosition = relPositions[index],
-				rotation = rotations[index].angle,
-				LLA = vesselTemplatesUnrolled[index].LLA,
-				mainBodyIndex = vesselTemplatesUnrolled[index].mainBodyIndex
-			};
+			var srcIndex = indices[index];
+			if (srcIndex.x >= 0)
+				bodyData[index] = new SubstepBody
+				{
+					bodyFrame = rotations[index].celestialFrame,
+					position = worldPositions[index],
+					radius = bodySourceData[srcIndex.x].radius
+				};
+			if (srcIndex.y >= 0)
+				vesselData[index] = new SubstepVessel
+				{
+					isLanded = vesselSourceData[srcIndex.y].isLanded,
+					position = worldPositions[index],
+					relPosition = relPositions[index],
+					rotation = rotations[index].angle,
+					LLA = vesselSourceData[srcIndex.y].LLA,
+					mainBodyIndex = vesselSourceData[srcIndex.y].mainBodyIndex
+				};
 		}
 	}
 

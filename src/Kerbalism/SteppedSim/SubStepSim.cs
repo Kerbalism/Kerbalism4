@@ -11,7 +11,7 @@ using UnityEngine.Profiling;
 
 namespace KERBALISM.SteppedSim
 {
-	internal struct SparseSimData
+	public struct SubstepComputeFlags
 	{
 		internal bool isVessel;
 		internal bool isLandedVessel;
@@ -54,7 +54,7 @@ namespace KERBALISM.SteppedSim
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
 		private NativeArray<double> timestepsSource;
 		private NativeArray<RotationCondition> rotationsSource;
-		private NativeArray<SparseSimData> sparseDataSource;
+		private NativeArray<SubstepComputeFlags> sparseDataSource;
 
 		private NativeArray<SubstepBody> bodyTemplates;
 		private NativeArray<SubstepVessel> vesselTemplates;
@@ -154,7 +154,7 @@ namespace KERBALISM.SteppedSim
 			{
 				var o = (body.orbit != null) ? body.orbit : placeholder.orbit;
 				orbits.Add((o, body.referenceBody));
-				sparseDataSource[i] = new SparseSimData()
+				sparseDataSource[i] = new SubstepComputeFlags()
 				{
 					isVessel = false,
 					isLandedVessel = false,
@@ -173,7 +173,7 @@ namespace KERBALISM.SteppedSim
 			{
 				var o = (v.orbit != null) ? v.orbit : placeholder.orbit;
 				orbits.Add((o, v.mainBody));
-				sparseDataSource[i] = new SparseSimData()
+				sparseDataSource[i] = new SubstepComputeFlags()
 				{
 					isVessel = true,
 					isLandedVessel = v.Landed,
@@ -210,7 +210,7 @@ namespace KERBALISM.SteppedSim
 			// This is effectively what SubStepBody.Update() and SubStepVessel.Synchronize() do.
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.RegenerateOrbits");
 			rotationsSource = new NativeArray<RotationCondition>(Bodies.Count + Vessels.Count, Allocator.TempJob);
-			sparseDataSource = new NativeArray<SparseSimData>(Bodies.Count + Vessels.Count, Allocator.TempJob);
+			sparseDataSource = new NativeArray<SubstepComputeFlags>(Bodies.Count + Vessels.Count, Allocator.TempJob);
 			RegenerateOrbits(Bodies, Vessels, Orbits, placeholderBody);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.CreateTemplates");
