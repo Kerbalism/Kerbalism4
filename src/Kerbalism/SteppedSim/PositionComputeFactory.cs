@@ -11,12 +11,11 @@ namespace KERBALISM.SteppedSim
 	{
 		internal static void ComputePositions(
 			in NativeArray<double> timestepsSource,
+			in NativeArray<SubStepOrbit> stepOrbitsSource,
 			in NativeArray<RotationCondition> rotationsSource,
 			in NativeArray<SubstepComputeFlags> flagsSource,
 			in NativeArray<SubstepBody> bodyTemplates,
 			in NativeArray<SubstepVessel> vesselTemplates,
-			in List<(Orbit, CelestialBody)> Orbits,
-			in Dictionary<CelestialBody, int> BodyIndex,
 			in Vector3d defPos,
 			ref JobHandle stepGeneratorJob,
 			out JobHandle finalJob,
@@ -26,19 +25,10 @@ namespace KERBALISM.SteppedSim
 			out NativeArray<SubstepBody> bodyData,
 			out NativeArray<SubstepVessel> vesselData)
 		{
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.SetupOrbitsSource");
-
 			int numSteps = timestepsSource.Length;
 			int numBodies = bodyTemplates.Length;
 			int numVessels = vesselTemplates.Length;
-
-			var stepOrbitsSource = new NativeArray<SubStepOrbit>(Orbits.Count, Allocator.TempJob);
-			int numOrbits = 0;
-			foreach (var (stockOrbit, refBody) in Orbits)
-			{
-				stepOrbitsSource[numOrbits++] = new SubStepOrbit(stockOrbit, refBody, BodyIndex);
-			}
-			Profiler.EndSample();
+			int numOrbits = numBodies + numVessels;
 
 			int sz = numSteps * numOrbits;
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateIndicesSource");

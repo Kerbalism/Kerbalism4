@@ -159,7 +159,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	{
 		[ReadOnly] public int numOrbits;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> timesCompute;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubStepOrbit> orbitsSource;
+		[ReadOnly] public NativeArray<SubStepOrbit> orbitsSource;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepComputeFlags> flagsData;
 		[ReadOnly] public NativeArray<double3> relPositions;
 		public NativeArray<double3> worldPositions;

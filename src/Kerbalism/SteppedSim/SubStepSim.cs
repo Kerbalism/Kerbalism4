@@ -30,7 +30,8 @@ namespace KERBALISM.SteppedSim
 	public class SubStepSim
 	{
 		public float maxSubstepTime = 30;
-		private const float SimErrorThreshold = 10;	// Detect positional errors > 10m
+		private const float SimErrorThreshold = 10; // Detect positional errors > 10m
+		private bool runStockCalcs = false;
 
 		private Planetarium.CelestialFrame currentZup;
 		private double currentInverseRotAngle;
@@ -54,7 +55,8 @@ namespace KERBALISM.SteppedSim
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
 		private NativeArray<double> timestepsSource;
 		private NativeArray<RotationCondition> rotationsSource;
-		private NativeArray<SubstepComputeFlags> sparseDataSource;
+		private NativeArray<SubstepComputeFlags> flagDataSource;
+		private NativeArray<SubStepOrbit> stepOrbitsSource;
 
 		private NativeArray<SubstepBody> bodyTemplates;
 		private NativeArray<SubstepVessel> vesselTemplates;
@@ -145,52 +147,6 @@ namespace KERBALISM.SteppedSim
 					Vessels.Add(vd.Vessel);
 		}
 
-		private void RegenerateOrbits(List<CelestialBody> bodies, List<Vessel> vessels, List<(Orbit,CelestialBody)> orbits, CelestialBody placeholder)
-		{
-			int i = 0;
-			var referenceTime = Planetarium.GetUniversalTime();
-			orbits.Clear();
-			foreach (var body in bodies)
-			{
-				var o = (body.orbit != null) ? body.orbit : placeholder.orbit;
-				orbits.Add((o, body.referenceBody));
-				sparseDataSource[i] = new SubstepComputeFlags()
-				{
-					isVessel = false,
-					isLandedVessel = false,
-					isValidOrbit = body.orbit != null,
-				};
-				rotationsSource[i++] = new RotationCondition()
-				{
-					frameTime = referenceTime,
-					axis = new double3(0, 1, 0),
-					celestialFrame = body.BodyFrame,
-					angle = body.rotationAngle,
-					velocity = body.angularV,
-				};
-			}
-			foreach (var v in vessels)
-			{
-				var o = (v.orbit != null) ? v.orbit : placeholder.orbit;
-				orbits.Add((o, v.mainBody));
-				sparseDataSource[i] = new SubstepComputeFlags()
-				{
-					isVessel = true,
-					isLandedVessel = v.Landed,
-					isValidOrbit = v.orbit != null && !v.Landed,
-				};
-				// TODO: Fixme!
-				rotationsSource[i++] = new RotationCondition()
-				{
-					frameTime = referenceTime,
-					axis = new double3(0, 1, 0),
-					celestialFrame = default,
-					angle = math.length(math.mul(v.transform.rotation, new float3(0, 1, 0))),
-					velocity = v.angularVelocityD.magnitude,
-				};
-			}
-		}
-
 		private readonly Stopwatch fuWatch = new Stopwatch();
 
 		private void RunSubStepSim()
@@ -208,22 +164,25 @@ namespace KERBALISM.SteppedSim
 			JobHandle.ScheduleBatchedJobs();
 
 			// This is effectively what SubStepBody.Update() and SubStepVessel.Synchronize() do.
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.RegenerateOrbits");
-			rotationsSource = new NativeArray<RotationCondition>(Bodies.Count + Vessels.Count, Allocator.TempJob);
-			sparseDataSource = new NativeArray<SubstepComputeFlags>(Bodies.Count + Vessels.Count, Allocator.TempJob);
-			RegenerateOrbits(Bodies, Vessels, Orbits, placeholderBody);
-			Profiler.EndSample();
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.CreateTemplates");
-			CreateTemplates(out bodyTemplates, out vesselTemplates);
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData");
+			GenerateBodyVesselOrbitData(
+				Bodies,
+				Vessels,
+				Orbits,
+				placeholderBody,
+				out stepOrbitsSource,
+				out rotationsSource,
+				out flagDataSource,
+				out bodyTemplates,
+				out vesselTemplates);
 			Profiler.EndSample();
 
 			PositionComputeFactory.ComputePositions(timestepsSource,
+				stepOrbitsSource,
 				rotationsSource,
-				sparseDataSource,
+				flagDataSource,
 				bodyTemplates,
 				vesselTemplates,
-				Orbits,
-				BodyIndex,
 				Bodies[0].position,
 				ref stepGeneratorJob,
 				out var computeWorldPosJob,
@@ -256,11 +215,12 @@ namespace KERBALISM.SteppedSim
 
 			Profiler.EndSample();
 
-			RunStockCalcs();
+			if (runStockCalcs) RunStockCalcs();
 
 			timestepsSource.Dispose();
 			rotationsSource.Dispose();
-			sparseDataSource.Dispose();
+			flagDataSource.Dispose();
+			stepOrbitsSource.Dispose();
 
 			bodyTemplates.Dispose();
 			vesselTemplates.Dispose();
@@ -296,33 +256,91 @@ namespace KERBALISM.SteppedSim
 			}
 		}
 		*/
-		private void CreateTemplates(out NativeArray<SubstepBody> bodyTemplates, out NativeArray<SubstepVessel> vesselTemplates)
+		private void GenerateBodyVesselOrbitData(List<CelestialBody> bodies,
+			List<Vessel> vessels,
+			List<(Orbit, CelestialBody)> orbits,
+			CelestialBody placeholder,
+			out NativeArray<SubStepOrbit> stepOrbits,
+			out NativeArray<RotationCondition> rotationsSource,
+			out NativeArray<SubstepComputeFlags> flags,
+			out NativeArray<SubstepBody> bodyTemplates,
+			out NativeArray<SubstepVessel> vesselTemplates)
 		{
-			bodyTemplates = new NativeArray<SubstepBody>(FlightGlobals.Bodies.Count, Allocator.TempJob);
 			int i = 0;
-			foreach (var body in Bodies)
+			var referenceTime = Planetarium.GetUniversalTime();
+			int numBodies = bodies.Count;
+			int numVessels = vessels.Count;
+			int numOrbits = numBodies + numVessels;
+			orbits.Clear();
+
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData.Allocator");
+			stepOrbits = new NativeArray<SubStepOrbit>(numOrbits, Allocator.TempJob);
+			rotationsSource = new NativeArray<RotationCondition>(numOrbits, Allocator.TempJob);
+			flags = new NativeArray<SubstepComputeFlags>(numOrbits, Allocator.TempJob);
+			bodyTemplates = new NativeArray<SubstepBody>(numBodies, Allocator.TempJob);
+			vesselTemplates = new NativeArray<SubstepVessel>(numVessels, Allocator.TempJob);
+			Profiler.EndSample();
+
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData.BodyAccumulator");
+			foreach (var body in bodies)
 			{
-				bodyTemplates[i++] = new SubstepBody
+				var o = (body.orbit != null) ? body.orbit : placeholder.orbit;
+				orbits.Add((o, body.referenceBody));
+				flags[i] = new SubstepComputeFlags()
+				{
+					isVessel = false,
+					isLandedVessel = false,
+					isValidOrbit = body.orbit != null,
+				};
+				stepOrbits[i] = new SubStepOrbit(o, body.referenceBody, BodyIndex);
+				bodyTemplates[i] = new SubstepBody
 				{
 					bodyFrame = body.BodyFrame,
 					position = double3.zero,
 					radius = body.Radius,
 				};
+				rotationsSource[i++] = new RotationCondition()
+				{
+					frameTime = referenceTime,
+					axis = new double3(0, 1, 0),
+					celestialFrame = body.BodyFrame,
+					angle = body.rotationAngle,
+					velocity = body.angularV,
+				};
 			}
-			vesselTemplates = new NativeArray<SubstepVessel>(Vessels.Count, Allocator.TempJob);
-			i = 0;
-			foreach (var vessel in Vessels)
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData.VesselAccumulator");
+			foreach (var v in vessels)
 			{
-				vesselTemplates[i++] = new SubstepVessel
+				var o = (v.orbit != null) ? v.orbit : placeholder.orbit;
+				orbits.Add((o, v.mainBody));
+				flags[i] = new SubstepComputeFlags()
+				{
+					isVessel = true,
+					isLandedVessel = v.Landed,
+					isValidOrbit = v.orbit != null && !v.Landed,
+				};
+				stepOrbits[i] = new SubStepOrbit(o, v.mainBody, BodyIndex);
+				// TODO: Fixme!
+				vesselTemplates[i - numBodies] = new SubstepVessel
 				{
 					position = double3.zero,
 					relPosition = double3.zero,
 					rotation = 0,
-					isLanded = vessel.Landed,
-					LLA = new double3(vessel.latitude, vessel.longitude, vessel.altitude + vessel.mainBody.Radius),
-					mainBodyIndex = BodyIndex[vessel.mainBody],
+					isLanded = v.Landed,
+					LLA = new double3(v.latitude, v.longitude, v.altitude + v.mainBody.Radius),
+					mainBodyIndex = BodyIndex[v.mainBody],
+				};
+				rotationsSource[i++] = new RotationCondition()
+				{
+					frameTime = referenceTime,
+					axis = new double3(0, 1, 0),
+					celestialFrame = default,
+					angle = math.length(math.mul(v.transform.rotation, new float3(0, 1, 0))),
+					velocity = v.angularVelocityD.magnitude,
 				};
 			}
+			Profiler.EndSample();
 		}
 
 		public void GatherFrames(List<SubstepFrame> frameList, int numBodies, int numVessels, in NativeArray<SubstepBody> bodyDataGlobalArray, in NativeArray<SubstepVessel> vesselDataGlobalArray)
@@ -436,7 +454,7 @@ namespace KERBALISM.SteppedSim
 				int orbitIndex = 0;
 				foreach (var (stockOrbit, refBody) in Orbits)
 				{
-					if (sparseDataSource[orbitIndex].isValidOrbit)
+					if (flagDataSource[orbitIndex].isValidOrbit)
 					{
 						Vector3d s = stockOrbit.getRelativePositionAtUT(ut);
 						Vector3d s2 = stockOrbit.getTruePositionAtUT(ut);
