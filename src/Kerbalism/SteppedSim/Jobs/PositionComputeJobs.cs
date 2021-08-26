@@ -201,23 +201,20 @@ namespace KERBALISM.SteppedSim.Jobs
 		{
 			var srcIndex = indices[index];
 			if (srcIndex.x >= 0)
-				bodyData[index] = new SubstepBody
-				{
-					bodyFrame = rotations[index].celestialFrame,
-					position = worldPositions[index],
-					radius = bodySourceData[srcIndex.x].radius
-				};
+			{
+				var body = bodySourceData[srcIndex.x];
+				body.bodyFrame = rotations[index].celestialFrame;
+				body.position = worldPositions[index];
+				bodyData[index] = body;
+			}
 			if (srcIndex.y >= 0)
-				vesselData[index] = new SubstepVessel
-				{
-					isLanded = vesselSourceData[srcIndex.y].isLanded,
-					position = worldPositions[index],
-					relPosition = relPositions[index],
-					rotation = rotations[index].angle,
-					LLA = vesselSourceData[srcIndex.y].LLA,
-					mainBodyIndex = vesselSourceData[srcIndex.y].mainBodyIndex
-				};
+			{
+				var vessel = vesselSourceData[srcIndex.y];
+				vessel.position = worldPositions[index];
+				vessel.relPosition = relPositions[index];
+				vessel.rotation = rotations[index].angle;
+				vesselData[index] = vessel;
+			}
 		}
 	}
-
 }
