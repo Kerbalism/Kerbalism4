@@ -223,6 +223,8 @@
     <Compile Include="Modules\Base\DepreciatedSoon\IPlannerModule.cs" />
     <Compile Include="ResourceSim\VesselVirtualPartResource.cs" />
     <Compile Include="Science\ScienceModuleInfo.cs" />
+    <Compile Include="SteppedSim\FluxAnalysisFactory.cs" />
+    <Compile Include="SteppedSim\Jobs\FluxAnalysisJobs.cs" />
     <Compile Include="SteppedSim\Jobs\Jobs.cs" />
     <Compile Include="SteppedSim\Jobs\PositionComputeJobs.cs" />
     <Compile Include="SteppedSim\PositionComputeFactory.cs" />

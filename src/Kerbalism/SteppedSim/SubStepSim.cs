@@ -49,7 +49,7 @@ namespace KERBALISM.SteppedSim
 		private readonly CelestialBody placeholderBody;
 
 		private readonly List<SubstepFrame> FrameList = new List<SubstepFrame>();
-
+		private readonly List<JobHandle> JobList = new List<JobHandle>();
 
 		private JobHandle stepGeneratorJob;
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
@@ -200,6 +200,19 @@ namespace KERBALISM.SteppedSim
 			GatherFrames(FrameList, Bodies.Count, Vessels.Count, bodyDataGlobalArray, vesselDataGlobalArray);
 			Profiler.EndSample();
 
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.BuildAndLaunch");
+			JobList.Clear();
+			foreach (var f in FrameList)
+			{
+				FluxAnalysisFactory.Process(f, out var outputJob);
+				JobList.Add(outputJob);
+			}
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.Complete");
+			foreach (var j in JobList)
+				j.Complete();
+			Profiler.EndSample();
+
 			// Do things
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
 			foreach (var f in FrameList)
@@ -271,6 +284,7 @@ namespace KERBALISM.SteppedSim
 			int numBodies = bodies.Count;
 			int numVessels = vessels.Count;
 			int numOrbits = numBodies + numVessels;
+			double defaultLuminosity = PhysicsGlobals.SolarLuminosity > 0 ? PhysicsGlobals.SolarLuminosity : PhysicsGlobals.SolarLuminosityAtHome * 4 * math.PI_DBL * Sim.AU * Sim.AU;
 			orbits.Clear();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData.Allocator");
@@ -298,6 +312,8 @@ namespace KERBALISM.SteppedSim
 					bodyFrame = body.BodyFrame,
 					position = double3.zero,
 					radius = body.Radius,
+					solarLuminosity = body.isStar ? defaultLuminosity : 0,	// FIXME
+					albedo = body.albedo,
 				};
 				rotationsSource[i++] = new RotationCondition()
 				{
@@ -501,6 +517,9 @@ namespace KERBALISM.SteppedSim
 		public double timestamp;
 		public NativeArray<SubstepBody> bodies;
 		public NativeArray<SubstepVessel> vessels;
+		public NativeArray<double> directIrradiance;
+		public NativeArray<double> albedoIrradiance;
+		public NativeArray<double> bodyEmissiveIrradiance;
 
 		private static readonly Queue<SubstepFrame> framePool = new Queue<SubstepFrame>();
 		private static int framesCreated = 0;
@@ -524,12 +543,18 @@ namespace KERBALISM.SteppedSim
 			this.timestamp = timestamp;
 			bodies = new NativeArray<SubstepBody>(numBodies, Allocator.TempJob);
 			vessels = new NativeArray<SubstepVessel>(numVessels, Allocator.TempJob);
+			directIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
+			albedoIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
+			bodyEmissiveIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
 		}
 
 		public void Dispose()
 		{
 			if (bodies.IsCreated) bodies.Dispose();
 			if (vessels.IsCreated) vessels.Dispose();
+			if (directIrradiance.IsCreated) directIrradiance.Dispose();
+			if (albedoIrradiance.IsCreated) albedoIrradiance.Dispose();
+			if (bodyEmissiveIrradiance.IsCreated) bodyEmissiveIrradiance.Dispose();
 		}
 	}
 }
