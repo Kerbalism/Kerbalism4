@@ -23,8 +23,9 @@ namespace KERBALISM.SteppedSim.Jobs
 		public void Execute(int index)
 		{
 			int offset = framesize * index;
+			var x = input[index];
 			for (int i = 0; i < framesize; i++, offset++)
-				output[offset] = input[index];
+				output[offset] = x;
 		}
 	}
 
@@ -188,8 +189,8 @@ namespace KERBALISM.SteppedSim.Jobs
 	[BurstCompile]
 	struct BuildBodyAndVesselHolders : IJobParallelFor
 	{
-		[ReadOnly] public NativeArray<SubstepBody> bodySourceData;
-		[ReadOnly] public NativeArray<SubstepVessel> vesselSourceData;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepBody> bodySourceData;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselSourceData;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<int2> indices;
 		[ReadOnly] public NativeArray<RotationCondition> rotations;
 		[ReadOnly] public NativeArray<double3> relPositions;
@@ -214,6 +215,40 @@ namespace KERBALISM.SteppedSim.Jobs
 				vessel.relPosition = relPositions[index];
 				vessel.rotation = rotations[index].angle;
 				vesselData[index] = vessel;
+			}
+		}
+	}
+
+	[BurstCompile]
+	public struct RealignBodyAndVesselArrays : IJob
+	{
+		// Source/Holder data is as built in BuildBodyAndVesselHolders
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepBody> bodyHolderData;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselHolderData;
+		[ReadOnly] public int numFrames;
+		[ReadOnly] public int numBodies;
+		[ReadOnly] public int numVessels;
+		[WriteOnly] public NativeArray<SubstepBody> bodyData;
+		[WriteOnly] public NativeArray<SubstepVessel> vesselData;
+
+		public RealignBodyAndVesselArrays(int numFrames, int numBodies, int numVessels) : this()
+		{
+			this.numFrames = numFrames;
+			this.numBodies = numBodies;
+			this.numVessels = numVessels;
+		}
+
+		public void Execute()
+		{
+			int bodyIndex = 0, vesselIndex = 0;
+			int frameSize = numBodies + numVessels;
+
+			for (int i=0; i<numFrames; i++)
+			{
+				bodyData.Slice(bodyIndex, numBodies).CopyFrom(bodyHolderData.Slice(i * frameSize, numBodies));
+				vesselData.Slice(vesselIndex, numVessels).CopyFrom(vesselHolderData.Slice(i * frameSize + numBodies, numVessels));
+				bodyIndex += numBodies;
+				vesselIndex += numVessels;
 			}
 		}
 	}
