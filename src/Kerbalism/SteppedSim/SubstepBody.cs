@@ -12,7 +12,7 @@ namespace KERBALISM.SteppedSim
 		public double solarLuminosity;    // For stars
 		public double albedo;
 
-		public static bool Occluded(double3 a, double3 b, NativeArray<SubstepBody> occluders)
+		public static bool Occluded(double3 a, double3 b, NativeSlice<SubstepBody> occluders)
 		{
 			// Given a, b, and a point v, the perpendicular distance from v to ab is:
 			//  mag(av) if av dot ab < 0
