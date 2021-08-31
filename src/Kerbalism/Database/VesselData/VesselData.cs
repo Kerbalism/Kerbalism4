@@ -871,7 +871,7 @@ namespace KERBALISM
 		private void EnvironmentUpdate(double elapsedSec)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
-            isSubstepping = elapsedSec > SubStepSim.subStepInterval * 2.0;
+			isSubstepping = true;
 
 			// Those must be evaluated before the Sim / StepSim is evaluated
 			Vector3d position = Lib.VesselPosition(Vessel);
@@ -886,7 +886,7 @@ namespace KERBALISM
 			if (isSubstepping && subStepCount > 0)
 			{
 				// Reset stars
-;				for (int i = 0; i < starsIrradiance.Length; i++)
+				for (int i = 0; i < starsIrradiance.Length; i++)
 					starsIrradiance[i].Reset();
 
 				double directRawFluxTotal = 0.0;

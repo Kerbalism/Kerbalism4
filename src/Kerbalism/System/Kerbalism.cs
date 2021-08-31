@@ -140,7 +140,6 @@ namespace KERBALISM
 					// GameEvents callbacks
 					GameEvents = new Events.GameEventsHandler();
 
-					SubStepSim.Init();
 				}
 				catch (Exception e)
 				{
@@ -332,7 +331,6 @@ namespace KERBALISM
 
 			// synchronize the threaded environment simulation
 			subStepSimJobs.OnFixedUpdate();
-			SubStepSim.OnFixedUpdate();
 
 			// credit science at regular interval
 			ScienceDB.CreditScienceBuffers(elapsed_s);

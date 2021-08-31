@@ -206,7 +206,8 @@ namespace KERBALISM
 
 		private string GetIntervalInfo()
 		{
-			return Lib.BuildString("Sim sub-stepping interval : ", Lib.HumanReadableDuration(SubStepSim.subStepInterval), ", max sub-steps : ", SubStepSim.subStepsAtMaxWarp.ToString());
+			//return Lib.BuildString("Sim sub-stepping interval : ", Lib.HumanReadableDuration(SubStepSim.subStepInterval), ", max sub-steps : ", SubStepSim.subStepsAtMaxWarp.ToString());
+			return "Sub-stepping interval temporarily unavailable";
 		}
 
 		private void Update()
