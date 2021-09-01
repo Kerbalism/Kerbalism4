@@ -48,7 +48,7 @@ namespace KERBALISM.SteppedSim
 		private readonly Dictionary<CelestialBody, int> BodyIndex = new Dictionary<CelestialBody, int>();
 		private readonly CelestialBody placeholderBody;
 
-		private readonly List<SubstepFrame> FrameList = new List<SubstepFrame>();
+		private readonly FrameManager frameManager = new FrameManager();
 
 		private JobHandle stepGeneratorJob;
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
@@ -85,6 +85,8 @@ namespace KERBALISM.SteppedSim
 			foreach (var b in Bodies)
 				BodyIndex.Add(b, i++);
 		}
+
+		public void ClearExpiredFrames(double ts) => frameManager.ClearExpiredFrames(ts);
 
 		public void OnFixedUpdate()
 		{
@@ -153,7 +155,8 @@ namespace KERBALISM.SteppedSim
 				out rotationsSource,
 				out flagDataSource,
 				out bodyTemplates,
-				out vesselTemplates);
+				out vesselTemplates,
+				out Dictionary<Guid, int> vesselIndexMap);
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions");
@@ -167,7 +170,6 @@ namespace KERBALISM.SteppedSim
 				ref stepGeneratorJob,
 				out var computeWorldPosJob,
 				out NativeArray<RotationCondition> rotations,
-				out NativeArray<double3> relativePositions,
 				out NativeArray<double3> worldPositions,
 				out NativeArray<SubstepBody> bodyDataGlobalArray,
 				out NativeArray<SubstepVessel> vesselDataGlobalArray);
@@ -180,30 +182,38 @@ namespace KERBALISM.SteppedSim
 				bodyDataGlobalArray,
 				vesselDataGlobalArray,
 				out JobHandle fluxJob,
-				out NativeArray<bool> vesselBodyOcclusionMap,
-				out NativeArray<double> directIrradiance,
-				out NativeArray<double> albedoIrradiance,
-				out NativeArray<double> bodyEmissiveIrradiance);
+				out NativeArray<bool> vesselBodyOcclusionMap);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.Complete");
 			fluxJob.Complete();
 			Profiler.EndSample();
 
 			// Do things
+			int numVessels = Vessels.Count;
+			int numBodies = Bodies.Count;
+			for (int i=0; i<numSteps; i++)
+			{
+				var f = SubstepFrame.Acquire();
+				f.Init(timestepsSource[i], numBodies, numVessels);
+				f.guidVesselMap = vesselIndexMap;
+				f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
+				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
+				frameManager.Frames.Add(timestepsSource[i], f);
+			}
+
 			/*
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
-			foreach (var f in FrameList)
+			foreach (var f in frameManager.Frames.Values)
 			{
 				ValidateComputations(Bodies, Vessels, f);
 			}
 			{
-				var f = FrameList.Last();
-				ValidateComputations(Bodies, Vessels, f, true);
+				if (frameManager.Frames.TryGetValue(startUT + duration, out var f))
+					ValidateComputations(Bodies, Vessels, f, true);
 			}
 			*/
+			frameManager.ClearExpiredFrames(lastUT);
 
-
-			foreach (var f in FrameList) f.Release();   // Will Dispose() its own contents
 
 			Profiler.EndSample();
 
@@ -215,15 +225,11 @@ namespace KERBALISM.SteppedSim
 			stepOrbitsSource.Dispose();
 
 			rotations.Dispose();
-			relativePositions.Dispose();
 			worldPositions.Dispose();
 			bodyDataGlobalArray.Dispose();
 			vesselDataGlobalArray.Dispose();
 
 			vesselBodyOcclusionMap.Dispose();
-			directIrradiance.Dispose();
-			albedoIrradiance.Dispose();
-			bodyEmissiveIrradiance.Dispose();
 			Profiler.EndSample();
 		}
 
@@ -258,7 +264,8 @@ namespace KERBALISM.SteppedSim
 			out NativeArray<RotationCondition> rotationsSource,
 			out NativeArray<SubstepComputeFlags> flags,
 			out NativeArray<SubstepBody> bodyTemplates,
-			out NativeArray<SubstepVessel> vesselTemplates)
+			out NativeArray<SubstepVessel> vesselTemplates,
+			out Dictionary<Guid, int> vesselIndexMap)
 		{
 			int i = 0;
 			var referenceTime = Planetarium.GetUniversalTime();
@@ -307,10 +314,12 @@ namespace KERBALISM.SteppedSim
 			}
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.GenerateBodyVesselOrbitData.VesselAccumulator");
+			vesselIndexMap = new Dictionary<Guid, int>(numVessels);
 			foreach (var v in vessels)
 			{
 				var o = (v.orbit != null) ? v.orbit : placeholder.orbit;
 				orbits.Add((o, v.mainBody));
+				vesselIndexMap.Add(v.id, i - numBodies);
 				flags[i] = new SubstepComputeFlags()
 				{
 					isVessel = true,
@@ -322,7 +331,6 @@ namespace KERBALISM.SteppedSim
 				vesselTemplates[i - numBodies] = new SubstepVessel
 				{
 					position = double3.zero,
-					relPosition = double3.zero,
 					rotation = 0,
 					isLanded = v.Landed,
 					LLA = new double3(v.latitude, v.longitude, v.altitude + v.mainBody.Radius),
@@ -391,14 +399,10 @@ namespace KERBALISM.SteppedSim
 							UnityEngine.Debug.Log($"RelSurfPos: {relSurfPos}.  Recomputed: {recomputeRelSurfPos}");
 							UnityEngine.Debug.Log($"Translated: {translatedRelPos}.  Recomputed: {rpw}");
 
-							UnityEngine.Debug.Log($"Claimed recompute: {fv.relPosition}");
-
 							var worldSurfPos = v.mainBody.GetWorldSurfacePosition(lla.x, lla.y, lla.z);
-
-							var compRelSurfPos = fv.relPosition;
 							var compWorldSurfPos = fv.position;
 
-							UnityEngine.Debug.Log($"{v} Landed.\nExpected rel: {relSurfPos}\nExprected World: {worldSurfPos}\nComputed rel: {compRelSurfPos}\nComputed world: {compWorldSurfPos}");
+							UnityEngine.Debug.Log($"{v} Landed.\nExpected rel: {relSurfPos}\nExprected World: {worldSurfPos}\nComputed world: {compWorldSurfPos}");
 
 
 						}
@@ -482,10 +486,8 @@ namespace KERBALISM.SteppedSim
 		public double timestamp;
 		public NativeArray<SubstepBody> bodies;
 		public NativeArray<SubstepVessel> vessels;
-		public NativeArray<double> directIrradiance;
-		public NativeArray<double> albedoIrradiance;
-		public NativeArray<double> bodyEmissiveIrradiance;
 		public NativeArray<bool> vesselBodyOcclusionMap;
+		public Dictionary<Guid, int> guidVesselMap;
 
 		private static readonly Queue<SubstepFrame> framePool = new Queue<SubstepFrame>();
 		private static int framesCreated = 0;
@@ -501,27 +503,22 @@ namespace KERBALISM.SteppedSim
 		{
 			Dispose();
 			timestamp = 0;
+			guidVesselMap = null;
 			framePool.Enqueue(this);
 		}
 
 		public void Init(double timestamp, int numBodies, int numVessels)
 		{
 			this.timestamp = timestamp;
-			bodies = new NativeArray<SubstepBody>(numBodies, Allocator.TempJob);
-			vessels = new NativeArray<SubstepVessel>(numVessels, Allocator.TempJob);
-			directIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
-			albedoIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
-			bodyEmissiveIrradiance = new NativeArray<double>(numVessels, Allocator.TempJob);
-			vesselBodyOcclusionMap = new NativeArray<bool>(numVessels * numBodies, Allocator.TempJob);
+			bodies = new NativeArray<SubstepBody>(numBodies, Allocator.Persistent);
+			vessels = new NativeArray<SubstepVessel>(numVessels, Allocator.Persistent);
+			vesselBodyOcclusionMap = new NativeArray<bool>(numVessels * numBodies, Allocator.Persistent);
 		}
 
 		public void Dispose()
 		{
 			if (bodies.IsCreated) bodies.Dispose();
 			if (vessels.IsCreated) vessels.Dispose();
-			if (directIrradiance.IsCreated) directIrradiance.Dispose();
-			if (albedoIrradiance.IsCreated) albedoIrradiance.Dispose();
-			if (bodyEmissiveIrradiance.IsCreated) bodyEmissiveIrradiance.Dispose();
 			if (vesselBodyOcclusionMap.IsCreated) vesselBodyOcclusionMap.Dispose();
 		}
 	}
