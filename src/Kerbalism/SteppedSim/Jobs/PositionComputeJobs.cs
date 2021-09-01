@@ -193,7 +193,7 @@ namespace KERBALISM.SteppedSim.Jobs
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselSourceData;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<int2> indices;
 		[ReadOnly] public NativeArray<RotationCondition> rotations;
-		[ReadOnly] public NativeArray<double3> relPositions;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double3> relPositions;
 		[ReadOnly] public NativeArray<double3> worldPositions;
 		[WriteOnly] public NativeArray<SubstepBody> bodyData;
 		[WriteOnly] public NativeArray<SubstepVessel> vesselData;
@@ -212,7 +212,6 @@ namespace KERBALISM.SteppedSim.Jobs
 			{
 				var vessel = vesselSourceData[srcIndex.y];
 				vessel.position = worldPositions[index];
-				vessel.relPosition = relPositions[index];
 				vessel.rotation = rotations[index].angle;
 				vesselData[index] = vessel;
 			}

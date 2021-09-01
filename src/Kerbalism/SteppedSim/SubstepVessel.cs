@@ -12,10 +12,12 @@ namespace KERBALISM.SteppedSim
 	public struct SubstepVessel
 	{
 		public double3 position;
-		public double3 relPosition;
 		public double rotation;
 		public bool isLanded;
 		public double3 LLA;
+		public double directIrradiance;
+		public double bodyAlbedoIrradiance;
+		public double bodyEmissiveIrradiance;
 		public int mainBodyIndex;
 	}
 

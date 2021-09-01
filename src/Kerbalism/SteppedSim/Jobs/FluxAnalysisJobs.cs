@@ -322,4 +322,22 @@ namespace KERBALISM.SteppedSim.Jobs
 			output[index] = val;
 		}
 	}
+
+	[BurstCompile]
+	public struct RecordIrradiances : IJobParallelFor
+	{
+		public NativeArray<SubstepVessel> vessels;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> directIrradiance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> albedoIrradiance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> emissiveIrradiance;
+
+		public void Execute(int index)
+		{
+			var v = vessels[index];
+			v.directIrradiance = directIrradiance[index];
+			v.bodyAlbedoIrradiance = albedoIrradiance[index];
+			v.bodyEmissiveIrradiance = emissiveIrradiance[index];
+			vessels[index] = v;
+		}
+	}
 }

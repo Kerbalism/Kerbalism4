@@ -20,7 +20,6 @@ namespace KERBALISM.SteppedSim
 			ref JobHandle stepGeneratorJob,
 			out JobHandle finalJob,
 			out NativeArray<RotationCondition> rotations,
-			out NativeArray<double3> relativePositions,
 			out NativeArray<double3> worldPositions,
 			out NativeArray<SubstepBody> bodyData,
 			out NativeArray<SubstepVessel> vesselData)
@@ -47,7 +46,7 @@ namespace KERBALISM.SteppedSim
 			rotations = new NativeArray<RotationCondition>(sz, Allocator.TempJob);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateRelPositions");
-			relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
+			var relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateWorldPositions");
 			worldPositions = new NativeArray<double3>(sz, Allocator.TempJob);
