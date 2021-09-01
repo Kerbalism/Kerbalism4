@@ -81,6 +81,7 @@ namespace KERBALISM
 		/// Time elapsed since last evaluation
 		/// </summary>
 		private double secSinceLastEval;
+		public double lastEvalUT;
 
 		/// <summary>
 		/// Resource handler for this vessel. <br/>
@@ -779,6 +780,7 @@ namespace KERBALISM
 					ModuleDataUpdate();
 
 				secSinceLastEval = 0.0;
+				lastEvalUT = Planetarium.GetUniversalTime();
 			}
 
 			FixedUpdate(elapsedSeconds);

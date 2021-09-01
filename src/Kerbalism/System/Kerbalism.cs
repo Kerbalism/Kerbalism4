@@ -56,11 +56,6 @@ namespace KERBALISM
 		// the rendering script attached to map camera
 		static MapCameraScript map_camera_script;
 
-		// store time until last update for unloaded vessels
-		// note: not using reference_wrapper<T> to increase readability
-		sealed class Unloaded_data { public double time; }; //< reference wrapper
-		static Dictionary<Guid, Unloaded_data> unloaded = new Dictionary<Guid, Unloaded_data>();
-
 		// used to update storm data on one body per step
 		static int storm_index;
 		class Storm_data { public double time; public CelestialBody body; };
@@ -295,6 +290,8 @@ namespace KERBALISM
 		#region fixedupdate
 
 		static System.Diagnostics.Stopwatch fuWatch = new System.Diagnostics.Stopwatch();
+		private readonly Queue<Vessel> mandatoryWorkQueue = new Queue<Vessel>();
+		private readonly Queue<Vessel> discretionaryWorkQueue = new Queue<Vessel>();
 		void FixedUpdate()
 		{
 
@@ -323,11 +320,7 @@ namespace KERBALISM
 			// update elapsed time
 			elapsed_s = fixedDeltaTime;
 
-			// store info for oldest unloaded vessel
-			double last_time = 0.0;
-			Guid last_id = Guid.Empty;
-			Vessel last_v = null;
-			VesselData last_vd = null;
+			ManageWorkQueues(mandatoryWorkQueue, discretionaryWorkQueue);
 
 			// synchronize the threaded environment simulation
 			subStepSimJobs.OnFixedUpdate();
@@ -335,151 +328,56 @@ namespace KERBALISM
 			// credit science at regular interval
 			ScienceDB.CreditScienceBuffers(elapsed_s);
 
+			var currentTime = Planetarium.GetUniversalTime();
 			// for each vessel
-			foreach (Vessel v in FlightGlobals.Vessels)
+			while (mandatoryWorkQueue.TryDequeue(out var v) && v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
 			{
-				// get vessel data
-				if (v.TryGetVesselData(out VesselData vd))
-				{
-					// do nothing else for non-simulated vessels
-					if (!vd.SimulatedCheck(v))
-						continue;
-				}
-				else
-				{
-					// ignore vessels for which we never create a VesselData (flags)
-					if (!VesselData.VesselNeedVesselData(v.protoVessel))
-						continue;
-
-					Lib.LogDebug($"Creating VesselData for new vessel {v.vesselName}");
-					vd = new VesselData(v);
-					DB.AddNewVesselData(vd);
-
-					if (!vd.IsSimulated)
-						continue;
-				}
-
-				// if loaded
-				if (v.loaded)
-				{
-					// get resource cache
-					VesselResHandler resources = vd.ResHandler;
-
-					//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.VesselDataEval");
-					// update the vessel info
-					vd.Evaluate(elapsed_s);
-					//UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Radiation");
-					// show belt warnings
-					Radiation.BeltWarnings(v, vd);
-
-					// update storm data
-					Storm.Update(v, vd, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Comms");
-					CommsMessages.Update(v, vd, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Science");
-					// transmit science data
-					Science.Update(v, vd, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Profile");
-					// execute rules and processes
-					Profile.Execute(v, vd, resources, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.ResourceAPI");
-					//// part module resource updates
-					//ResourceAPI.ResourceUpdate(v, vd, resources, elapsed_s);
-					//UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Resource");
-					// apply deferred requests
-					resources.ResourceUpdate(elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					// call automation scripts
-					vd.computer.Automate(v, vd);
-
-					// remove from unloaded data container
-					unloaded.Remove(vd.VesselId);
-				}
-				// if unloaded
-				else
-				{
-					// get unloaded data, or create an empty one
-					Unloaded_data ud;
-					if (!unloaded.TryGetValue(vd.VesselId, out ud))
-					{
-						ud = new Unloaded_data();
-						unloaded.Add(vd.VesselId, ud);
-					}
-
-					// accumulate time
-					ud.time += elapsed_s;
-
-					// maintain oldest entry
-					if (ud.time > last_time)
-					{
-						last_time = ud.time;
-						last_v = v;
-						last_vd = vd;
-					}
-				}
-			}
-
-			DB.UpdateVesselDataDictionary();
-
-			// at most one vessel gets background processing per physics tick :
-			// if there is a vessel that is not the currently loaded vessel, then
-			// we will update the vessel whose most recent background update is the oldest
-			if (last_v != null)
-			{
+				var timeSinceLastUpdate = currentTime - vd.lastEvalUT;
 				// get resource cache
-				VesselResHandler resources = last_vd.ResHandler;
+				VesselResHandler resources = vd.ResHandler;
 
-				//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.VesselDataEval");
-				// update the vessel info (high timewarp speeds reevaluation)
-				last_vd.Evaluate(last_time);
+				//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.VesselDataEval");
+				// update the vessel info
+				vd.Evaluate(timeSinceLastUpdate);
 				//UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Radiation");
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Radiation");
 				// show belt warnings
-				Radiation.BeltWarnings(last_v, last_vd);
+				Radiation.BeltWarnings(v, vd);
 
 				// update storm data
-				Storm.Update(last_v, last_vd, last_time);
+				Storm.Update(v, vd, timeSinceLastUpdate);
 				UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Comms");
-				CommsMessages.Update(last_v, last_vd, last_time);
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Comms");
+				CommsMessages.Update(v, vd, timeSinceLastUpdate);
 				UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Profile");
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Science");
+				// transmit science data
+				Science.Update(v, vd, timeSinceLastUpdate);
+				UnityEngine.Profiling.Profiler.EndSample();
+
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Profile");
 				// execute rules and processes
-				Profile.Execute(last_v, last_vd, resources, last_time);
+				Profile.Execute(v, vd, resources, timeSinceLastUpdate);
 				UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Science");
-				// transmit science	data
-				Science.Update(last_v, last_vd, last_time);
-				UnityEngine.Profiling.Profiler.EndSample();
+				//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.ResourceAPI");
+				//// part module resource updates
+				//ResourceAPI.ResourceUpdate(v, vd, resources, elapsed_s);
+				//UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Resource");
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Resource");
 				// apply deferred requests
-				resources.ResourceUpdate(last_time);
+				resources.ResourceUpdate(timeSinceLastUpdate);
 				UnityEngine.Profiling.Profiler.EndSample();
 
 				// call automation scripts
-				last_vd.computer.Automate(last_v, last_vd);
-
-				// remove from unloaded data container
-				unloaded.Remove(last_vd.VesselId);
+				vd.computer.Automate(v, vd);
 			}
+
+			DB.UpdateVesselDataDictionary();
 
 			// update storm data for one body per-step
 			if (storm_bodies.Count > 0)
@@ -492,6 +390,49 @@ namespace KERBALISM
 			}
 
 			fuWatch.Stop();
+		}
+
+		public void ManageWorkQueues(Queue<Vessel> mandatory, Queue<Vessel> discretionary)
+		{
+			// Enqueue all valid loaded vessels
+			mandatory.Clear();
+			foreach (var v in FlightGlobals.VesselsLoaded)
+				if (v.TryGetVesselData(out VesselData vd) && vd.SimulatedCheck(v) && vd.IsSimulated)
+					mandatory.Enqueue(v);
+
+			// If the discretionary queue has emptied, close completed frames and refill with all valid unloaded vessels
+			if (discretionary.Count == 0)
+			{
+				double oldest = double.PositiveInfinity;
+				foreach (var vd in DB.VesselDatas)
+					oldest = Math.Min(oldest, vd.lastEvalUT);
+				subStepSimJobs.ClearExpiredFrames(oldest);
+
+				ValidateVesselData();
+				foreach (var v in FlightGlobals.VesselsUnloaded)
+					if (v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
+						discretionary.Enqueue(v);
+			}
+
+			// Always process at least one unloaded vessel
+			if (discretionary.TryDequeue(out var res))
+				mandatory.Enqueue(res);
+		}
+
+		private void ValidateVesselData()
+		{
+			foreach (var v in FlightGlobals.Vessels)
+			{
+				if (!v.TryGetVesselData(out VesselData _))
+				{
+					// ignore vessels for which we never create a VesselData (flags)
+					if (VesselData.VesselNeedVesselData(v.protoVessel))
+					{
+						Lib.LogDebug($"Creating VesselData for new vessel {v.vesselName}");
+						DB.AddNewVesselData(new VesselData(v));
+					}
+				}
+			}
 		}
 
 		#endregion
