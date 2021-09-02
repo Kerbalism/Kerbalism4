@@ -80,15 +80,29 @@ namespace KERBALISM.SteppedSim
 				occluded = vesselBodyOcclusionMap,
 			}.Schedule(fullSize, 16, fluxFactsJob);
 
+			var bodyFlux = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyFluxJob = new BodyEmissiveFlux
+			{
+				triplets = triplets,
+				bodies = bodies,
+				sunFluxAtBodies = sunFluxAtBodies,
+				flux = bodyFlux,
+			}.Schedule(fullSize, 256, sunFluxAtBodyJob);
+
 			var directIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var sunFluxAtVesselsJob = new SunFluxAtVesselJob
+			var coreIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var emissiveIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyDirectIrradiancesJob = new BodyDirectIrradiances
 			{
 				triplets = triplets,
 				bodies = bodies,
 				distances = vesselBodyDistance,
+				bodyEmissiveFlux = bodyFlux,
 				occluded = vesselBodyOcclusionMap,
-				flux = directIrradiance,
-			}.Schedule(fullSize, 256, vesselBodyOcclusionJob);
+				solarIrradiance = directIrradiance,
+				bodyCoreIrradiance = coreIrradiance,
+				bodyEmissiveIrradiance = emissiveIrradiance,
+			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, bodyFluxJob, fluxFactsJob));
 
 			var bodyHemisphericReradiatedIrradianceFactor = new NativeArray<double>(numSteps * numBodies, Allocator.TempJob);
 			var bodyHemisphericReradiatedIrradianceFactorJob = new BodyHemisphericReradiatedIrradianceFactor
@@ -113,16 +127,6 @@ namespace KERBALISM.SteppedSim
 				hemisphericReradiatedIrradianceFactor = bodyHemisphericReradiatedIrradianceFactor,
 				irradiance = albedoIrradiance,
 			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(bodyHemisphericReradiatedIrradianceFactorJob, vesselBodyOcclusionJob));
-
-			var emissiveIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var bodyEmissiveIrradianceJob = new BodyEmissiveIrradianceJob
-			{
-				triplets = triplets,
-				bodies = bodies,
-				distances = vesselBodyDistance,
-				sunFluxAtBodies = sunFluxAtBodies,
-				irradiance = emissiveIrradiance,
-			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(sunFluxAtBodyJob, fluxFactsJob));
 
 			//var directRawFlux = sunFluxAtVessels[i];
 			//var directFlux = directRawFlux;
@@ -155,16 +159,16 @@ namespace KERBALISM.SteppedSim
 				numBodiesPerStep = numBodies,
 				input = directIrradiance,
 				output = directIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, sunFluxAtVesselsJob);
+			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
 
-			var albedoIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
+			var bodyCoreIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
 			var sum1 = new SumForVessel
 			{
 				numVesselsPerStep = numVessels,
 				numBodiesPerStep = numBodies,
-				input = albedoIrradiance,
-				output = albedoIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, albedoIrradianceAtVesselJob);
+				input = coreIrradiance,
+				output = bodyCoreIrradianceSum,
+			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
 
 			var bodyEmissiveIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
 			var sum2 = new SumForVessel
@@ -173,15 +177,26 @@ namespace KERBALISM.SteppedSim
 				numBodiesPerStep = numBodies,
 				input = emissiveIrradiance,
 				output = bodyEmissiveIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, bodyEmissiveIrradianceJob);
+			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
 
+			var albedoIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
+			var sum3 = new SumForVessel
+			{
+				numVesselsPerStep = numVessels,
+				numBodiesPerStep = numBodies,
+				input = albedoIrradiance,
+				output = albedoIrradianceSum,
+			}.Schedule(numSteps * numVessels, numVessels, albedoIrradianceAtVesselJob);
+
+			var sumTemp = JobHandle.CombineDependencies(sum0, sum1, sum2);
 			var copyJob = new RecordIrradiances
 			{
 				vessels = vessels,
 				directIrradiance = directIrradianceSum,
 				albedoIrradiance = albedoIrradianceSum,
 				emissiveIrradiance = bodyEmissiveIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, JobHandle.CombineDependencies(sum0, sum1, sum2));
+				coreIrradiance = bodyCoreIrradianceSum,
+			}.Schedule(numSteps * numVessels, numVessels, JobHandle.CombineDependencies(sumTemp, sum3));
 
 			var dispose1 = triplets.Dispose(copyJob);
 			var dispose2 = bodyOccludedFromSun.Dispose(dispose1);

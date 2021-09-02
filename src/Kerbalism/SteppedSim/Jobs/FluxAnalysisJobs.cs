@@ -197,21 +197,56 @@ namespace KERBALISM.SteppedSim.Jobs
 	}
 
 	[BurstCompile]
-	public struct SunFluxAtVesselJob : IJobParallelFor
+	public struct BodyEmissiveFlux : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public NativeArray<SubstepBody> bodies;
+		[ReadOnly] public NativeArray<double> sunFluxAtBodies;
+		[WriteOnly] public NativeArray<double> flux;
+
+		public void Execute(int index)
+		{
+			// THERMAL RE-EMISSION: total non-reflected flux abosorbed by the body from the sun
+			var triplet = triplets[index];
+			var body = bodies[triplet.z];
+			flux[index] = sunFluxAtBodies[triplet.z] * (1.0 - body.albedo) * math.PI_DBL * body.radius * body.radius;
+		}
+	}
+
+	/// <summary>
+	/// Compute irradiances from:
+	///     Stars (body.solarIrradiance)
+	///     Internal body processes (body.bodyCoreThermalFlux)
+	///     Re-emitted absorption from star fluxes (bodyEmissiveFlux inpt)
+	/// TODO: Why these are two separate computations?  To simplify that only body.solarIrradiance from stars gets albedo / reflection effects?
+	/// Some bodies emit an internal thermal flux due to various tidal, geothermal or accretional phenomenons
+	/// This is given by CelestialBody.coreTemperatureOffset
+	/// From that value we derive thermal flux in W/m² using the blackbody equation
+	/// We assume that the atmosphere has no effect on that value.
+	/// </summary>
+	/// <returns>Flux in W/m2 at distance</returns>
+	[BurstCompile]
+	public struct BodyDirectIrradiances : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<int3> triplets;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[ReadOnly] public NativeArray<double> distances;
 		[ReadOnly] public NativeArray<bool> occluded;
-		[WriteOnly] public NativeArray<double> flux;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveFlux;
+		[WriteOnly] public NativeArray<double> solarIrradiance;
+		[WriteOnly] public NativeArray<double> bodyCoreIrradiance;
+		[WriteOnly] public NativeArray<double> bodyEmissiveIrradiance;
 
 		public void Execute(int index)
 		{
 			var triplet = triplets[index];
 			var body = bodies[triplet.z];
-			var distance = distances[index];
-			flux[index] = Unity.Burst.CompilerServices.Hint.Likely(occluded[index] == false) ?
-						body.solarLuminosity / (4 * math.PI_DBL * distance * distance) : 0;
+			var d2 = distances[index] * distances[index];
+			bool valid = occluded[index] == false && d2 > 0;
+			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * d2) : 0;
+			solarIrradiance[index] = body.solarLuminosity * denomRecip;
+			bodyCoreIrradiance[index] = body.bodyCoreThermamFlux * denomRecip;
+			bodyEmissiveIrradiance[index] = bodyEmissiveIrradiance[index] * denomRecip;
 		}
 	}
 
@@ -330,6 +365,7 @@ namespace KERBALISM.SteppedSim.Jobs
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> directIrradiance;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> albedoIrradiance;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> emissiveIrradiance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> coreIrradiance;
 
 		public void Execute(int index)
 		{
@@ -337,6 +373,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			v.directIrradiance = directIrradiance[index];
 			v.bodyAlbedoIrradiance = albedoIrradiance[index];
 			v.bodyEmissiveIrradiance = emissiveIrradiance[index];
+			v.bodyCoreIrradiance = coreIrradiance[index];
 			vessels[index] = v;
 		}
 	}

@@ -18,6 +18,7 @@ namespace KERBALISM.SteppedSim
 		public double directIrradiance;
 		public double bodyAlbedoIrradiance;
 		public double bodyEmissiveIrradiance;
+		public double bodyCoreIrradiance;
 		public int mainBodyIndex;
 	}
 

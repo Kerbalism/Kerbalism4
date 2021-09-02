@@ -302,6 +302,7 @@ namespace KERBALISM.SteppedSim
 					radius = body.Radius,
 					solarLuminosity = body.isStar ? defaultLuminosity : 0,	// FIXME
 					albedo = body.albedo,
+					bodyCoreThermamFlux = body.coreTemperatureOffset,
 				};
 				rotationsSource[i++] = new RotationCondition()
 				{
