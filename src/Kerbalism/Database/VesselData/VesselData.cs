@@ -2,6 +2,7 @@ using Flee.PublicTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace KERBALISM
 {
@@ -880,13 +881,14 @@ namespace KERBALISM
 			mainBody = Vessel.mainBody;
 
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep");
+			MiniProfiler.simDataProcess.Start();
 
 
 			int subStepCount = subSteps.Count;
 			if (isSubstepping && subStepCount > 0)
 			{
 				// Reset stars
-;				for (int i = 0; i < starsIrradiance.Length; i++)
+				for (int i = 0; i < starsIrradiance.Length; i++)
 					starsIrradiance[i].Reset();
 
 				double directRawFluxTotal = 0.0;
@@ -987,6 +989,7 @@ namespace KERBALISM
 				step.ReleaseToPool();
 			}
 
+			MiniProfiler.simDataProcess.Stop();
 			UnityEngine.Profiling.Profiler.EndSample();
 
 

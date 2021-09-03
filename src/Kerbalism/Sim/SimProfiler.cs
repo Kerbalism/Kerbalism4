@@ -95,7 +95,7 @@ namespace KERBALISM
 
 		// constants
 		private const float width = 550.0f;
-		private const float height = 220.0f;
+		private const float height = 280.0f;
 
 		private const float value_width = 65.0f;
 
@@ -113,17 +113,20 @@ namespace KERBALISM
 		public static double workerTimeMissed;
 		public static double workerTimeUsed;
 		public static double workerLag;
+		public static double workerSync;
+		public static Stopwatch simDataProcess = new Stopwatch();
 		static double lastFps;
 
-		static Measure fps = new Measure("Update (FPS)", (v) => v.ToString("00.0;--"));
-		static Measure fuMs = new Measure("FixedUpdate (FU)", (v) => v.ToString("00.00 ms;--"));
+		static Measure fps = new Measure("Unity update (FPS)", (v) => v.ToString("00.0;--"));
+		static Measure fuMs = new Measure("Unity update", (v) => v.ToString("00.00 ms;--"));
 		static Measure ksmFuMs = new Measure("Kerbalism FU", (v) => v.ToString("00.00 ms;--"));
 		static Measure ksmFuLoad = new Measure("Kerbalism FU load", (v) => v.ToString("00.0 %;--"));
 		static Measure workerMs = new Measure("Sim thread", (v) => v.ToString("00.00 ms;--"));
 		static Measure workerLoad = new Measure("Sim thread load", (v) => v.ToString("00.0 %;--"));
-		static Measure wTimeMissed = new Measure("Sim time missed", (v) => Lib.HumanReadableDuration(v));
 		static Measure wTimeUsed = new Measure("Sim time used", (v) => Lib.HumanReadableDuration(v));
 		static Measure wBlock = new Measure("Sim lag", (v) => v.ToString("00.00 ms;--"));
+		static Measure wSync = new Measure("Sim sync", (v) => v.ToString("00.00 ms;--"));
+		static Measure wProcess = new Measure("Sim processing", (v) => v.ToString("00.00 ms;--"));
 
 		// permit global access
 		public static MiniProfiler Fetch { get; private set; } = null;
@@ -176,9 +179,10 @@ namespace KERBALISM
 			workerMs.CreateDialogEntry();
 			ksmFuLoad.CreateDialogEntry();
 			workerLoad.CreateDialogEntry();
-			wTimeMissed.CreateDialogEntry();
 			wTimeUsed.CreateDialogEntry();
 			wBlock.CreateDialogEntry();
+			wSync.CreateDialogEntry();
+			wProcess.CreateDialogEntry();
 		}
 
 		private void FixedUpdate()
@@ -192,6 +196,9 @@ namespace KERBALISM
 			double lastWorkerPercent = lastWorkerMs / lastFuMs;
 			double lastkerbalismFuMs = lastKerbalismFuTicks / frequency * 1000.0;
 			double lastkerbalismFuPercent = lastkerbalismFuMs / lastFuMs;
+			double wSyncMs = workerSync / frequency * 1000.0;
+			double simDataProcessMs = simDataProcess.ElapsedTicks / frequency * 1000.0;
+			simDataProcess.Reset();
 
 			fps.Update(lastFps);
 			fuMs.Update(lastFuMs);
@@ -199,9 +206,10 @@ namespace KERBALISM
 			workerMs.Update(lastWorkerMs);
 			ksmFuLoad.Update(lastkerbalismFuPercent);
 			workerLoad.Update(lastWorkerPercent);
-			wTimeMissed.Update(workerTimeMissed);
 			wTimeUsed.Update(workerTimeUsed);
 			wBlock.Update(workerLag);
+			wSync.Update(wSyncMs);
+			wProcess.Update(simDataProcessMs);
 		}
 
 		private string GetIntervalInfo()

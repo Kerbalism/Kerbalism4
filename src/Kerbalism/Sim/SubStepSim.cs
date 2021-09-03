@@ -179,7 +179,7 @@ namespace KERBALISM
 			MiniProfiler.lastFuTicks = fuWatch.ElapsedTicks;
 			fuWatch.Restart();
 
-			subStepsToCompute = (int)(TimeWarp.fetch.warpRates[7] * 0.02 * 1.5 / subStepInterval);
+			subStepsToCompute = (int)((TimeWarp.fetch.warpRates[7] * 0.02) / subStepInterval) + 1;
 
 			otherWatch.Restart();
 			waitHandle.WaitOne();
@@ -193,8 +193,11 @@ namespace KERBALISM
 			}
 
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.SubStepSim.Update");
+			otherWatch.Restart();
 			Synchronize();
 			WorkerLoadCheck();
+			otherWatch.Stop();
+			MiniProfiler.workerSync = otherWatch.ElapsedTicks;
 			UnityEngine.Profiling.Profiler.EndSample();
 
 			waitHandle.Reset();
