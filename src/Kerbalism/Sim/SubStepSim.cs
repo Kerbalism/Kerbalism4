@@ -269,9 +269,9 @@ namespace KERBALISM
 					{
 						vessels.Remove(vd.VesselId);
 						subStepVesselIds.Remove(vd.VesselId);
-						foreach (SimStep step in vd.subSteps)
-							step.ReleaseToPool();
-						vd.subSteps.Clear();
+						//foreach (SimStep step in vd.subSteps)
+							//step.ReleaseToPool();
+						//vd.subSteps.Clear();
 						continue;
 					}
 				}
