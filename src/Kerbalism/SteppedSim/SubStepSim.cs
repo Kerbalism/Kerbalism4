@@ -48,7 +48,7 @@ namespace KERBALISM.SteppedSim
 		private readonly Dictionary<CelestialBody, int> BodyIndex = new Dictionary<CelestialBody, int>();
 		private readonly CelestialBody placeholderBody;
 
-		private readonly FrameManager frameManager = new FrameManager();
+		public readonly FrameManager frameManager = new FrameManager();
 
 		private JobHandle stepGeneratorJob;
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
@@ -189,6 +189,7 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			// Do things
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.RecordFrames");
 			int numVessels = Vessels.Count;
 			int numBodies = Bodies.Count;
 			for (int i=0; i<numSteps; i++)
@@ -200,6 +201,17 @@ namespace KERBALISM.SteppedSim
 				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
 				frameManager.Frames.Add(timestepsSource[i], f);
 			}
+			Profiler.EndSample();
+
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.DeliverTimestamps");
+			foreach (var v in Vessels)
+			{
+				if (v.TryGetVesselData(out VesselData vd))
+				{
+					vd.timestamps.AddRange(timestepsSource);
+				}
+			}
+			Profiler.EndSample();
 
 			/*
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
@@ -212,7 +224,6 @@ namespace KERBALISM.SteppedSim
 					ValidateComputations(Bodies, Vessels, f, true);
 			}
 			*/
-			frameManager.ClearExpiredFrames(lastUT);
 
 
 			Profiler.EndSample();
@@ -324,8 +335,8 @@ namespace KERBALISM.SteppedSim
 				flags[i] = new SubstepComputeFlags()
 				{
 					isVessel = true,
-					isLandedVessel = v.Landed,
-					isValidOrbit = v.orbit != null && !v.Landed,
+					isLandedVessel = v.Landed || v.Splashed,
+					isValidOrbit = v.orbit != null && !(v.Landed || v.Splashed),
 				};
 				stepOrbits[i] = new SubStepOrbit(o, v.mainBody, BodyIndex);
 				// TODO: Fixme!

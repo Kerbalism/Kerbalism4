@@ -8,7 +8,7 @@ namespace KERBALISM.SteppedSim
 {
 	public class FrameManager
 	{
-		public Dictionary<double, SubstepFrame> Frames = new Dictionary<double, SubstepFrame>();
+		public Dictionary<double, SubstepFrame> Frames = new Dictionary<double, SubstepFrame>(256);
 		private readonly List<double> oldFrameTimes = new List<double>();
 
 		public void ClearExpiredFrames(double ts)

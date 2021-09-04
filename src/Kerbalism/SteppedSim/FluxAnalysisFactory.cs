@@ -40,6 +40,8 @@ namespace KERBALISM.SteppedSim
 			var vesselBodyDirection = new NativeArray<double3>(fullSize, Allocator.TempJob);
 			var fluxFactsJob = new FluxFacts
 			{
+				// if apparent diameter < ~10 arcmin (~0.003 radians), don't consider the body for occlusion checks
+				// real apparent diameters at earth : sun/moon ~ 30 arcmin, Venus ~ 1 arcmin max
 				minRequiredHalfAngleRadians = 0.002909 / 2,     // ~10 arcmin = 0.003 radians
 				bodies = bodies,
 				vessels = vessels,
