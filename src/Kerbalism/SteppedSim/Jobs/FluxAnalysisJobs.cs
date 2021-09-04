@@ -92,7 +92,7 @@ namespace KERBALISM.SteppedSim.Jobs
 				int step = triplets[index].x;
 				int firstBodyIndex = step * bodiesPerStep;
 				var frameSlice = bodies.Slice(firstBodyIndex, bodiesPerStep);
-				bool occludedTemp = true;
+				bool occludedTemp = false;
 				for (int i = 0; i < starIndexes.Length && !occludedTemp; i++)
 				{
 					var star = bodies[firstBodyIndex + starIndexes[i]];
@@ -100,7 +100,7 @@ namespace KERBALISM.SteppedSim.Jobs
 					var dir = math.normalize(star.position - body.position);
 					var start = body.position + (body.radius + 10) * dir;
 					var end = star.position - (star.radius + 10) * dir;
-					occludedTemp &= SubstepBody.Occluded(start, end, frameSlice);
+					occludedTemp |= SubstepBody.Occluded(start, end, frameSlice);
 				}
 				occluded[index] = occludedTemp;
 			}
@@ -178,7 +178,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			var body = bodies[index];
 			double tempFlux = 0;
 			if (Unity.Burst.CompilerServices.Hint.Unlikely(body.solarLuminosity > 0))
-				tempFlux = double.PositiveInfinity;
+				tempFlux = 0;
 			else
 			{
 				int step = triplets[index].x;
@@ -246,7 +246,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * d2) : 0;
 			solarIrradiance[index] = body.solarLuminosity * denomRecip;
 			bodyCoreIrradiance[index] = body.bodyCoreThermamFlux * denomRecip;
-			bodyEmissiveIrradiance[index] = bodyEmissiveIrradiance[index] * denomRecip;
+			bodyEmissiveIrradiance[index] = bodyEmissiveFlux[index] * denomRecip;
 		}
 	}
 
@@ -285,12 +285,11 @@ namespace KERBALISM.SteppedSim.Jobs
 		{
 			var triplet = triplets[index];
 			var step = triplet.x;
-			var vessel = vessels[triplet.y];
 			var body = bodies[triplet.z];
 			int firstStarIndex = step * numBodiesPerStep + starIndexes[0];
 			var firstStar = bodies[firstStarIndex];
 
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(index == firstStarIndex || vesselOccludedFromBody[index]))
+			if (Unity.Burst.CompilerServices.Hint.Unlikely(starIndexes.Contains(triplet.z) || vesselOccludedFromBody[index]))
 				irradiance[index] = 0;
 			else
 			{
@@ -301,7 +300,7 @@ namespace KERBALISM.SteppedSim.Jobs
 				// the full albedo flux is received only when the vessel is positioned along the sun-body axis, and goes
 				// down to zero on the night side.
 				var bodyToSun = math.normalize(firstStar.position - body.position);
-				var bodyToVessel = directions[index];
+				var bodyToVessel = -directions[index];
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
 				rawIrradiance *= FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 				irradiance[index] = rawIrradiance;
