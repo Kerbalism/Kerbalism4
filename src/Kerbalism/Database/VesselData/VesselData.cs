@@ -2,13 +2,14 @@ using Flee.PublicTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 
 namespace KERBALISM
 {
     public partial class VesselData : VesselDataBase
 	{
-		public List<SimStep> subSteps = new List<SimStep>();
-		private SimVessel simVessel;
+		//public List<SimStep> subSteps = new List<SimStep>();
+		public readonly List<double> timestamps = new List<double>(4096);
 
 
 		#region FIELDS/PROPERTIES : CORE STATE AND SUBSYSTEMS
@@ -540,7 +541,6 @@ namespace KERBALISM
 
 		private void SetInstantiateDefaults(ProtoVessel protoVessel)
 		{
-			simVessel = new SimVessel();
 			filesTransmitted = new List<DriveFile>();
 			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
@@ -649,7 +649,7 @@ namespace KERBALISM
 			Lib.LogDebug($"Starting vessel {this} (loaded={LoadedOrEditor})");
 
 			// update the vessel environment
-			EnvironmentUpdate(0.0);
+			EnvironmentUpdate(0.0, null);
 			// update crew state
 			CrewUpdate();
 
@@ -756,7 +756,7 @@ namespace KERBALISM
 		//   updating several "fast" vessels in the same FU. Could also take into account the loaded vessels
         //   to do some "load balancing" and not update unloaded vessels in the same FU as the "full" loaded
 		//   vessels update.
-		public void Evaluate(double elapsedSeconds)
+		public void Evaluate(double elapsedSeconds, SteppedSim.SubStepSim sim)
 		{
 			secSinceLastEval += elapsedSeconds;
 
@@ -769,9 +769,9 @@ namespace KERBALISM
 			CrewUpdate();
 
 			// don't update things that don't change often more than every 0.25 seconds of game time
-			if (secSinceLastEval > 0.25)
+			if (secSinceLastEval > 0.25 && timestamps.Count > 0)
 			{
-				EnvironmentUpdate(secSinceLastEval);
+				EnvironmentUpdate(secSinceLastEval, sim);
 				StateUpdate();
 
 				if (LoadedOrEditor && Parts.Count > 0 && Parts[0].LoadedPart == null)
@@ -780,7 +780,8 @@ namespace KERBALISM
 					ModuleDataUpdate();
 
 				secSinceLastEval = 0.0;
-				lastEvalUT = Planetarium.GetUniversalTime();
+				lastEvalUT = timestamps[timestamps.Count - 1];
+				timestamps.Clear();
 			}
 
 			FixedUpdate(elapsedSeconds);
@@ -870,123 +871,79 @@ namespace KERBALISM
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
-		private void EnvironmentUpdate(double elapsedSec)
+		private void EnvironmentUpdate(double elapsedSec, SteppedSim.SubStepSim sim)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
 			isSubstepping = true;
 
 			// Those must be evaluated before the Sim / StepSim is evaluated
-			Vector3d position = Lib.VesselPosition(Vessel);
-			landed = Lib.Landed(Vessel);
+			double3 positionTemp = double3.zero;
 			altitude = Vessel.altitude;
 			mainBody = Vessel.mainBody;
 
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep");
 
+			// Reset stars
+			for (int i = 0; i < starsIrradiance.Length; i++)
+				starsIrradiance[i].Reset();
 
-			int subStepCount = subSteps.Count;
-			if (isSubstepping && subStepCount > 0)
+			irradianceTotal = 0;
+			irradianceAlbedo = 0;
+			irradianceBodiesEmissive = 0;
+			irradianceBodiesCore = 0;
+			irradianceStarTotal = 0;
+
+			// TODO: Weight averages by duration of each ts, since they can vary
+			foreach (var ts in timestamps)
 			{
-				// Reset stars
-				for (int i = 0; i < starsIrradiance.Length; i++)
-					starsIrradiance[i].Reset();
+				if (!(sim.frameManager.Frames.TryGetValue(ts, out SteppedSim.SubstepFrame frame) &&
+					  frame.guidVesselMap.TryGetValue(VesselId, out int index) &&
+					  frame.vessels[index] is SteppedSim.SubstepVessel substepVessel))
+					continue;
+				positionTemp = substepVessel.position;
+				landed = substepVessel.isLanded;
 
-				double directRawFluxTotal = 0.0;
-				irradianceBodiesCore = 0.0;
+				// TODO: May have to back this out if a future thermal sim needs per-body data.
+				irradianceAlbedo += substepVessel.bodyAlbedoIrradiance;
+				irradianceBodiesEmissive += substepVessel.bodyEmissiveIrradiance;
+				irradianceBodiesCore += substepVessel.bodyCoreIrradiance;
+				irradianceStarTotal += substepVessel.directIrradiance;
+				irradianceTotal += substepVessel.bodyAlbedoIrradiance + substepVessel.bodyEmissiveIrradiance + substepVessel.bodyCoreIrradiance + substepVessel.directIrradiance;
 
-				// take the "average" as the current step
-				// SimStep currentStep = subSteps[subStepCount / 2];
-				// TODO : Can't use a step direction : the current world frame if reference isn't identical to the substep one
-				for (int i = 0; i < starsIrradiance.Length; i++)
+				/*
+				foreach (StarFlux starflux in starsIrradiance)
 				{
-					StarFlux vesselStarFlux = starsIrradiance[i];
-					vesselStarFlux.direction = vesselStarFlux.Star.body.position - position;
-					vesselStarFlux.distance = vesselStarFlux.direction.magnitude;
-					vesselStarFlux.direction /= vesselStarFlux.distance;
+					//starflux.directFlux += //Per-body directIrradiance
+					//starflux.directRawFlux += //Per body directRawIrradiance
+					//starflux.mainBodyVesselStarAngle += stepStarFlux.mainBodyVesselStarAngle;
+					//if (stepStarFlux.directFlux > 0.0)
+					//  starflux.sunlightFactor += 1.0;
 				}
-
-				int starCount = subSteps[0].starFluxes.Length;
-				for (int k = 0; k < subStepCount; k++)
-				{
-					irradianceBodiesCore += subSteps[k].bodiesCoreIrradiance;
-
-					for (int i = 0; i < starCount; i++)
-					{
-						StarFlux stepStarFlux = subSteps[k].starFluxes[i];
-						StarFlux vesselStarFlux = starsIrradiance[i];
-
-						vesselStarFlux.directFlux += stepStarFlux.directFlux;
-						vesselStarFlux.directRawFlux += stepStarFlux.directRawFlux;
-						vesselStarFlux.bodiesAlbedoFlux += stepStarFlux.bodiesAlbedoFlux;
-						vesselStarFlux.bodiesEmissiveFlux += stepStarFlux.bodiesEmissiveFlux;
-
-						vesselStarFlux.mainBodyVesselStarAngle += stepStarFlux.mainBodyVesselStarAngle;
-						vesselStarFlux.sunAndBodyFaceSkinTemp += stepStarFlux.sunAndBodyFaceSkinTemp;
-						vesselStarFlux.bodiesFaceSkinTemp += stepStarFlux.bodiesFaceSkinTemp;
-						vesselStarFlux.sunFaceSkinTemp += stepStarFlux.sunFaceSkinTemp;
-						vesselStarFlux.darkFaceSkinTemp += stepStarFlux.darkFaceSkinTemp;
-						vesselStarFlux.skinIrradiance += stepStarFlux.skinIrradiance;
-						vesselStarFlux.skinRadiosity += stepStarFlux.skinRadiosity;
-
-						directRawFluxTotal += stepStarFlux.directRawFlux;
-
-						if (stepStarFlux.directFlux > 0.0)
-							vesselStarFlux.sunlightFactor += 1.0;
-					}
-
-					subSteps[k].ReleaseToPool();
-				}
-
-				subSteps.Clear();
-
-				double subStepCountD = subStepCount;
-				irradianceBodiesCore /= subStepCountD;
-				irradianceStarTotal = 0.0;
-				mainStar = starsIrradiance[0];
-				irradianceAlbedo = 0.0;
-				irradianceBodiesEmissive = 0.0;
-
-				for (int i = 0; i < starsIrradiance.Length; i++)
-				{
-					StarFlux vesselStarFlux = starsIrradiance[i];
-					vesselStarFlux.directRawFluxProportion = vesselStarFlux.directRawFlux / directRawFluxTotal;
-					vesselStarFlux.directFlux /= subStepCountD;
-					irradianceStarTotal += vesselStarFlux.directFlux;
-					vesselStarFlux.directRawFlux /= subStepCountD;
-					vesselStarFlux.bodiesAlbedoFlux /= subStepCountD;
-					vesselStarFlux.bodiesEmissiveFlux /= subStepCountD;
-					vesselStarFlux.sunlightFactor /= subStepCountD;
-
-					vesselStarFlux.mainBodyVesselStarAngle /= subStepCountD;
-					vesselStarFlux.sunAndBodyFaceSkinTemp /= subStepCountD;
-					vesselStarFlux.bodiesFaceSkinTemp /= subStepCountD;
-					vesselStarFlux.sunFaceSkinTemp /= subStepCountD;
-					vesselStarFlux.darkFaceSkinTemp /= subStepCountD;
-					vesselStarFlux.skinIrradiance /= subStepCountD;
-					vesselStarFlux.skinRadiosity /= subStepCountD;
-
-					irradianceAlbedo += vesselStarFlux.bodiesAlbedoFlux;
-					irradianceBodiesEmissive += vesselStarFlux.bodiesEmissiveFlux;
-
-					if (mainStar.directFlux < vesselStarFlux.directFlux)
-						mainStar = vesselStarFlux;
-				}
-				
-				irradianceTotal = irradianceStarTotal + irradianceAlbedo + irradianceBodiesEmissive + irradianceBodiesCore;
+				*/
 			}
-			else
+
+			double subStepCountD = timestamps.Count;
+			var position = new Vector3d(positionTemp.x, positionTemp.y, positionTemp.z);
+			irradianceAlbedo /= subStepCountD;
+			irradianceBodiesEmissive /= subStepCountD;
+			irradianceBodiesCore /= subStepCountD;
+			irradianceStarTotal /= subStepCountD;
+			irradianceTotal /= subStepCountD;
+
+			mainStar = starsIrradiance[0];
+			foreach (StarFlux starflux in starsIrradiance)
 			{
-				foreach (SimStep discardedStep in subSteps)
-					discardedStep.ReleaseToPool();
+				starflux.direction = starflux.Star.body.position - position;
+				starflux.distance = starflux.direction.magnitude;
+				starflux.direction /= starflux.distance;
 
-				subSteps.Clear();
+				starflux.directRawFlux /= subStepCountD;
+				starflux.directRawFluxProportion = starflux.directRawFlux / irradianceStarTotal;
+				starflux.sunlightFactor /= subStepCountD;
+				//starflux.mainBodyVesselStarAngle /= subStepCountD;
+				if (mainStar.directFlux < starflux.directFlux)
+					mainStar = starflux;
 
-				simVessel.UpdatePosition(this, position);
-				SimStep step = SimStep.GetFromPool();
-				step.Init(simVessel);
-				step.Evaluate();
-				ProcessSimStep(step);
-				step.ReleaseToPool();
 			}
 
 			UnityEngine.Profiling.Profiler.EndSample();
