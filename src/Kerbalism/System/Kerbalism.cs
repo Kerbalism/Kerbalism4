@@ -338,7 +338,7 @@ namespace KERBALISM
 
 				//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.VesselDataEval");
 				// update the vessel info
-				vd.Evaluate(timeSinceLastUpdate);
+				vd.Evaluate(timeSinceLastUpdate, subStepSimJobs);
 				//UnityEngine.Profiling.Profiler.EndSample();
 
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Radiation");
@@ -405,7 +405,8 @@ namespace KERBALISM
 			{
 				double oldest = double.PositiveInfinity;
 				foreach (var vd in DB.VesselDatas)
-					oldest = Math.Min(oldest, vd.lastEvalUT);
+					if (vd.IsSimulated)
+						oldest = Math.Min(oldest, vd.lastEvalUT);
 				subStepSimJobs.ClearExpiredFrames(oldest);
 
 				ValidateVesselData();
