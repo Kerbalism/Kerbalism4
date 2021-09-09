@@ -165,7 +165,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	}
 
 	[BurstCompile]
-	public struct SunFluxAtBodyJob : IJobParallelFor
+	public struct SolarIrradianceAtBodyJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<int3> triplets;
 		[ReadOnly] public int bodiesPerStep;
@@ -197,19 +197,39 @@ namespace KERBALISM.SteppedSim.Jobs
 	}
 
 	[BurstCompile]
-	public struct BodyEmissiveFlux : IJobParallelFor
+	public struct BodyIncidentFluxJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<int3> triplets;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<double> sunFluxAtBodies;
-		[WriteOnly] public NativeArray<double> flux;
+		[ReadOnly] public NativeArray<double> solarIrradianceAtBodies;
+		[WriteOnly] public NativeArray<double> incidentFlux;
+
+		public void Execute(int index)
+		{
+			var triplet = triplets[index];
+			var body = bodies[triplet.z];
+			incidentFlux[index] = solarIrradianceAtBodies[triplet.z] * math.PI_DBL * body.radius * body.radius;
+		}
+	}
+
+	[BurstCompile]
+	public struct BodyEmissiveLuminositiesJob : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public NativeArray<SubstepBody> bodies;
+		[ReadOnly] public NativeArray<bool> bodyOccludedFromSun;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyIncidentFlux;
+		[WriteOnly] public NativeArray<double> emissiveLuminosity;
+		[WriteOnly] public NativeArray<double> medianAlbedoLuminosity;
 
 		public void Execute(int index)
 		{
 			// THERMAL RE-EMISSION: total non-reflected flux abosorbed by the body from the sun
 			var triplet = triplets[index];
 			var body = bodies[triplet.z];
-			flux[index] = sunFluxAtBodies[triplet.z] * (1.0 - body.albedo) * math.PI_DBL * body.radius * body.radius;
+			emissiveLuminosity[index] = bodyIncidentFlux[index] * (1.0 - body.albedo);
+			medianAlbedoLuminosity[index] = Unity.Burst.CompilerServices.Hint.Likely(!bodyOccludedFromSun[triplet.z]) ?
+											bodyIncidentFlux[index] * body.albedo : 0;
 		}
 	}
 
@@ -218,7 +238,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	///     Stars (body.solarIrradiance)
 	///     Internal body processes (body.bodyCoreThermalFlux)
 	///     Re-emitted absorption from star fluxes (bodyEmissiveFlux inpt)
-	/// TODO: Why these are two separate computations?  To simplify that only body.solarIrradiance from stars gets albedo / reflection effects?
+	///     Albedo from star fluxes
 	/// Some bodies emit an internal thermal flux due to various tidal, geothermal or accretional phenomenons
 	/// This is given by CelestialBody.coreTemperatureOffset
 	/// From that value we derive thermal flux in W/m² using the blackbody equation
@@ -226,16 +246,18 @@ namespace KERBALISM.SteppedSim.Jobs
 	/// </summary>
 	/// <returns>Flux in W/m2 at distance</returns>
 	[BurstCompile]
-	public struct BodyDirectIrradiances : IJobParallelFor
+	public struct BodyIrradiancesJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<int3> triplets;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[ReadOnly] public NativeArray<double> distances;
 		[ReadOnly] public NativeArray<bool> occluded;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveFlux;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveLuminosity;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyAlbedoLuminosity;
 		[WriteOnly] public NativeArray<double> solarIrradiance;
 		[WriteOnly] public NativeArray<double> bodyCoreIrradiance;
 		[WriteOnly] public NativeArray<double> bodyEmissiveIrradiance;
+		[WriteOnly] public NativeArray<double> bodyAlbedoIrradiance;
 
 		public void Execute(int index)
 		{
@@ -246,29 +268,13 @@ namespace KERBALISM.SteppedSim.Jobs
 			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * d2) : 0;
 			solarIrradiance[index] = body.solarLuminosity * denomRecip;
 			bodyCoreIrradiance[index] = body.bodyCoreThermamFlux * denomRecip;
-			bodyEmissiveIrradiance[index] = bodyEmissiveFlux[index] * denomRecip;
-		}
-	}
-
-	// Divide by distance squared to target to compute actual irradiance
-	[BurstCompile]
-	public struct BodyHemisphericReradiatedIrradianceFactor : IJobParallelFor
-	{
-		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<double> sunFluxAtBody;
-		[ReadOnly] public NativeArray<bool> occluded;
-		[WriteOnly] public NativeArray<double> factor;
-
-		public void Execute(int index)
-		{
-			var body = bodies[index];
-			factor[index] = Unity.Burst.CompilerServices.Hint.Unlikely(occluded[index]) ?
-							0 : sunFluxAtBody[index] * body.radius * body.radius * 0.5 * body.albedo;
+			bodyEmissiveIrradiance[index] = bodyEmissiveLuminosity[index] * denomRecip;
+			bodyAlbedoIrradiance[index] = bodyAlbedoLuminosity[index] * denomRecip;
 		}
 	}
 
 	[BurstCompile]
-	public struct AlbedoIrradianceAtVesselJob : IJobParallelFor
+	public struct AlbedoLuminosityForVesselJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<int3> triplets;
 		[ReadOnly] public int numBodiesPerStep;
@@ -276,10 +282,9 @@ namespace KERBALISM.SteppedSim.Jobs
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<int> starIndexes;
 		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
-		[ReadOnly] public NativeArray<double> distances;
 		[ReadOnly] public NativeArray<double3> directions;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> hemisphericReradiatedIrradianceFactor;
-		[WriteOnly] public NativeArray<double> irradiance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> medianAlbedoLuminosity;
+		[WriteOnly] public NativeArray<double> luminosity;
 
 		public void Execute(int index)
 		{
@@ -290,20 +295,17 @@ namespace KERBALISM.SteppedSim.Jobs
 			var firstStar = bodies[firstStarIndex];
 
 			if (Unity.Burst.CompilerServices.Hint.Unlikely(starIndexes.Contains(triplet.z) || vesselOccludedFromBody[index]))
-				irradiance[index] = 0;
+				luminosity[index] = 0;
 			else
 			{
-				var distanceSq = distances[index] * distances[index];
-				var rawIrradiance = hemisphericReradiatedIrradianceFactor[triplet.z] / distanceSq;
-
 				// ALDEBO COSINE FACTOR
 				// the full albedo flux is received only when the vessel is positioned along the sun-body axis, and goes
 				// down to zero on the night side.
+				// Since the total flux is the same, but is re-emitted only over 1 hemisphere, the effective luminosity in a direction is *2 * the geometric albedo factor
 				var bodyToSun = math.normalize(firstStar.position - body.position);
 				var bodyToVessel = -directions[index];
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
-				rawIrradiance *= FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
-				irradiance[index] = rawIrradiance;
+				luminosity[index] = medianAlbedoLuminosity[index] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}
 		}
 	}

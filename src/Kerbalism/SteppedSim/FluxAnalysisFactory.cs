@@ -9,6 +9,41 @@ namespace KERBALISM.SteppedSim
 {
 	public class FluxAnalysisFactory
 	{
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="dependencyHandle">Pre-requisite job that computes the body and vessel positions</param>
+		/// <param name="timesteps">Timesteps to compute</param>
+		/// <param name="bodies">1-m array of SubstepBody, for each timestep</param>
+		/// <param name="vessels">1-n array of SubstepVessel, for each timestep</param>
+		/// <param name="outputJob">Output JobHandle for follow-on processing to depend upon or Complete()</param>
+		/// <param name="vesselBodyOcclusionMap">Unrolled array of body occlusion from perspective of vessel.  For each timestep, for each vessel, for each body, is it occluded?</param>
+		/*
+		 * Theory of operation, or What Does This Do?
+		 * Called as:
+			FluxAnalysisFactory.Process(ref computeWorldPosJob,
+				timestepsSource,
+				bodyDataGlobalArray,
+				vesselDataGlobalArray,
+				out JobHandle fluxJob,
+				out NativeArray<bool> vesselBodyOcclusionMap);
+		 *
+		 * Create and launch the processing chain to compute the irradiance triplet: (timestep, vessel, source body)
+		 * 
+		 * BuildTripletsJob: Unroll the timesteps, bodies, and vessels lists into triplets of <timestep, vessel, body> indices for parallel computation
+		 * GatherStarsJob: Collect all the stars (body.solarLuminosity > 0)
+		 * FluxFacts: Compute baseline facts for every triplet: body distance and direction from vessel, and body relevance for occlusion
+		 * SolarIrradianceAtBodyJob: Compute the solar irradiance at each body for each timestep
+		 * BodySunOcclusionJob: Compute the body's occlusion from (all stars collectively) for each timestep
+		 * BodyVesselOcclusionJob: Compute each vessel's occlusion from each body for each timestep
+		 * BodyIncidentFluxJob: Compute the total flux into each body for each timestep
+		 * BodyEmissiveLuminositiesJob: Compute the (thermal re-emission & median albedo) luminosities from each body given BodyIncidentFluxJob for each timestep
+		 * AlbedoLuminosityForVesselJob: Skew the median albedo by the direction factor for each vessel, body, mainstar orientation for each timestep
+		 * BodyIrradiancesJob: Compute the (occlusion-accounted) direct (solarLuminosity), body-core, body-emissive and albedo irradiance at each vessel from each body at each timestep
+		 * Various summing jobs to consolidate the per-(vessel,body) data to just per-vessel
+		 * 
+		 * Likely bug: BodySunOcclusion is true only if all stars are occluded.  But SolarIrradiance doesn't check per-star for occlusion
+		 */
 		public static void Process(ref JobHandle dependencyHandle,
 			in NativeArray<double> timesteps,
 			in NativeArray<SubstepBody> bodies,
@@ -51,14 +86,14 @@ namespace KERBALISM.SteppedSim
 				occlusionRelevance = occlusionRelevance,
 			}.Schedule(fullSize, 256, buildTripletsJob);
 
-			var sunFluxAtBodies = new NativeArray<double>(numSteps * numBodies, Allocator.TempJob);
-			var sunFluxAtBodyJob = new SunFluxAtBodyJob
+			var solarIrradianceAtBody = new NativeArray<double>(numSteps * numBodies, Allocator.TempJob);
+			var solarIrradianceAtBodyJob = new SolarIrradianceAtBodyJob
 			{
 				triplets = triplets,
 				bodies = bodies,
 				bodiesPerStep = numBodies,
 				starIndexes = starIndex.AsDeferredJobArray(),
-				flux = sunFluxAtBodies,
+				flux = solarIrradianceAtBody,
 			}.Schedule(numSteps * numBodies, 64, JobHandle.CombineDependencies(buildTripletsJob, gatherStarsJob));
 
 			var bodyOccludedFromSun = new NativeArray<bool>(numSteps * numBodies, Allocator.TempJob);
@@ -82,41 +117,29 @@ namespace KERBALISM.SteppedSim
 				occluded = vesselBodyOcclusionMap,
 			}.Schedule(fullSize, 16, fluxFactsJob);
 
-			var bodyFlux = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var bodyFluxJob = new BodyEmissiveFlux
+			var bodyIncidentFlux = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyIncidentFluxJob = new BodyIncidentFluxJob
 			{
 				triplets = triplets,
 				bodies = bodies,
-				sunFluxAtBodies = sunFluxAtBodies,
-				flux = bodyFlux,
-			}.Schedule(fullSize, 256, sunFluxAtBodyJob);
+				solarIrradianceAtBodies = solarIrradianceAtBody,
+				incidentFlux = bodyIncidentFlux,
+			}.Schedule(fullSize, 256, solarIrradianceAtBodyJob);
 
-			var directIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var coreIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var emissiveIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var bodyDirectIrradiancesJob = new BodyDirectIrradiances
+			var bodyEmissiveLuminosity = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyMedianAlbedoLuminosity = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyEmissiveLuminositiesJob = new BodyEmissiveLuminositiesJob
 			{
 				triplets = triplets,
 				bodies = bodies,
-				distances = vesselBodyDistance,
-				bodyEmissiveFlux = bodyFlux,
-				occluded = vesselBodyOcclusionMap,
-				solarIrradiance = directIrradiance,
-				bodyCoreIrradiance = coreIrradiance,
-				bodyEmissiveIrradiance = emissiveIrradiance,
-			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, bodyFluxJob, fluxFactsJob));
+				bodyOccludedFromSun = bodyOccludedFromSun,
+				bodyIncidentFlux = bodyIncidentFlux,
+				emissiveLuminosity = bodyEmissiveLuminosity,
+				medianAlbedoLuminosity = bodyMedianAlbedoLuminosity,
+			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(bodyIncidentFluxJob, bodySunOcclusionJob));
 
-			var bodyHemisphericReradiatedIrradianceFactor = new NativeArray<double>(numSteps * numBodies, Allocator.TempJob);
-			var bodyHemisphericReradiatedIrradianceFactorJob = new BodyHemisphericReradiatedIrradianceFactor
-			{
-				bodies = bodies,
-				occluded = bodyOccludedFromSun,
-				sunFluxAtBody = sunFluxAtBodies,
-				factor = bodyHemisphericReradiatedIrradianceFactor
-			}.Schedule(numSteps * numBodies, 64, JobHandle.CombineDependencies(sunFluxAtBodyJob, bodySunOcclusionJob));
-
-			var albedoIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
-			var albedoIrradianceAtVesselJob = new AlbedoIrradianceAtVesselJob
+			var albedoLuminosity = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var albedoLuminosityForVesselJob = new AlbedoLuminosityForVesselJob
 			{
 				triplets = triplets,
 				numBodiesPerStep = numBodies,
@@ -124,11 +147,29 @@ namespace KERBALISM.SteppedSim
 				vessels = vessels,
 				starIndexes = starIndex.AsDeferredJobArray(),
 				directions = vesselBodyDirection,
-				distances = vesselBodyDistance,
 				vesselOccludedFromBody = vesselBodyOcclusionMap,
-				hemisphericReradiatedIrradianceFactor = bodyHemisphericReradiatedIrradianceFactor,
-				irradiance = albedoIrradiance,
-			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(bodyHemisphericReradiatedIrradianceFactorJob, vesselBodyOcclusionJob));
+				medianAlbedoLuminosity = bodyMedianAlbedoLuminosity,
+				luminosity = albedoLuminosity,
+			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(bodyEmissiveLuminositiesJob, vesselBodyOcclusionJob));
+
+			var directIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var coreIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var emissiveIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var albedoIrradiance = new NativeArray<double>(fullSize, Allocator.TempJob);
+			var bodyIrradiancesJob = new BodyIrradiancesJob
+			{
+				triplets = triplets,
+				bodies = bodies,
+				distances = vesselBodyDistance,
+				bodyEmissiveLuminosity = bodyEmissiveLuminosity,
+				bodyAlbedoLuminosity = albedoLuminosity,
+				occluded = vesselBodyOcclusionMap,
+				solarIrradiance = directIrradiance,
+				bodyCoreIrradiance = coreIrradiance,
+				bodyEmissiveIrradiance = emissiveIrradiance,
+				bodyAlbedoIrradiance = albedoIrradiance,
+			}.Schedule(fullSize, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, bodyEmissiveLuminositiesJob, fluxFactsJob));
+
 
 			//var directRawFlux = sunFluxAtVessels[i];
 			//var directFlux = directRawFlux;
@@ -161,7 +202,7 @@ namespace KERBALISM.SteppedSim
 				numBodiesPerStep = numBodies,
 				input = directIrradiance,
 				output = directIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
+			}.Schedule(numSteps * numVessels, numVessels, bodyIrradiancesJob);
 
 			var bodyCoreIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
 			var sum1 = new SumForVessel
@@ -170,7 +211,7 @@ namespace KERBALISM.SteppedSim
 				numBodiesPerStep = numBodies,
 				input = coreIrradiance,
 				output = bodyCoreIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
+			}.Schedule(numSteps * numVessels, numVessels, bodyIrradiancesJob);
 
 			var bodyEmissiveIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
 			var sum2 = new SumForVessel
@@ -179,16 +220,16 @@ namespace KERBALISM.SteppedSim
 				numBodiesPerStep = numBodies,
 				input = emissiveIrradiance,
 				output = bodyEmissiveIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, bodyDirectIrradiancesJob);
+			}.Schedule(numSteps * numVessels, numVessels, bodyIrradiancesJob);
 
 			var albedoIrradianceSum = new NativeArray<double>(numSteps * numVessels, Allocator.TempJob);
 			var sum3 = new SumForVessel
 			{
 				numVesselsPerStep = numVessels,
 				numBodiesPerStep = numBodies,
-				input = albedoIrradiance,
+				input = albedoLuminosity,
 				output = albedoIrradianceSum,
-			}.Schedule(numSteps * numVessels, numVessels, albedoIrradianceAtVesselJob);
+			}.Schedule(numSteps * numVessels, numVessels, albedoLuminosityForVesselJob);
 
 			var sumTemp = JobHandle.CombineDependencies(sum0, sum1, sum2);
 			var copyJob = new RecordIrradiances
@@ -206,7 +247,7 @@ namespace KERBALISM.SteppedSim
 			var dispose4 = vesselBodyDistance.Dispose(dispose3);
 			var dispose5 = vesselBodyDirection.Dispose(dispose4);
 
-			outputJob = sunFluxAtBodies.Dispose(dispose5);
+			outputJob = solarIrradianceAtBody.Dispose(dispose5);
 			JobHandle.ScheduleBatchedJobs();
 		}
 		public static double SolarFlux(double luminosity, double distance)
