@@ -903,23 +903,28 @@ namespace KERBALISM
 				positionTemp = substepVessel.position;
 				landed = substepVessel.isLanded;
 
-				// TODO: May have to back this out if a future thermal sim needs per-body data.
-				irradianceAlbedo += substepVessel.bodyAlbedoIrradiance;
-				irradianceBodiesEmissive += substepVessel.bodyEmissiveIrradiance;
-				irradianceBodiesCore += substepVessel.bodyCoreIrradiance;
-				irradianceStarTotal += substepVessel.directIrradiance;
-				irradianceTotal += substepVessel.bodyAlbedoIrradiance + substepVessel.bodyEmissiveIrradiance + substepVessel.bodyCoreIrradiance + substepVessel.directIrradiance;
+				// TODO: May have to back this out if a future thermal sim wants the per-body data.
+				int baseIrradianceIndex = index * frame.bodies.Length;
+				for (int bodyIndex = 0; bodyIndex < frame.bodies.Length; bodyIndex++)
+				{
+					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + bodyIndex];
+					irradianceAlbedo += irradiance.albedo;
+					irradianceBodiesEmissive += irradiance.emissive;
+					irradianceBodiesCore += irradiance.core;
+					irradianceStarTotal += irradiance.solar;
+					irradianceTotal += irradiance.albedo + irradiance.core + irradiance.emissive + irradiance.solar;
+				}
 
-				/*
 				foreach (StarFlux starflux in starsIrradiance)
 				{
-					//starflux.directFlux += //Per-body directIrradiance
+					int starIndex = starflux.Star.body.flightGlobalsIndex;
+					double stepDirectFlux = frame.irradiances[baseIrradianceIndex + starIndex].solar;
+					starflux.directFlux += stepDirectFlux;
 					//starflux.directRawFlux += //Per body directRawIrradiance
 					//starflux.mainBodyVesselStarAngle += stepStarFlux.mainBodyVesselStarAngle;
-					//if (stepStarFlux.directFlux > 0.0)
-					//  starflux.sunlightFactor += 1.0;
+					if (stepDirectFlux > 0.0)
+					  starflux.sunlightFactor += 1.0;
 				}
-				*/
 			}
 
 			double subStepCountD = timestamps.Count;
