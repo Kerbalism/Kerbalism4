@@ -47,11 +47,11 @@ namespace KERBALISM.SteppedSim
 		private readonly List<Vessel> Vessels = new List<Vessel>();
 		private readonly Dictionary<CelestialBody, int> BodyIndex = new Dictionary<CelestialBody, int>();
 		private readonly CelestialBody placeholderBody;
+		private Dictionary<Guid, int> vesselIndexMap;
 
 		public readonly FrameManager frameManager = new FrameManager();
 		private readonly FluxAnalysisFactory fluxAnalysisFactory = new FluxAnalysisFactory();
 
-		private JobHandle stepGeneratorJob;
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
 		private NativeArray<double> timestepsSource;
 		private NativeArray<RotationCondition> rotationsSource;
@@ -62,8 +62,15 @@ namespace KERBALISM.SteppedSim
 		private NativeArray<SubstepBody> bodyTemplates;
 		private NativeArray<SubstepVessel> vesselTemplates;
 
+		private JobHandle fluxJob;
+		public JobHandle FluxJob => fluxJob;
+		private NativeArray<bool> vesselBodyOcclusionMap;
+		private NativeArray<VesselBodyIrradiance> vesselBodyIrradiance;
+		private NativeArray<RotationCondition> rotations;
 		//private NativeArray<double3> relativePositions;
-		//private NativeArray<RotationCondition> rotations;
+		private NativeArray<double3> worldPositions;
+		private NativeArray<SubstepBody> bodyDataGlobalArray;
+		private NativeArray<SubstepVessel> vesselDataGlobalArray;
 
 		public SubStepSim(float maxSubstepTime = 30)
 		{
@@ -100,7 +107,7 @@ namespace KERBALISM.SteppedSim
 			if (!Lib.IsGameRunning)
 				return;
 
-			fuWatch.Restart();
+			simSetupWatch.Restart();
 
 			if (errorMessage != null)
 			{
@@ -113,8 +120,8 @@ namespace KERBALISM.SteppedSim
 			if (duration > 0)
 				RunSubStepSim();
 			lastUT = startUT + duration;
-			fuWatch.Stop();
-			MiniProfiler.lastFuTicks = fuWatch.ElapsedTicks;
+			simSetupWatch.Stop();
+			MiniProfiler.lastFuTicks = simSetupWatch.ElapsedTicks;
 			Profiler.EndSample();
 		}
 
@@ -135,17 +142,16 @@ namespace KERBALISM.SteppedSim
 					Vessels.Add(vd.Vessel);
 		}
 
-		private readonly Stopwatch fuWatch = new Stopwatch();
+		private readonly Stopwatch simSetupWatch = new Stopwatch();
 
 		private void RunSubStepSim()
 		{
-			Profiler.BeginSample("Kerbalism.RunSubstepSim");
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.Jobs");
+			Profiler.BeginSample("Kerbalism.RunSubstepSimSetup");
 
 			// Generate steps
 			int numSteps = (int)math.ceil(duration / maxSubstepTime);
 			timestepsSource = new NativeArray<double>(numSteps, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-			stepGeneratorJob = new StepGeneratorJob(startUT, duration, maxSubstepTime)
+			var stepGeneratorJob = new StepGeneratorJob(startUT, duration, maxSubstepTime)
 			{
 				times = timestepsSource
 			}.Schedule();
@@ -163,7 +169,7 @@ namespace KERBALISM.SteppedSim
 				out flagDataSource,
 				out bodyTemplates,
 				out vesselTemplates,
-				out Dictionary<Guid, int> vesselIndexMap);
+				out vesselIndexMap);
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions");
@@ -176,11 +182,10 @@ namespace KERBALISM.SteppedSim
 				Bodies[0].position,
 				ref stepGeneratorJob,
 				out var computeWorldPosJob,
-				out NativeArray<RotationCondition> rotations,
-				out NativeArray<double3> worldPositions,
-				out NativeArray<SubstepBody> bodyDataGlobalArray,
-				out NativeArray<SubstepVessel> vesselDataGlobalArray);
-
+				out rotations,
+				out worldPositions,
+				out bodyDataGlobalArray,
+				out vesselDataGlobalArray);
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.BuildAndLaunch");
@@ -189,19 +194,28 @@ namespace KERBALISM.SteppedSim
 				bodyDataGlobalArray,
 				vesselDataGlobalArray,
 				starsIndex,
-				out JobHandle fluxJob,
-				out NativeArray<bool> vesselBodyOcclusionMap,
-				out NativeArray<VesselBodyIrradiance> vesselBodyIrradiance);
+				out fluxJob,
+				out vesselBodyOcclusionMap,
+				out vesselBodyIrradiance);
 			Profiler.EndSample();
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.Complete");
+
+			Profiler.EndSample();
+		}
+
+		public void Complete()
+		{
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.Complete");
+
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.Complete.Actual");
 			fluxJob.Complete();
 			Profiler.EndSample();
 
 			// Do things
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.RecordFrames");
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.RecordFrames");
 			int numVessels = Vessels.Count;
 			int numBodies = Bodies.Count;
-			for (int i=0; i<numSteps; i++)
+			int numSteps = (int)math.ceil(duration / maxSubstepTime);
+			for (int i = 0; i < numSteps; i++)
 			{
 				var f = SubstepFrame.Acquire();
 				f.Init(timestepsSource[i], numBodies, numVessels);
@@ -213,7 +227,7 @@ namespace KERBALISM.SteppedSim
 			}
 			Profiler.EndSample();
 
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.DeliverTimestamps");
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.DeliverTimestamps");
 			foreach (var v in Vessels)
 			{
 				if (v.TryGetVesselData(out VesselData vd))
@@ -235,8 +249,6 @@ namespace KERBALISM.SteppedSim
 			}
 			*/
 
-
-			Profiler.EndSample();
 
 			if (runStockCalcs) RunStockCalcs();
 
