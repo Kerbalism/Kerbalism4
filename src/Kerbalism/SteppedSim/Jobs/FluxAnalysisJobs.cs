@@ -1,5 +1,4 @@
-﻿using System;
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -7,294 +6,283 @@ using Unity.Mathematics;
 namespace KERBALISM.SteppedSim.Jobs
 {
 	[BurstCompile]
-	public struct BuildTripletsJob : IJob
+	public struct BuildTimeBodyStarsIndexJob : IJob
 	{
-		[ReadOnly] public int numSteps;
-		[ReadOnly] public int numBodies;
-		[ReadOnly] public int numVessels;
-		[WriteOnly] public NativeArray<int3> triplets;
-
-		public BuildTripletsJob(int numSteps, int numBodies, int numVessels) : this()
-		{
-			this.numSteps = numSteps;
-			this.numBodies = numBodies;
-			this.numVessels = numVessels;
-		}
+		[ReadOnly] public FrameStats stats;
+		[ReadOnly] public NativeArray<int> starsIndex;
+		[WriteOnly] public NativeArray<TimeBodyStarIndex> triplets;
 
 		public void Execute()
 		{
 			int index = 0;
-			for (int step=0; step < numSteps; step++)
-				for (int vessel = 0; vessel < numVessels; vessel++)
-					for (int body = 0; body < numBodies; body++)
-						triplets[index++] = new int3(step, vessel + (step * numVessels), body + (step * numBodies));
+			for (int step = 0; step < stats.numSteps; step++)
+				for (int body = 0; body < stats.numBodies; body++)
+					for (int star = 0; star < stats.numStars; star++)
+						triplets[index++] = new TimeBodyStarIndex
+						{
+							time = step,
+							origBody = body,
+							origStar = star,
+							directBody = body + (step * stats.numBodies),
+							directStar = starsIndex[star] + (step * stats.numBodies),
+						};
 		}
 	}
 
 	[BurstCompile]
-	public struct FluxFacts : IJobParallelFor
+	public struct BuildTimeBodyOccludersIndexJob : IJob
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
-		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<SubstepVessel> vessels;
-//		const double minRequiredHalfAngleRadians = 0.002909 / 2;    // 10 arcminutes ~= 0.003 radians.  sun/moon ~30 arcmin, Venus ~1 arcmin max
-		[ReadOnly] public double minRequiredHalfAngleRadians;
-		[WriteOnly] public NativeArray<double> distance;
-		[WriteOnly] public NativeArray<double3> direction;
-		[WriteOnly] public NativeArray<bool> occlusionRelevance;
-
-		public void Execute(int index)
-		{
-			var vessel = vessels[triplets[index].y];
-			var body = bodies[triplets[index].z];
-			var toBody = body.position - vessel.position;
-			var dist = math.length(toBody);
-			distance[index] = dist;
-			direction[index] = toBody / dist;
-
-			// Take advantage of fact that sin(x) == x, cos(x) == 1, tan(x) == x for small x
-			// Simplify atan(x/y) > min ==> (x/y) > min ==> x > min * y
-			occlusionRelevance[index] = body.radius > minRequiredHalfAngleRadians * dist;
-		}
-	}
-
-	[BurstCompile]
-	public struct GatherStarsJob : IJob
-	{
-		[ReadOnly] public int numBodies;
-		[ReadOnly] public NativeSlice<SubstepBody> bodySlice;
-		[WriteOnly] public NativeList<int> stars;
+		[ReadOnly] public FrameStats stats;
+		[WriteOnly] public NativeArray<TimeBodyOccluderIndex> triplets;
 
 		public void Execute()
 		{
-			for (int i=0; i<numBodies; i++)
-				if (bodySlice[i].solarLuminosity > 0)
-					stars.Add(i);
+			int index = 0;
+			for (int step = 0; step < stats.numSteps; step++)
+				for (int body = 0; body < stats.numBodies; body++)
+					for (int occluder = 0; occluder < stats.numBodies; occluder++)
+						triplets[index++] = new TimeBodyOccluderIndex
+						{
+							time = step,
+							origBody = body,
+							origOccluder = occluder,
+							directBody = body + (step * stats.numBodies),
+							directOccluder = occluder + (step * stats.numBodies),
+						};
 		}
 	}
 
 	[BurstCompile]
-	public struct BodySunOcclusionJob : IJobParallelFor
+	public struct BuildTimeVesselBodyIndicesJob : IJob
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
-		[ReadOnly] public int bodiesPerStep;
+		[ReadOnly] public FrameStats stats;
+		[WriteOnly] public NativeArray<TimeVesselBodyIndex> triplets;
+
+		public void Execute()
+		{
+			int index = 0;
+			for (int step = 0; step < stats.numSteps; step++)
+				for (int vessel = 0; vessel < stats.numVessels; vessel++)
+					for (int body = 0; body < stats.numBodies; body++)
+						triplets[index++] = new TimeVesselBodyIndex()
+						{
+							time = step,
+							origVessel = vessel,
+							origBody = body,
+							directVessel = vessel + (step * stats.numVessels),
+							directBody = body + (step * stats.numBodies)
+						};
+		}
+	}
+
+	[BurstCompile]
+	public struct BuildTimeVesselBodyStarIndicesJob : IJob
+	{
+		[ReadOnly] public FrameStats stats;
+		[ReadOnly] public NativeArray<int> starsIndex;
+		[WriteOnly] public NativeArray<TimeVesselBodyStarIndex> tuple;
+
+		public void Execute()
+		{
+			int index = 0;
+			for (int step = 0; step < stats.numSteps; step++)
+				for (int vessel = 0; vessel < stats.numVessels; vessel++)
+					for (int body = 0; body < stats.numBodies; body++)
+						for (int star = 0; star < stats.numStars; star++)
+							tuple[index++] = new TimeVesselBodyStarIndex()
+							{
+								time = step,
+								origVessel = vessel,
+								origBody = body,
+								origStar = star,
+								directVessel = vessel + (step * stats.numVessels),
+								directBody = body + (step * stats.numBodies),
+								directStar = starsIndex[star] + (step * stats.numBodies),
+							};
+		}
+	}
+
+	[BurstCompile]
+	public struct BodyBodyOcclusionRelevanceJob : IJobParallelFor
+	{
+		[ReadOnly] public double minRequiredHalfAngleRadians;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<int> starIndexes;
-		[WriteOnly] public NativeArray<bool> occluded;
+		[ReadOnly] public NativeArray<TimeBodyOccluderIndex> indices;
+		[WriteOnly] public NativeArray<bool> relevance;
 
 		public void Execute(int index)
 		{
-			var body = bodies[index];
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(body.solarLuminosity > 0))
-				occluded[index] = false;
-			else
-			{
-				int step = triplets[index].x;
-				int firstBodyIndex = step * bodiesPerStep;
-				var frameSlice = bodies.Slice(firstBodyIndex, bodiesPerStep);
-				bool occludedTemp = false;
-				for (int i = 0; i < starIndexes.Length && !occludedTemp; i++)
-				{
-					var star = bodies[firstBodyIndex + starIndexes[i]];
-					// avoid self-occluding, so adjust the body and sun positions...
-					var dir = math.normalize(star.position - body.position);
-					var start = body.position + (body.radius + 10) * dir;
-					var end = star.position - (star.radius + 10) * dir;
-					occludedTemp |= SubstepBody.Occluded(start, end, frameSlice);
-				}
-				occluded[index] = occludedTemp;
-			}
+			TimeBodyOccluderIndex i = indices[index];
+			var body = bodies[i.directBody];
+			var occluder = bodies[i.directOccluder];
+			double dist = math.distance(body.position, occluder.position);
+			// Take advantage of fact that sin(x) == x, cos(x) == 1, tan(x) == x for small x
+			// Simplify atan(x/y) > min ==> (x/y) > min ==> x > min * y
+			relevance[index] = i.directBody != i.directOccluder && occluder.radius > minRequiredHalfAngleRadians * dist;
 		}
 	}
 
 	[BurstCompile]
-	public struct BodyVesselOcclusionJob : IJobParallelFor
+	public struct VesselBodyOcclusionRelevanceJob : IJobParallelFor
 	{
+		[ReadOnly] public double minRequiredHalfAngleRadians;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
+		[ReadOnly] public NativeArray<TimeVesselBodyIndex> indices;
+		[WriteOnly] public NativeArray<bool> relevance;
+
+		public void Execute(int index)
+		{
+			TimeVesselBodyIndex i = indices[index];
+			var vessel = vessels[i.directVessel];
+			var occluder = bodies[i.directBody];
+			double dist = math.distance(vessel.position, occluder.position);
+			// Take advantage of fact that sin(x) == x, cos(x) == 1, tan(x) == x for small x
+			// Simplify atan(x/y) > min ==> (x/y) > min ==> x > min * y
+			relevance[index] = occluder.radius > minRequiredHalfAngleRadians * dist;
+		}
+	}
+
+
+	[BurstCompile]
+	public struct BodyStarOcclusionJob : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<TimeBodyStarIndex> timeBodyStarIndex;
 		[ReadOnly] public int numBodiesPerStep;
-		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<bool> occlusionRelevance;
 		[WriteOnly] public NativeArray<bool> occluded;
 
 		public void Execute(int index)
 		{
-			var triplet = triplets[index];
-			var step = triplet.x;
-			var vessel = vessels[triplet.y];
-			var body = bodies[triplet.z];
-			// avoid self-occluding, so adjust the body position
-			var dir = math.normalize(body.position - vessel.position);
-			var end = body.position - (body.radius + 10) * dir;
+			TimeBodyStarIndex i = timeBodyStarIndex[index];
+			var body = bodies[i.directBody];
+			var star = bodies[i.directStar];
+			int occluderIndex = i.time * numBodiesPerStep;
+			bool occludedTemp = false;
+			for (int ind = 0; ind < numBodiesPerStep && !occludedTemp; ind++)
+			{
+				var occluder = bodies[occluderIndex];
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occluderIndex] && occluderIndex != i.directStar))
+					occludedTemp |= FluxAnalysisFactory.OcclusionTest(body.position, star.position, occluder.position, occluder.radius);
+				occluderIndex++;
+			}
+			occluded[index] = occludedTemp;
+		}
+	}
 
-			var a = vessel.position;
-			var b = end;
+	[BurstCompile]
+	public struct VesselBodyOcclusionJob : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<TimeVesselBodyIndex> timeVesselBodyIndex;
+		[ReadOnly] public int numBodiesPerStep;
+		[ReadOnly] public NativeArray<SubstepVessel> vessels;
+		[ReadOnly] public NativeArray<SubstepBody> bodies;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<bool> occlusionRelevance;
+		[WriteOnly] public NativeArray<bool> occluded;
 
+		public void Execute(int index)
+		{
+			TimeVesselBodyIndex i = timeVesselBodyIndex[index];
+			var vessel = vessels[i.directVessel];
+			var body = bodies[i.directBody];
+			int occluderIndex = i.time * numBodiesPerStep;
+			bool occludedTemp = false;
+			for (int ind = 0; ind < numBodiesPerStep && !occludedTemp; ind++)
+			{
+				var occluder = bodies[occluderIndex];
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occluderIndex] && occluderIndex != i.directBody))
+					//occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
+					occludedTemp |= LocalOcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
+				occluderIndex++;
+			}
+			occluded[index] = occludedTemp;
+		}
+		private bool LocalOcclusionTest(double3 a, double3 b, double3 v, double dist)
+		{
 			double3 ab = b - a;
-			var abLen2 = math.lengthsq(ab);
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(abLen2 < 1))
-				occluded[index] = false;
-			else
+			var abLenSq = math.lengthsq(ab);
+			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 1))
 			{
-				bool occludedLocal = false;
-				int firstBodyInStepIndex = step * numBodiesPerStep;
-				for (int testBodyIndex = firstBodyInStepIndex;
-					testBodyIndex < firstBodyInStepIndex + numBodiesPerStep;
-					testBodyIndex++)
-				{
-					if (occlusionRelevance[testBodyIndex])
-					{
-						var testBody = bodies[testBodyIndex];
-						double3 v = testBody.position;
-						var radiusSq = testBody.radius * testBody.radius;
-						double3 av = v - a;
-						double3 bv = v - b;
-						if (math.dot(av, ab) < 0)
-							occludedLocal |= math.lengthsq(av) <= radiusSq;
-						else if (math.dot(bv, ab) > 0)
-							occludedLocal |= math.lengthsq(bv) <= radiusSq;
-						else
-							occludedLocal |= math.lengthsq(math.cross(ab, av)) <= radiusSq * abLen2;
-					}
-					occluded[index] = occludedLocal;
-				}
-
-				//occluded[index] = SubstepBody.Occluded(vessel.position, end, bodies);
+				var distSq = dist * dist;
+				double3 av = v - a;
+				double3 bv = v - b;
+				if (math.dot(av, ab) < 0)
+					return math.lengthsq(av) <= distSq;
+				else if (math.dot(bv, ab) > 0)
+					return math.lengthsq(bv) <= distSq;
+				else
+					return math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
 			}
+			return false;
 		}
 	}
 
 	[BurstCompile]
-	public struct SolarIrradianceAtBodyJob : IJobParallelFor
+	public struct BodySolarIncidentFluxJob : IJobParallelFor
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
-		[ReadOnly] public int bodiesPerStep;
+		[ReadOnly] public NativeArray<TimeBodyStarIndex> triplets;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<int> starIndexes;
-		[WriteOnly] public NativeArray<double> flux;
+		[WriteOnly] public NativeArray<double> bodyIncidentFlux;
 
 		public void Execute(int index)
 		{
-			var body = bodies[index];
-			double tempFlux = 0;
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(body.solarLuminosity > 0))
-				tempFlux = 0;
-			else
-			{
-				int step = triplets[index].x;
-				int firstBodyIndex = step * bodiesPerStep;
-				for (int i=0; i<starIndexes.Length; i++)
-				{
-					var star = bodies[firstBodyIndex + starIndexes[i]];
-					var d2 = math.distancesq(star.position, body.position);
-					tempFlux += star.solarLuminosity / (4 * math.PI_DBL * d2);
-					//var dist = math.distance(sun.position, body.position);
-					//flux[index] = FluxAnalysisFactory.SolarFlux(sun.solarLuminosity, dist);
-				}
-			}
-			flux[index] = tempFlux;
-		}
-	}
-
-	[BurstCompile]
-	public struct BodyIncidentFluxJob : IJobParallelFor
-	{
-		[ReadOnly] public NativeArray<int3> triplets;
-		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<double> solarIrradianceAtBodies;
-		[WriteOnly] public NativeArray<double> incidentFlux;
-
-		public void Execute(int index)
-		{
-			var triplet = triplets[index];
-			var body = bodies[triplet.z];
-			incidentFlux[index] = solarIrradianceAtBodies[triplet.z] * math.PI_DBL * body.radius * body.radius;
+			var i = triplets[index];
+			var body = bodies[i.directBody];
+			var star = bodies[i.directStar];
+			// Can optimize away the two math.PI_DBL mults...
+			double irradiance = star.solarLuminosity / (4 * math.PI_DBL * math.distancesq(star.position, body.position));
+			bodyIncidentFlux[index] = irradiance * math.PI_DBL * body.radius * body.radius;
 		}
 	}
 
 	[BurstCompile]
 	public struct BodyEmissiveLuminositiesJob : IJobParallelFor
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public NativeArray<TimeBodyStarIndex> timeBodyStarIndex;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<bool> bodyOccludedFromSun;
+		[ReadOnly] public NativeArray<bool> bodyStarOcclusion;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyIncidentFlux;
 		[WriteOnly] public NativeArray<double> emissiveLuminosity;
-		[WriteOnly] public NativeArray<double> medianAlbedoLuminosity;
+		[WriteOnly] public NativeArray<double> isotropicAlbedoLuminosity;
 
 		public void Execute(int index)
 		{
-			// THERMAL RE-EMISSION: total non-reflected flux abosorbed by the body from the sun
-			var triplet = triplets[index];
-			var body = bodies[triplet.z];
-			emissiveLuminosity[index] = bodyIncidentFlux[index] * (1.0 - body.albedo);
-			medianAlbedoLuminosity[index] = Unity.Burst.CompilerServices.Hint.Likely(!bodyOccludedFromSun[triplet.z]) ?
-											bodyIncidentFlux[index] * body.albedo : 0;
-		}
-	}
-
-	/// <summary>
-	/// Compute irradiances from:
-	///     Stars (body.solarIrradiance)
-	///     Internal body processes (body.bodyCoreThermalFlux)
-	///     Re-emitted absorption from star fluxes (bodyEmissiveFlux inpt)
-	///     Albedo from star fluxes
-	/// Some bodies emit an internal thermal flux due to various tidal, geothermal or accretional phenomenons
-	/// This is given by CelestialBody.coreTemperatureOffset
-	/// From that value we derive thermal flux in W/m² using the blackbody equation
-	/// We assume that the atmosphere has no effect on that value.
-	/// </summary>
-	/// <returns>Flux in W/m2 at distance</returns>
-	[BurstCompile]
-	public struct BodyIrradiancesJob : IJobParallelFor
-	{
-		[ReadOnly] public NativeArray<int3> triplets;
-		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<double> distances;
-		[ReadOnly] public NativeArray<bool> occluded;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveLuminosity;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyAlbedoLuminosity;
-		[WriteOnly] public NativeArray<double> solarIrradiance;
-		[WriteOnly] public NativeArray<double> bodyCoreIrradiance;
-		[WriteOnly] public NativeArray<double> bodyEmissiveIrradiance;
-		[WriteOnly] public NativeArray<double> bodyAlbedoIrradiance;
-
-		public void Execute(int index)
-		{
-			var triplet = triplets[index];
-			var body = bodies[triplet.z];
-			var d2 = distances[index] * distances[index];
-			bool valid = occluded[index] == false && d2 > 0;
-			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * d2) : 0;
-			solarIrradiance[index] = body.solarLuminosity * denomRecip;
-			bodyCoreIrradiance[index] = body.bodyCoreThermamFlux * denomRecip;
-			bodyEmissiveIrradiance[index] = bodyEmissiveLuminosity[index] * denomRecip;
-			bodyAlbedoIrradiance[index] = bodyAlbedoLuminosity[index] * denomRecip;
+			// THERMAL RE-EMISSION: total non-reflected flux abosorbed by the body from a star
+			// Long-term process, so account even if the body is currently occluded from the star
+			// ALBEDO Isotropic Reflection: Total reflected flux by the body from a star
+			// Short-term process, accounts for occlusion.
+			// Geometric effects (hemispherical reflection, vessel only sees partial area) will be applied later.
+			TimeBodyStarIndex i = timeBodyStarIndex[index];
+			var body = bodies[i.directBody];
+			double incidentFlux = bodyIncidentFlux[index];
+			double isoAlbedoLumin = Unity.Burst.CompilerServices.Hint.Likely(!bodyStarOcclusion[index]) ? incidentFlux * body.albedo : 0;
+			emissiveLuminosity[index] = incidentFlux * (1.0 - body.albedo);
+			isotropicAlbedoLuminosity[index] = isoAlbedoLumin;
 		}
 	}
 
 	[BurstCompile]
 	public struct AlbedoLuminosityForVesselJob : IJobParallelFor
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public NativeArray<TimeVesselBodyStarIndex> tuples;
 		[ReadOnly] public int numBodiesPerStep;
+		[ReadOnly] public int numStarsPerStep;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
-		[ReadOnly] public NativeArray<int> starIndexes;
 		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
-		[ReadOnly] public NativeArray<double3> directions;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> medianAlbedoLuminosity;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> isotropicAlbedoLuminosity;
 		[WriteOnly] public NativeArray<double> luminosity;
 
 		public void Execute(int index)
 		{
-			var triplet = triplets[index];
-			var step = triplet.x;
-			var body = bodies[triplet.z];
-			int firstStarIndex = step * numBodiesPerStep + starIndexes[0];
-			var firstStar = bodies[firstStarIndex];
-
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(starIndexes.Contains(triplet.z) || vesselOccludedFromBody[index]))
+			TimeVesselBodyStarIndex tuple = tuples[index];
+			var vessel = vessels[tuple.directVessel];
+			var body = bodies[tuple.directBody];
+			var star = bodies[tuple.directStar];
+			int occlusionIndex = tuple.directVessel * numBodiesPerStep + tuple.origBody;
+			// Vessel-body occlusion stored in time * numVessel * numBody array, at (time*numVessel*numBody + body) = (directVessel*numBody + body)
+			if (Unity.Burst.CompilerServices.Hint.Unlikely(vesselOccludedFromBody[occlusionIndex] || body.solarLuminosity > 0))
 				luminosity[index] = 0;
 			else
 			{
@@ -302,80 +290,72 @@ namespace KERBALISM.SteppedSim.Jobs
 				// the full albedo flux is received only when the vessel is positioned along the sun-body axis, and goes
 				// down to zero on the night side.
 				// Since the total flux is the same, but is re-emitted only over 1 hemisphere, the effective luminosity in a direction is *2 * the geometric albedo factor
-				var bodyToSun = math.normalize(firstStar.position - body.position);
-				var bodyToVessel = -directions[index];
+				var bodyToSun = math.normalize(star.position - body.position);
+				var bodyToVessel = math.normalize(vessel.position - body.position);
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
-				luminosity[index] = medianAlbedoLuminosity[index] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
+				int luminIndex = (tuple.directVessel * numBodiesPerStep * numStarsPerStep) + (tuple.origBody * numStarsPerStep) + tuple.origStar;
+				luminosity[index] = isotropicAlbedoLuminosity[luminIndex] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}
 		}
 	}
 
 	[BurstCompile]
-	public struct BodyEmissiveIrradianceJob : IJobParallelFor
+	// Sum into the destination array from an unrolled source array (unrolled by # of stars per source entry)
+	// ie TimeBodyStar -> TimeBody, or TimeVesselBodyStar->TimeVesselBody
+	public struct CombinePerStarLuminosity : IJobParallelFor
 	{
-		[ReadOnly] public NativeArray<int3> triplets;
+		[ReadOnly] public FrameStats stats;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> perStarLuminosity;
+		[WriteOnly] public NativeArray<double> combinedLuminosity;
+
+		public void Execute(int index)
+		{
+			double total = 0;
+			int sourceIndex = index * stats.numStars;
+			for (int star = 0; star < stats.numStars; star++)
+				total += perStarLuminosity[sourceIndex + star];
+			combinedLuminosity[index] = total;
+		}
+	}
+
+	/// <summary>
+	/// Compute final matrix of irradiances per (vessel, body):
+	///     Stars (body.solarIrradiance)
+	///     Internal body processes (body.bodyCoreThermalFlux)
+	///     Re-emitted absorption from star fluxes (bodyEmissiveFlux input)
+	///     Albedo from star fluxes
+	/// Some bodies emit an internal thermal flux due to various tidal, geothermal or accretional phenomenons, given by CelestialBody.coreTemperatureOffset
+	/// From that value we derive thermal flux in W/m² using the blackbody equation
+	/// We assume that the atmosphere has no effect on that value.
+	/// </summary>
+	/// <returns>Flux in W/m2 at distance</returns>
+
+	[BurstCompile]
+	public struct BodyIrradiancesJob : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<TimeVesselBodyIndex> tuples;
+		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<double> distances;
-		[ReadOnly] public NativeArray<double> sunFluxAtBodies;
-		[WriteOnly] public NativeArray<double> irradiance;
+		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveLuminosity;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyAlbedoLuminosity;
+		[WriteOnly] public NativeArray<VesselBodyIrradiance> irradiance;
 
 		public void Execute(int index)
 		{
-			// THERMAL RE-EMISSION
-			// We account for this even if the body is currently occluded from the sun
-			// We use the same formula, excepted re-emitted power is spread over the full
-			// body sphere, that is a solid angle of 4 * π steradians
-			// The end formula becomes :
-			// (sunFluxAtBody * r²) / (4 * (r + a)²)
-			var triplet = triplets[index];
-			var body = bodies[triplet.z];
-			var d2 = distances[index] * distances[index];
-			if (Unity.Burst.CompilerServices.Hint.Unlikely(d2 < double.Epsilon))
-				irradiance[index] = 0;
-			else
-				irradiance[index] = sunFluxAtBodies[triplet.z] * (1.0 - body.albedo) * body.radius * body.radius / (4.0 * d2);
-		}
-	}
-
-	[BurstCompile]
-	public struct SumForVessel : IJobParallelFor
-	{
-		[ReadOnly] public int numBodiesPerStep;
-		[ReadOnly] public int numVesselsPerStep;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> input;
-		[WriteOnly] public NativeArray<double> output;
-
-		public void Execute(int index)
-		{
-			int step = index / numVesselsPerStep;
-			int vesselNum = index % numVesselsPerStep;
-			int startIndex = step * (numVesselsPerStep + numBodiesPerStep) + (vesselNum * numBodiesPerStep);
-			double val = 0;
-			for (int i = startIndex; i < startIndex + numBodiesPerStep; i++)
+			TimeVesselBodyIndex i = tuples[index];
+			var vessel = vessels[i.directVessel];
+			var body = bodies[i.directBody];
+			var distSq = math.distancesq(vessel.position, body.position);
+			bool valid = vesselOccludedFromBody[index] == false && distSq > 0;
+			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * distSq) : 0;
+			irradiance[index] = new VesselBodyIrradiance
 			{
-				val += input[i];
-			}
-			output[index] = val;
-		}
-	}
-
-	[BurstCompile]
-	public struct RecordIrradiances : IJobParallelFor
-	{
-		public NativeArray<SubstepVessel> vessels;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> directIrradiance;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> albedoIrradiance;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> emissiveIrradiance;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> coreIrradiance;
-
-		public void Execute(int index)
-		{
-			var v = vessels[index];
-			v.directIrradiance = directIrradiance[index];
-			v.bodyAlbedoIrradiance = albedoIrradiance[index];
-			v.bodyEmissiveIrradiance = emissiveIrradiance[index];
-			v.bodyCoreIrradiance = coreIrradiance[index];
-			vessels[index] = v;
+				solar = body.solarLuminosity * denomRecip,
+				core = body.bodyCoreThermalFlux * denomRecip,
+				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecip,
+				albedo = bodyAlbedoLuminosity[index] * denomRecip,
+			};
 		}
 	}
 }
