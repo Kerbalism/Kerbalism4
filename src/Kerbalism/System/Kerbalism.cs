@@ -83,6 +83,7 @@ namespace KERBALISM
 
 		public Vessel lastLaunchedVessel;
 		public SteppedSim.SubStepSim subStepSimJobs;
+		public const double FixedUpdateBudgetms = 2.0;
 
 
 		#endregion
@@ -290,8 +291,8 @@ namespace KERBALISM
 		#region fixedupdate
 
 		static System.Diagnostics.Stopwatch fuWatch = new System.Diagnostics.Stopwatch();
-		private readonly Queue<Vessel> mandatoryWorkQueue = new Queue<Vessel>();
-		private readonly Queue<Vessel> discretionaryWorkQueue = new Queue<Vessel>();
+		private readonly Queue<Vessel> loadedWorkQueue = new Queue<Vessel>();
+		private readonly Queue<Vessel> unloadedWorkQueue = new Queue<Vessel>();
 		void FixedUpdate()
 		{
 
@@ -320,7 +321,8 @@ namespace KERBALISM
 			// update elapsed time
 			elapsed_s = fixedDeltaTime;
 
-			ManageWorkQueues(mandatoryWorkQueue, discretionaryWorkQueue);
+			ValidateVesselData();
+			ManageWorkQueues(loadedWorkQueue, unloadedWorkQueue);
 
 			// synchronize the threaded environment simulation
 			subStepSimJobs.OnFixedUpdate();
@@ -329,9 +331,19 @@ namespace KERBALISM
 			ScienceDB.CreditScienceBuffers(elapsed_s);
 
 			var currentTime = Planetarium.GetUniversalTime();
-			// for each vessel
-			while (mandatoryWorkQueue.TryDequeue(out var v) && v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
+
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.VesselProcessing");
+			bool jobsCompleted = false;
+			int vesselProcessedCount = 0;
+			while (GetNextVesselToEval(loadedWorkQueue, unloadedWorkQueue, vesselProcessedCount, fuWatch, FixedUpdateBudgetms, out Vessel v, out VesselData vd))
 			{
+				if (!jobsCompleted && (v.loaded || subStepSimJobs.FluxJob.IsCompleted))
+				{
+					subStepSimJobs.Complete();
+					jobsCompleted = true;
+				}
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.VesselProcessing.Single");
+				vesselProcessedCount++;
 				var timeSinceLastUpdate = currentTime - vd.lastEvalUT;
 				// get resource cache
 				VesselResHandler resources = vd.ResHandler;
@@ -375,6 +387,13 @@ namespace KERBALISM
 
 				// call automation scripts
 				vd.computer.Automate(v, vd);
+				UnityEngine.Profiling.Profiler.EndSample();
+			}
+			UnityEngine.Profiling.Profiler.EndSample();
+			if (!jobsCompleted)
+			{
+				subStepSimJobs.Complete();
+				jobsCompleted = true;
 			}
 
 			DB.UpdateVesselDataDictionary();
@@ -392,16 +411,39 @@ namespace KERBALISM
 			fuWatch.Stop();
 		}
 
-		public void ManageWorkQueues(Queue<Vessel> mandatory, Queue<Vessel> discretionary)
+		private bool GetNextVesselToEval(Queue<Vessel> loadedQueue,
+			Queue<Vessel> unloadedQueue,
+			int iteration,
+			in System.Diagnostics.Stopwatch watch,
+			double budget,
+			out Vessel v,
+			out VesselData vd)
+		{
+			double elapsed = watch.Elapsed.TotalMilliseconds;
+			var nextQueue = (elapsed > budget || unloadedQueue.Count == 0) ? loadedQueue : unloadedQueue;
+			if (iteration == 0 && unloadedQueue.Count > 0)
+				nextQueue = unloadedQueue;
+			if (nextQueue.Count == 0)
+			{
+				// Nothing required, and/or out of time
+				v = default;
+				vd = default;
+				return false;
+			}
+			v = nextQueue.Dequeue();
+			v.TryGetVesselData(out vd);
+			return true;
+		}
+		private void ManageWorkQueues(Queue<Vessel> loaded, Queue<Vessel> unloaded)
 		{
 			// Enqueue all valid loaded vessels
-			mandatory.Clear();
+			loaded.Clear();
 			foreach (var v in FlightGlobals.VesselsLoaded)
 				if (v.TryGetVesselData(out VesselData vd) && vd.SimulatedCheck(v) && vd.IsSimulated)
-					mandatory.Enqueue(v);
+					loaded.Enqueue(v);
 
 			// If the discretionary queue has emptied, close completed frames and refill with all valid unloaded vessels
-			if (discretionary.Count == 0)
+			if (unloaded.Count == 0)
 			{
 				double oldest = double.PositiveInfinity;
 				foreach (var vd in DB.VesselDatas)
@@ -409,15 +451,10 @@ namespace KERBALISM
 						oldest = Math.Min(oldest, vd.lastEvalUT);
 				subStepSimJobs.ClearExpiredFrames(oldest);
 
-				ValidateVesselData();
 				foreach (var v in FlightGlobals.VesselsUnloaded)
 					if (v.TryGetVesselData(out VesselData vd) && vd.IsSimulated)
-						discretionary.Enqueue(v);
+						unloaded.Enqueue(v);
 			}
-
-			// Always process at least one unloaded vessel
-			if (discretionary.TryDequeue(out var res))
-				mandatory.Enqueue(res);
 		}
 
 		private void ValidateVesselData()
