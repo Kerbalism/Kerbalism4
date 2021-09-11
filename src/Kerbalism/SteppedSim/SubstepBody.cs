@@ -11,7 +11,7 @@ namespace KERBALISM.SteppedSim
 
 		public double solarLuminosity;    // For stars
 		public double albedo;
-		public double bodyCoreThermamFlux;  // Basically solarLuminosity for bodies
+		public double bodyCoreThermalFlux;  // Basically solarLuminosity for bodies
 
 		public static bool Occluded(double3 a, double3 b, NativeSlice<SubstepBody> occluders)
 		{

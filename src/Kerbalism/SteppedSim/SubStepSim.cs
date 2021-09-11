@@ -49,6 +49,7 @@ namespace KERBALISM.SteppedSim
 		private readonly CelestialBody placeholderBody;
 
 		public readonly FrameManager frameManager = new FrameManager();
+		private readonly FluxAnalysisFactory fluxAnalysisFactory = new FluxAnalysisFactory();
 
 		private JobHandle stepGeneratorJob;
 		// Source lists: timesteps to compute, orbit data per Body/Vessel
@@ -56,6 +57,7 @@ namespace KERBALISM.SteppedSim
 		private NativeArray<RotationCondition> rotationsSource;
 		private NativeArray<SubstepComputeFlags> flagDataSource;
 		private NativeArray<SubStepOrbit> stepOrbitsSource;
+		private NativeList<int> starsIndex;
 
 		private NativeArray<SubstepBody> bodyTemplates;
 		private NativeArray<SubstepVessel> vesselTemplates;
@@ -74,6 +76,7 @@ namespace KERBALISM.SteppedSim
 		public void Init()
 		{
 			lastUT = startUT = Planetarium.GetUniversalTime();
+			starsIndex = new NativeList<int>(Bodies.Count, Allocator.Persistent);
 			Bodies.Clear();
 			Bodies.AddRange(FlightGlobals.Bodies.Where(x => x.orbit == null || x.referenceBody == x));
 			while (Bodies.Count < FlightGlobals.Bodies.Count)
@@ -83,7 +86,11 @@ namespace KERBALISM.SteppedSim
 			BodyIndex.Clear();
 			int i = 0;
 			foreach (var b in Bodies)
+			{
+				if (b.isStar)
+					starsIndex.Add(i);
 				BodyIndex.Add(b, i++);
+			}
 		}
 
 		public void ClearExpiredFrames(double ts) => frameManager.ClearExpiredFrames(ts);
@@ -177,12 +184,14 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.BuildAndLaunch");
-			FluxAnalysisFactory.Process(ref computeWorldPosJob,
+			fluxAnalysisFactory.Process(ref computeWorldPosJob,
 				timestepsSource,
 				bodyDataGlobalArray,
 				vesselDataGlobalArray,
+				starsIndex,
 				out JobHandle fluxJob,
-				out NativeArray<bool> vesselBodyOcclusionMap);
+				out NativeArray<bool> vesselBodyOcclusionMap,
+				out NativeArray<VesselBodyIrradiance> vesselBodyIrradiance);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.FluxAnalysis.Complete");
 			fluxJob.Complete();
@@ -199,6 +208,7 @@ namespace KERBALISM.SteppedSim
 				f.guidVesselMap = vesselIndexMap;
 				f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
 				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
+				f.irradiances.Slice(0, numVessels * numBodies).CopyFrom(vesselBodyIrradiance.Slice(i * numVessels * numBodies, numVessels * numBodies));
 				frameManager.Frames.Add(timestepsSource[i], f);
 			}
 			Profiler.EndSample();
@@ -241,6 +251,7 @@ namespace KERBALISM.SteppedSim
 			vesselDataGlobalArray.Dispose();
 
 			vesselBodyOcclusionMap.Dispose();
+			vesselBodyIrradiance.Dispose();
 			Profiler.EndSample();
 		}
 
@@ -313,7 +324,7 @@ namespace KERBALISM.SteppedSim
 					radius = body.Radius,
 					solarLuminosity = body.isStar ? defaultLuminosity : 0,	// FIXME
 					albedo = body.albedo,
-					bodyCoreThermamFlux = body.coreTemperatureOffset,
+					bodyCoreThermalFlux = body.coreTemperatureOffset,
 				};
 				rotationsSource[i++] = new RotationCondition()
 				{
@@ -499,6 +510,7 @@ namespace KERBALISM.SteppedSim
 		public NativeArray<SubstepBody> bodies;
 		public NativeArray<SubstepVessel> vessels;
 		public NativeArray<bool> vesselBodyOcclusionMap;
+		public NativeArray<VesselBodyIrradiance> irradiances;
 		public Dictionary<Guid, int> guidVesselMap;
 
 		private static readonly Queue<SubstepFrame> framePool = new Queue<SubstepFrame>();
@@ -525,6 +537,7 @@ namespace KERBALISM.SteppedSim
 			bodies = new NativeArray<SubstepBody>(numBodies, Allocator.Persistent);
 			vessels = new NativeArray<SubstepVessel>(numVessels, Allocator.Persistent);
 			vesselBodyOcclusionMap = new NativeArray<bool>(numVessels * numBodies, Allocator.Persistent);
+			irradiances = new NativeArray<VesselBodyIrradiance>(numVessels * numBodies, Allocator.Persistent);
 		}
 
 		public void Dispose()
@@ -532,6 +545,7 @@ namespace KERBALISM.SteppedSim
 			if (bodies.IsCreated) bodies.Dispose();
 			if (vessels.IsCreated) vessels.Dispose();
 			if (vesselBodyOcclusionMap.IsCreated) vesselBodyOcclusionMap.Dispose();
+			if (irradiances.IsCreated) irradiances.Dispose();
 		}
 	}
 }
