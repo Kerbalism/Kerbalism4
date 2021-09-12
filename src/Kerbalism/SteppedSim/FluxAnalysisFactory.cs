@@ -245,7 +245,7 @@ namespace KERBALISM.SteppedSim
 				bodies = bodies,
 				vessels = vessels,
 				vesselOccludedFromBody = vesselBodyOcclusionMap,
-				isotropicAlbedoLuminosity = bodyIsotropicAlbedoLuminosityPerStar,
+				isotropicAlbedoLuminosityPerStar = bodyIsotropicAlbedoLuminosityPerStar,
 				luminosity = bodyAlbedoLuminosityPerStar,
 			}.Schedule(numStepsVesselsBodies * numStars, 256, JobHandle.CombineDependencies(buildTimeVesselBodyStarIndexJob, bodyEmissiveLuminositiesJob, vesselBodyOcclusionJob));
 			Profiler.EndSample();
@@ -289,8 +289,6 @@ namespace KERBALISM.SteppedSim
 				irradiance = vesselBodyIrradiances,
 			}.Schedule(numStepsVesselsBodies, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, combineAlbedoLuminositySourcesJob, combineEmissiveLuminositySourcesJob));
 			Profiler.EndSample();
-
-
 
 			var d0 = timeBodyStarIndex.Dispose(bodyIrradiancesJob);
 			outputJob = bodyStarOcclusion.Dispose(d0);

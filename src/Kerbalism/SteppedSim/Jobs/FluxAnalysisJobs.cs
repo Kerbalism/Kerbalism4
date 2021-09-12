@@ -271,7 +271,7 @@ namespace KERBALISM.SteppedSim.Jobs
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> isotropicAlbedoLuminosity;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> isotropicAlbedoLuminosityPerStar;
 		[WriteOnly] public NativeArray<double> luminosity;
 
 		public void Execute(int index)
@@ -293,8 +293,8 @@ namespace KERBALISM.SteppedSim.Jobs
 				var bodyToSun = math.normalize(star.position - body.position);
 				var bodyToVessel = math.normalize(vessel.position - body.position);
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
-				int luminIndex = (tuple.origVessel * stats.numBodies * stats.numStars) + (tuple.origBody * stats.numStars) + tuple.origStar;
-				luminosity[index] = isotropicAlbedoLuminosity[luminIndex] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
+				int luminIndex = (tuple.directBody * stats.numStars) + tuple.origStar;
+				luminosity[index] = isotropicAlbedoLuminosityPerStar[luminIndex] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}
 		}
 	}
