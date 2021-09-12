@@ -214,7 +214,7 @@ namespace KERBALISM.SteppedSim
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.RecordFrames");
 			int numVessels = Vessels.Count;
 			int numBodies = Bodies.Count;
-			int numSteps = (int)math.ceil(duration / maxSubstepTime);
+			int numSteps = timestepsSource.Length;
 			for (int i = 0; i < numSteps; i++)
 			{
 				var f = SubstepFrame.Acquire();
@@ -239,14 +239,13 @@ namespace KERBALISM.SteppedSim
 
 			/*
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
-			foreach (var f in frameManager.Frames.Values)
+			for (int i=0; i<numSteps; i++)
 			{
-				ValidateComputations(Bodies, Vessels, f);
+				bool doVessels = i == numSteps - 1;
+				if (frameManager.Frames.TryGetValue(timestepsSource[i], out var f))
+					ValidateComputations(Bodies, Vessels, f, doVessels);
 			}
-			{
-				if (frameManager.Frames.TryGetValue(startUT + duration, out var f))
-					ValidateComputations(Bodies, Vessels, f, true);
-			}
+			Profiler.EndSample();
 			*/
 
 
