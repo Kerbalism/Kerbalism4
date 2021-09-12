@@ -241,7 +241,7 @@ namespace KERBALISM.SteppedSim
 			var albedoLuminosityForVesselJob = new AlbedoLuminosityForVesselJob
 			{
 				tuples = timeVesselBodyStarIndex,
-				numBodiesPerStep = numBodies,
+				stats = frameStats,
 				bodies = bodies,
 				vessels = vessels,
 				vesselOccludedFromBody = vesselBodyOcclusionMap,

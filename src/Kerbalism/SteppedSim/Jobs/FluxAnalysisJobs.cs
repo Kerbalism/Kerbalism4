@@ -231,7 +231,8 @@ namespace KERBALISM.SteppedSim.Jobs
 			var body = bodies[i.directBody];
 			var star = bodies[i.directStar];
 			// Can optimize away the two math.PI_DBL mults...
-			double irradiance = star.solarLuminosity / (4 * math.PI_DBL * math.distancesq(star.position, body.position));
+			double irradiance = Unity.Burst.CompilerServices.Hint.Likely(i.directBody != i.directStar) ?
+				star.solarLuminosity / (4 * math.PI_DBL * math.distancesq(star.position, body.position)) : 0;
 			bodyIncidentFlux[index] = irradiance * math.PI_DBL * body.radius * body.radius;
 		}
 	}
@@ -266,8 +267,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	public struct AlbedoLuminosityForVesselJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<TimeVesselBodyStarIndex> tuples;
-		[ReadOnly] public int numBodiesPerStep;
-		[ReadOnly] public int numStarsPerStep;
+		[ReadOnly] public FrameStats stats;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
@@ -280,7 +280,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			var vessel = vessels[tuple.directVessel];
 			var body = bodies[tuple.directBody];
 			var star = bodies[tuple.directStar];
-			int occlusionIndex = tuple.directVessel * numBodiesPerStep + tuple.origBody;
+			int occlusionIndex = tuple.directVessel * stats.numBodies + tuple.origBody;
 			// Vessel-body occlusion stored in time * numVessel * numBody array, at (time*numVessel*numBody + body) = (directVessel*numBody + body)
 			if (Unity.Burst.CompilerServices.Hint.Unlikely(vesselOccludedFromBody[occlusionIndex] || body.solarLuminosity > 0))
 				luminosity[index] = 0;
@@ -293,7 +293,7 @@ namespace KERBALISM.SteppedSim.Jobs
 				var bodyToSun = math.normalize(star.position - body.position);
 				var bodyToVessel = math.normalize(vessel.position - body.position);
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
-				int luminIndex = (tuple.directVessel * numBodiesPerStep * numStarsPerStep) + (tuple.origBody * numStarsPerStep) + tuple.origStar;
+				int luminIndex = (tuple.origVessel * stats.numBodies * stats.numStars) + (tuple.origBody * stats.numStars) + tuple.origStar;
 				luminosity[index] = isotropicAlbedoLuminosity[luminIndex] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}
 		}
