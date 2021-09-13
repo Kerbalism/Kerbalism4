@@ -190,7 +190,6 @@ namespace KERBALISM
 		private double exposureFactor;
 		private string occludingObject;
 		private double wearFactor;
-		private StarFlux trackedStar;
 
 		// PAW UI backing fields
 		private string panelStatus;
@@ -343,7 +342,17 @@ namespace KERBALISM
 				return;
 			}
 
-			if (trackedStar.sunlightFactor == 0.0)
+			StarFlux trackedStar = default;
+			foreach (StarFlux starFlux in VesselData.StarFluxes)
+			{
+				if (starFlux.bodyIndex == trackedStarIndex)
+				{
+					trackedStar = starFlux;
+					break;
+				}
+			}
+
+			if (trackedStar.starSunlightFactor == 0.0)
 				exposureState = ExposureState.InShadow;
 			else
 				exposureState = ExposureState.Exposed;
@@ -351,16 +360,16 @@ namespace KERBALISM
 			exposureFactor = 0.0;
 			double starsFlux = 0.0;
 			// iterate over all stars, compute the exposure factor
-			foreach (StarFlux starFlux in VesselData.StarsIrradiance)
+			foreach (StarFlux starFlux in VesselData.StarFluxes)
 			{
 				// update tracked body in auto mode
-				if (!manualTracking && trackedStar.directRawFluxProportion < starFlux.directRawFluxProportion)
+				if (!manualTracking && trackedStar.starDirectRawFluxProportion < starFlux.starDirectRawFluxProportion)
 				{
-					SetTrackedBody(starFlux.Star.body);
+					SetTrackedBody(starFlux.body);
 				}
 
 				// ignore non-visible stars
-				if (starFlux.sunlightFactor == 0.0)
+				if (starFlux.starSunlightFactor == 0.0)
 				{
 					if (starFlux == trackedStar)
 						exposureState = ExposureState.InShadow;
@@ -369,10 +378,10 @@ namespace KERBALISM
 				}
 
 				// ignore stars whose luminosity is less than 1% of the total flux
-				if (starFlux.directRawFluxProportion < 0.01)
+				if (starFlux.starDirectRawFluxProportion < 0.01)
 					continue;
 
-				starsFlux += starFlux.directFlux;
+				starsFlux += starFlux.starDirectFlux;
 
 				double cosineFactor = 1.0;
 				double occlusionFactor = 1.0;
@@ -409,7 +418,7 @@ namespace KERBALISM
 				}
 
 				// Compute final aggregate exposure factor
-				exposureFactor += cosineFactor * occlusionFactor * starFlux.directRawFluxProportion;
+				exposureFactor += cosineFactor * occlusionFactor * starFlux.starDirectRawFluxProportion;
 			}
 
 			//VesselData.SaveSolarPanelExposure(persistentFactor);
@@ -514,15 +523,6 @@ namespace KERBALISM
 		{
 			trackedStarIndex = body.flightGlobalsIndex;
 
-			for (int i = 0; i < VesselData.StarsIrradiance.Length; i++)
-			{
-				if (VesselData.StarsIrradiance[i].Star.body.flightGlobalsIndex == trackedStarIndex)
-				{
-					trackedStar = VesselData.StarsIrradiance[i];
-					break;
-				}
-			}
-
 			if (IsLoaded)
 			{
 				OnSetTrackedBody(body);
@@ -533,7 +533,7 @@ namespace KERBALISM
 				trackingPAWEvent.guiName = KsmString.Get
 					.Add(Local.SolarPanelFixer_Trackedstar, KF.WhiteSpace)
 					.Add(manualTracking ? ":" : Local.SolarPanelFixer_AutoTrack, KF.WhiteSpace)
-					.Add(trackedStar.Star.body.name)
+					.Add(body.name)
 					.End();
 			}
 		}

@@ -54,6 +54,7 @@ namespace KERBALISM.SteppedSim
 
 	public struct VesselBodyIrradiance
 	{
+		public double solarRaw;
 		public double solar;
 		public double core;
 		public double emissive;
@@ -325,15 +326,15 @@ namespace KERBALISM.SteppedSim
 			//else
 				return math.pow(sunBodyObserverAngleFactor * 1.225, 2);
 		}
-		public static bool OcclusionTest(double3 a, double3 b, double3 v, double dist)
+		public static bool OcclusionTest(double3 bodyPos, double3 starPos, double3 occluderPos, double occluderRadius)
 		{
-			double3 ab = b - a;
+			double3 ab = starPos - bodyPos;
 			var abLenSq = math.lengthsq(ab);
 			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 1))
 			{
-				var distSq = dist * dist;
-				double3 av = v - a;
-				double3 bv = v - b;
+				var distSq = occluderRadius * occluderRadius;
+				double3 av = occluderPos - bodyPos;
+				double3 bv = occluderPos - starPos;
 				if (math.dot(av, ab) < 0)
 					return math.lengthsq(av) <= distSq;
 				else if (math.dot(bv, ab) > 0)

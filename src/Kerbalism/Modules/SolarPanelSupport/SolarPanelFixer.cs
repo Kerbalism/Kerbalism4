@@ -379,16 +379,21 @@ namespace KERBALISM
 				return;
 			}
 
+			StarFlux trackedSunInfo;
+
 			// Update tracked sun in auto mode
-			if (!manualTracking && trackedSunIndex != vd.MainStar.Star.body.flightGlobalsIndex)
+			if (!manualTracking && trackedSunIndex != vd.MainStar.bodyIndex)
 			{
-				trackedSunIndex = vd.MainStar.Star.body.flightGlobalsIndex;
-				SolarPanel.SetTrackedBody(vd.MainStar.Star.body);
+				trackedSunInfo = vd.MainStar;
+				trackedSunIndex = trackedSunInfo.bodyIndex;
+				SolarPanel.SetTrackedBody(trackedSunInfo.body);
+			}
+			else
+			{
+				trackedSunInfo = vd.StarFluxes.Find(p => p.bodyIndex == trackedSunIndex);
 			}
 
-			StarFlux trackedSunInfo = vd.StarsIrradiance.First(p => p.Star.body.flightGlobalsIndex == trackedSunIndex);
-
-			if (trackedSunInfo.sunlightFactor == 0.0)
+			if (trackedSunInfo.starSunlightFactor == 0.0)
 				exposureState = ExposureState.InShadow;
 			else
 				exposureState = ExposureState.Exposed;
@@ -438,7 +443,7 @@ namespace KERBALISM
 				exposureFactor = 0.0;
 
 				// iterate over all stars, compute the exposure factor
-				foreach (StarFlux star in vd.StarsIrradiance)
+				foreach (StarFlux star in vd.StarFluxes)
 				{
 					double sunCosineFactor = 0.0;
 					double sunOccludedFactor = 0.0;
@@ -474,7 +479,7 @@ namespace KERBALISM
 					}
 
 					// Compute final aggregate exposure factor
-					double sunExposureFactor = sunCosineFactor * sunOccludedFactor * star.directRawFluxProportion;
+					double sunExposureFactor = sunCosineFactor * sunOccludedFactor * star.starDirectRawFluxProportion;
 
 					// Add the final factor to the saved exposure factor to be used in analytical / unloaded states.
 					// If occlusion is from the scene, not a part (terrain, building...) don't save the occlusion factor,
@@ -482,10 +487,10 @@ namespace KERBALISM
 					if (occludingPart != null)
 						persistentFactor += sunExposureFactor;
 					else
-						persistentFactor += sunCosineFactor * star.directRawFluxProportion;
+						persistentFactor += sunCosineFactor * star.starDirectRawFluxProportion;
 
 					// Only apply the exposure factor if not in shadow (body occlusion check)
-					if (star.sunlightFactor == 1.0) exposureFactor += sunExposureFactor;
+					if (star.starSunlightFactor == 1.0) exposureFactor += sunExposureFactor;
 					else if (star == trackedSunInfo) exposureState = ExposureState.InShadow;
 				}
 				vd.SaveSolarPanelExposure(persistentFactor);
@@ -494,7 +499,7 @@ namespace KERBALISM
 			// get solar flux and deduce a scalar based on nominal flux at 1AU
 			// - this include atmospheric absorption if inside an atmosphere
 			// - at high timewarps speeds, atmospheric absorption is analytical (integrated over a full revolution)
-			double distanceFactor = vd.IrradianceStarTotal / Sim.SolarFluxAtHome;
+			double distanceFactor = vd.StarsIrradiance / Sim.SolarFluxAtHome;
 
 			// get wear factor (time based output degradation)
 			wearFactor = 1.0;
@@ -513,7 +518,7 @@ namespace KERBALISM
 			}
 
 			// produce EC
-			vd.ResHandler.ElectricCharge.Produce(currentOutput * Kerbalism.elapsed_s, ResourceBroker.SolarPanel);
+			vd.ResHandler.ElectricCharge.Produce(currentOutput * Kerbalism.fixedUpdateElapsedSec, ResourceBroker.SolarPanel);
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -541,7 +546,7 @@ namespace KERBALISM
 			// - this include atmospheric absorption if inside an atmosphere
 			// - this is zero when the vessel is in shadow when evaluation is non-analytic (low timewarp rates)
 			// - if integrated over orbit (analytic evaluation), this include fractional sunlight / atmo absorbtion
-			efficiencyFactor *= vd.IrradianceStarTotal / Sim.SolarFluxAtHome;
+			efficiencyFactor *= vd.StarsIrradiance / Sim.SolarFluxAtHome;
 
 			// get wear factor (output degradation with time)
 			if (m.moduleValues.HasNode("timeEfficCurve"))
@@ -571,14 +576,14 @@ namespace KERBALISM
 				switch (Planner.Planner.Sunlight)
 				{
 					case Planner.Planner.SunlightState.SunlightNominal:
-						editorOutput = nominalRate * (vesselData.IrradianceStarTotal / Sim.SolarFluxAtHome);
+						editorOutput = nominalRate * (vesselData.StarsIrradiance / Sim.SolarFluxAtHome);
 						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, ResourceBroker.GetOrCreate("solar panel (nominal)", ResourceBroker.BrokerCategory.SolarPanel, "solar panel (nominal)"));
 						break;
 					case Planner.Planner.SunlightState.SunlightSimulated:
 						// create a sun direction according to the shadows direction in the VAB / SPH
 						Vector3d sunDir = EditorDriver.editorFacility == EditorFacility.VAB ? new Vector3d(1.0, 1.0, 0.0).normalized : new Vector3d(0.0, 1.0, -1.0).normalized;
 						double effiencyFactor = SolarPanel.GetCosineFactor(sunDir, true) * SolarPanel.GetOccludedFactor(sunDir, out string occludingPart, true);
-						double distanceFactor = vesselData.IrradianceStarTotal / Sim.SolarFluxAtHome;
+						double distanceFactor = vesselData.StarsIrradiance / Sim.SolarFluxAtHome;
 						editorOutput = nominalRate * effiencyFactor * distanceFactor;
 						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, ResourceBroker.GetOrCreate("solar panel (estimated)", ResourceBroker.BrokerCategory.SolarPanel, "solar panel (estimated)"));
 						break;
@@ -674,7 +679,7 @@ namespace KERBALISM
 		private double GetAnalyticalCosineFactorLanded(VesselData vd)
 		{
 			double finalFactor = 0.0;
-			foreach (StarFlux star in vd.StarsIrradiance)
+			foreach (StarFlux star in vd.StarFluxes)
 			{
 				Vector3d sunDir = star.direction;
 				// get a rotation of 45° perpendicular to the sun direction
@@ -689,7 +694,7 @@ namespace KERBALISM
 					factor += SolarPanel.GetOccludedFactor(sunDir, out occluding, true);
 				}
 				factor /= 16.0;
-				finalFactor += factor * star.directRawFluxProportion;
+				finalFactor += factor * star.starDirectRawFluxProportion;
 			}
 			return finalFactor;
 		}

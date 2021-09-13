@@ -326,10 +326,9 @@ namespace KERBALISM.SteppedSim.Jobs
 	///     Albedo from star fluxes
 	/// Some bodies emit an internal thermal flux due to various tidal, geothermal or accretional phenomenons, given by CelestialBody.coreTemperatureOffset
 	/// From that value we derive thermal flux in W/m² using the blackbody equation
-	/// We assume that the atmosphere has no effect on that value.
+	/// We assume that the atmosphere has no effect on that value
 	/// </summary>
 	/// <returns>Flux in W/m2 at distance</returns>
-
 	[BurstCompile]
 	public struct BodyIrradiancesJob : IJobParallelFor
 	{
@@ -341,6 +340,7 @@ namespace KERBALISM.SteppedSim.Jobs
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyAlbedoLuminosity;
 		[WriteOnly] public NativeArray<VesselBodyIrradiance> irradiance;
 
+		// TODO : ATMOSPHERIC FACTOR
 		public void Execute(int index)
 		{
 			TimeVesselBodyIndex i = tuples[index];
@@ -348,13 +348,15 @@ namespace KERBALISM.SteppedSim.Jobs
 			var body = bodies[i.directBody];
 			var distSq = math.distancesq(vessel.position, body.position);
 			bool valid = vesselOccludedFromBody[index] == false && distSq > 0;
-			var denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 / (4 * math.PI_DBL * distSq) : 0;
+			double denomRecipNoOcclusion = 1.0 / (4.0 * math.PI_DBL * distSq);
+			double denomRecipOcclusion = Unity.Burst.CompilerServices.Hint.Likely(valid) ? denomRecipNoOcclusion : 0;
 			irradiance[index] = new VesselBodyIrradiance
 			{
-				solar = body.solarLuminosity * denomRecip,
-				core = body.bodyCoreThermalFlux * denomRecip,
-				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecip,
-				albedo = bodyAlbedoLuminosity[index] * denomRecip,
+				solar = body.solarLuminosity * denomRecipOcclusion,
+				solarRaw = body.solarLuminosity * denomRecipNoOcclusion,
+				core = body.bodyCoreThermalFlux * denomRecipOcclusion,
+				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecipOcclusion,
+				albedo = bodyAlbedoLuminosity[index] * denomRecipOcclusion,
 			};
 		}
 	}

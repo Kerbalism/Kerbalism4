@@ -350,7 +350,7 @@ namespace KERBALISM
 
 				vessel.TryGetVesselDataTemp(out VesselData vd);
 
-				var decay = RadiationDecay(quality, vd.EnvRadiation, Kerbalism.elapsed_s, rated_radiation, radiation_decay_rate);
+				var decay = RadiationDecay(quality, vd.EnvRadiation, Kerbalism.fixedUpdateElapsedSec, rated_radiation, radiation_decay_rate);
 				next -= decay;
 			}
 		}

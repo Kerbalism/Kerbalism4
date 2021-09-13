@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace KERBALISM
 {
-	public class StarFlux
+	public class StarFluxOld
 	{
 		/// <summary> reference to the sun/star</summary>
 		public SimStar Star => star; SimStar star;
@@ -50,17 +50,17 @@ namespace KERBALISM
 		public double skinRadiosity;
 
 
-		public StarFlux(SimStar star)
+		public StarFluxOld(SimStar star)
 		{
 			this.star = star;
 		}
 
-		public static StarFlux[] StarArrayFactory()
+		public static StarFluxOld[] StarArrayFactory()
 		{
-			StarFlux[] stars = new StarFlux[Sim.stars.Count];
+			StarFluxOld[] stars = new StarFluxOld[Sim.stars.Count];
 			for (int i = 0; i < Sim.stars.Count; i++)
 			{
-				stars[i] = new StarFlux(Sim.stars[i]);
+				stars[i] = new StarFluxOld(Sim.stars[i]);
 			}
 			return stars;
 		}

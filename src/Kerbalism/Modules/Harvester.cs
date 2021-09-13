@@ -122,7 +122,7 @@ namespace KERBALISM
 
 			if (deployed && running && (issue.Length == 0))
 			{
-				ResourceUpdate(vessel, this, min_abundance, Kerbalism.elapsed_s);
+				ResourceUpdate(vessel, this, min_abundance, Kerbalism.fixedUpdateElapsedSec);
 			}
 		}
 

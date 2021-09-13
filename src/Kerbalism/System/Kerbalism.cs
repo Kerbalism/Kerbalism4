@@ -63,13 +63,7 @@ namespace KERBALISM
 
 		// equivalent to TimeWarp.fixedDeltaTime
 		// note: stored here to avoid converting it to double every time
-		public static double elapsed_s;
-
-		// number of steps from last warp blending
-		private static uint warp_blending;
-
-		/// <summary>Are we in an intermediary timewarp speed ?</summary>
-		public static bool WarpBlending => warp_blending > 2u;
+		public static double fixedUpdateElapsedSec;
 
 		// last savegame unique id
 		static Guid savegameGuid;
@@ -310,16 +304,7 @@ namespace KERBALISM
 			Sim.OnFixedUpdate();
 
 			// convert elapsed time to double only once
-			double fixedDeltaTime = TimeWarp.fixedDeltaTime;
-
-			// and detect warp blending
-			if (Math.Abs(fixedDeltaTime - elapsed_s) < 0.001)
-				warp_blending = 0;
-			else
-				++warp_blending;
-
-			// update elapsed time
-			elapsed_s = fixedDeltaTime;
+			fixedUpdateElapsedSec = TimeWarp.fixedDeltaTime;
 
 			ValidateVesselData();
 			ManageWorkQueues(loadedWorkQueue, unloadedWorkQueue);
@@ -328,7 +313,7 @@ namespace KERBALISM
 			subStepSimJobs.OnFixedUpdate();
 
 			// credit science at regular interval
-			ScienceDB.CreditScienceBuffers(elapsed_s);
+			ScienceDB.CreditScienceBuffers(fixedUpdateElapsedSec);
 
 			var currentTime = Planetarium.GetUniversalTime();
 
@@ -401,7 +386,7 @@ namespace KERBALISM
 			// update storm data for one body per-step
 			if (storm_bodies.Count > 0)
 			{
-				storm_bodies.ForEach(k => k.time += elapsed_s);
+				storm_bodies.ForEach(k => k.time += fixedUpdateElapsedSec);
 				Storm_data sd = storm_bodies[storm_index];
 				Storm.Update(sd.body, sd.time);
 				sd.time = 0.0;

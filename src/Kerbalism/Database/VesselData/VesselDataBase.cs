@@ -146,20 +146,23 @@ namespace KERBALISM
 		/// <summary> total irradiance from all sources (W/m²) at vessel position</summary>
 		public double IrradianceTotal => irradianceTotal; protected double irradianceTotal;
 
-		/// <summary> star(s) irradiance (W/m²) reflected by the nearest body (and it's parent planet if it's a moon)</summary>
-		public double IrradianceAlbedo => irradianceAlbedo; protected double irradianceAlbedo;
+		/// <summary> visible light/thermal irradiance (W/m²) from all visible bodies, induced by the reflection of the star(s) direct irradiance</summary>
+		public double BodiesIrradianceAlbedo => bodiesIrradianceAlbedo; protected double bodiesIrradianceAlbedo;
 
-		/// <summary> thermal irradiance (W/m²) from the nearest body (and it's parent planet if it's a moon), induced by the star(s) heating effect on the body </summary>
-		public double IrradianceBodiesEmissive => irradianceBodiesEmissive; protected double irradianceBodiesEmissive;
+		/// <summary> thermal irradiance (W/m²) from all visible bodies, induced by the star(s) heating effect on those body </summary>
+		public double BodiesIrradianceEmissive => bodiesIrradianceEmissive; protected double bodiesIrradianceEmissive;
 
-		/// <summary> thermal irradiance (W/m²) from the nearest body (and it's parent planet if it's a moon), induced by the body own intrinsic sources </summary>
-		public double IrradianceBodiesCore => irradianceBodiesCore; protected double irradianceBodiesCore;
+		/// <summary> thermal irradiance (W/m²) from all visible bodies, induced by the bodies own intrinsic sources </summary>
+		public double BodiesIrradianceCore => bodiesIrradianceCore; protected double bodiesIrradianceCore;
 
-		/// <summary> direct star(s) irradiance (W/m²) from all stars at vessel position, include atmospheric absorption if inside an atmosphere </summary>
-		public double IrradianceStarTotal => irradianceStarTotal; protected double irradianceStarTotal;
+		/// <summary> direct star(s) irradiance (W/m²) from all stars, including atmospheric absorption if inside an atmosphere </summary>
+		public double StarsIrradiance => starsIrradiance; protected double starsIrradiance;
 
-		/// <summary> List of all stars/suns and the related data/calculations for the current vessel</summary>
-		public StarFlux[] StarsIrradiance => starsIrradiance; protected StarFlux[] starsIrradiance;
+		/// <summary> Irradiances from all bodies (both stars and other bodies). Indexes match the FlightGlobals.Bodies indexes</summary>
+		public List<BodyFlux> BodyFluxes => bodyFluxes; protected List<BodyFlux> bodyFluxes = new List<BodyFlux>();
+
+		/// <summary> Irradiances from all bodies (both stars and other bodies). Indexes match the FlightGlobals.Bodies indexes</summary>
+		public List<StarFlux> StarFluxes => starFluxes; protected List<StarFlux> starFluxes = new List<StarFlux>();
 
 		/// <summary> Star that send the highest nominal flux (in W/m²) at the vessel position (ignoring occlusion / atmo absorbtion)</summary>
 		public StarFlux MainStar => mainStar; protected StarFlux mainStar;
@@ -168,13 +171,13 @@ namespace KERBALISM
 		public Vector3d MainStarDirection => MainStar.direction;
 
 		/// <summary> % of time spent in the main star direct light (for the current environment update)</summary>
-		public double MainStarSunlightFactor => MainStar.sunlightFactor;
+		public double MainStarSunlightFactor => MainStar.starSunlightFactor;
 
 		/// <summary> True if at least half of the current update was spent in the direct light of the main star</summary>
-		public bool InSunlight => MainStar.sunlightFactor > 0.45;
+		public bool InSunlight => MainStar.starSunlightFactor > 0.45;
 
 		/// <summary> True if less than 10% of the current update was spent in the direct light of the main star</summary>
-		public bool InFullShadow => MainStar.sunlightFactor < 0.1;
+		public bool InFullShadow => MainStar.starSunlightFactor < 0.1;
 
 		
 
@@ -191,7 +194,6 @@ namespace KERBALISM
 
 			vesselProcesses = new VesselProcessCollection();
 			habitatData = new HabitatVesselData();
-			starsIrradiance = StarFlux.StarArrayFactory();
 		}
 
 		// put here the persistence that is common to VesselData and VesselDataShip to have
@@ -357,52 +359,53 @@ namespace KERBALISM
 
 		public void ProcessSimStep(SimStep step)
 		{
-			irradianceBodiesCore = step.bodiesCoreIrradiance;
+			//bodiesIrradianceCore = step.bodiesCoreIrradiance;
 
-			double directRawFluxTotal = 0.0;
-			irradianceStarTotal = 0.0;
-			mainStar = starsIrradiance[0];
-			irradianceAlbedo = 0.0;
-			irradianceBodiesEmissive = 0.0;
+			//starsIrradiance = 0.0;
+			//mainStar = bodyFluxes[0];
+			//bodiesIrradianceAlbedo = 0.0;
+			//bodiesIrradianceEmissive = 0.0;
+			//bodiesIrradianceCore = 0.0;
+			//bodyFluxes.Clear();
 
-			for (int i = 0; i < starsIrradiance.Length; i++)
-			{
-				StarFlux starFlux = starsIrradiance[i];
-				StarFlux stepStarFlux = step.starFluxes[i];
+			//for (int i = 0; i < FlightGlobals.Bodies.Count; i++)
+			//{
+			//	BodyFlux bodyFlux = new BodyFlux();
+			//	StarFlux stepStarFlux = step.starFluxes[i];
 
-				starFlux.direction = stepStarFlux.direction;
-				starFlux.distance = stepStarFlux.distance;
-				starFlux.directFlux = stepStarFlux.directFlux;
-				starFlux.directRawFlux = stepStarFlux.directRawFlux;
-				starFlux.bodiesAlbedoFlux = stepStarFlux.bodiesAlbedoFlux;
-				starFlux.bodiesEmissiveFlux = stepStarFlux.bodiesEmissiveFlux;
-				starFlux.mainBodyVesselStarAngle = stepStarFlux.mainBodyVesselStarAngle;
+			//	starFlux.direction = stepStarFlux.direction;
+			//	starFlux.distance = stepStarFlux.distance;
+			//	starFlux.directFlux = stepStarFlux.directFlux;
+			//	starFlux.directRawFlux = stepStarFlux.directRawFlux;
+			//	starFlux.bodiesAlbedoFlux = stepStarFlux.bodiesAlbedoFlux;
+			//	starFlux.bodiesEmissiveFlux = stepStarFlux.bodiesEmissiveFlux;
+			//	starFlux.mainBodyVesselStarAngle = stepStarFlux.mainBodyVesselStarAngle;
 
-				starFlux.mainBodyVesselStarAngle = stepStarFlux.mainBodyVesselStarAngle;
-				starFlux.sunAndBodyFaceSkinTemp = stepStarFlux.sunAndBodyFaceSkinTemp;
-				starFlux.bodiesFaceSkinTemp = stepStarFlux.bodiesFaceSkinTemp;
-				starFlux.sunFaceSkinTemp = stepStarFlux.sunFaceSkinTemp;
-				starFlux.darkFaceSkinTemp = stepStarFlux.darkFaceSkinTemp;
-				starFlux.skinIrradiance = stepStarFlux.skinIrradiance;
-				starFlux.skinRadiosity = stepStarFlux.skinRadiosity;
+			//	starFlux.mainBodyVesselStarAngle = stepStarFlux.mainBodyVesselStarAngle;
+			//	starFlux.sunAndBodyFaceSkinTemp = stepStarFlux.sunAndBodyFaceSkinTemp;
+			//	starFlux.bodiesFaceSkinTemp = stepStarFlux.bodiesFaceSkinTemp;
+			//	starFlux.sunFaceSkinTemp = stepStarFlux.sunFaceSkinTemp;
+			//	starFlux.darkFaceSkinTemp = stepStarFlux.darkFaceSkinTemp;
+			//	starFlux.skinIrradiance = stepStarFlux.skinIrradiance;
+			//	starFlux.skinRadiosity = stepStarFlux.skinRadiosity;
 
-				irradianceStarTotal += stepStarFlux.directFlux;
-				directRawFluxTotal += stepStarFlux.directRawFlux;
-				irradianceAlbedo += stepStarFlux.bodiesAlbedoFlux;
-				irradianceBodiesEmissive += stepStarFlux.bodiesEmissiveFlux;
+			//	irradianceStarTotal += stepStarFlux.directFlux;
+			//	directRawFluxTotal += stepStarFlux.directRawFlux;
+			//	irradianceAlbedo += stepStarFlux.bodiesAlbedoFlux;
+			//	irradianceBodiesEmissive += stepStarFlux.bodiesEmissiveFlux;
 
-				starFlux.sunlightFactor = starFlux.directFlux > 0.0 ? 1.0 : 0.0;
+			//	starFlux.sunlightFactor = starFlux.directFlux > 0.0 ? 1.0 : 0.0;
 
-				if (mainStar.directFlux < starFlux.directFlux)
-					mainStar = starFlux;
-			}
+			//	if (mainStar.directFlux < starFlux.directFlux)
+			//		mainStar = starFlux;
+			//}
 
-			foreach (StarFlux vesselStarFlux in starsIrradiance)
-			{
-				vesselStarFlux.directRawFluxProportion = vesselStarFlux.directRawFlux / directRawFluxTotal;
-			}
+			//foreach (StarFlux vesselStarFlux in starsIrradiance)
+			//{
+			//	vesselStarFlux.directRawFluxProportion = vesselStarFlux.directRawFlux / directRawFluxTotal;
+			//}
 
-			irradianceTotal = irradianceStarTotal + irradianceAlbedo + irradianceBodiesEmissive + irradianceBodiesCore;
+			//irradianceTotal = irradianceStarTotal + irradianceAlbedo + irradianceBodiesEmissive + irradianceBodiesCore;
 		}
 
 		#endregion
