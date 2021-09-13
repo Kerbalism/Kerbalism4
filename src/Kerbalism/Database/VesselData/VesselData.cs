@@ -956,15 +956,15 @@ namespace KERBALISM
 				starFlux.distance = starFlux.direction.magnitude;
 				starFlux.direction /= starFlux.distance;
 
-				starFlux.starDirectFlux = starsIrradianceTemp[i] / subStepCountD;
-				starFlux.starDirectRawFlux = starsRawIrradianceTemp[i] / subStepCountD;
-				starFlux.starSunlightFactor = starsSunlightFactorTemp[i] / subStepCountD;
+				starFlux.directFlux = starsIrradianceTemp[i] / subStepCountD;
+				starFlux.directRawFlux = starsRawIrradianceTemp[i] / subStepCountD;
+				starFlux.sunlightFactor = starsSunlightFactorTemp[i] / subStepCountD;
 
-				starsIrradiance += starFlux.starDirectFlux;
-				totalStarDirectRawFlux += starFlux.starDirectRawFlux;
-				if (starFlux.starDirectRawFlux > maxStarDirectRawFlux)
+				starsIrradiance += starFlux.directFlux;
+				totalStarDirectRawFlux += starFlux.directRawFlux;
+				if (starFlux.directRawFlux > maxStarDirectRawFlux)
 				{
-					maxStarDirectRawFlux = starFlux.starDirectRawFlux;
+					maxStarDirectRawFlux = starFlux.directRawFlux;
 					mainStar = starFlux;
 				}
 
@@ -974,7 +974,7 @@ namespace KERBALISM
 			for (int i = 0; i < starFluxes.Count; i++)
 			{
 				StarFlux starFlux = starFluxes[i];
-				starFlux.starDirectRawFluxProportion = starFlux.starDirectRawFlux / totalStarDirectRawFlux;
+				starFlux.directRawFluxProportion = starFlux.directRawFlux / totalStarDirectRawFlux;
 				starFluxes[i] = starFlux;
 			}
 
@@ -988,13 +988,13 @@ namespace KERBALISM
 				bodyFlux.distance = bodyFlux.direction.magnitude;
 				bodyFlux.direction /= bodyFlux.distance;
 
-				bodyFlux.bodyAlbedoFlux = bodiesAlbedoTemp[i] / subStepCountD;
-				bodyFlux.bodyEmissiveFlux = bodiesEmissiveTemp[i] / subStepCountD;
-				bodyFlux.bodyCoreFlux = bodiesCoreTemp[i] / subStepCountD;
+				bodyFlux.albedoFlux = bodiesAlbedoTemp[i] / subStepCountD;
+				bodyFlux.emissiveFlux = bodiesEmissiveTemp[i] / subStepCountD;
+				bodyFlux.coreFlux = bodiesCoreTemp[i] / subStepCountD;
 
-				bodiesIrradianceAlbedo += bodyFlux.bodyAlbedoFlux;
-				bodiesIrradianceEmissive += bodyFlux.bodyEmissiveFlux;
-				bodiesIrradianceCore += bodyFlux.bodyCoreFlux;
+				bodiesIrradianceAlbedo += bodyFlux.albedoFlux;
+				bodiesIrradianceEmissive += bodyFlux.emissiveFlux;
+				bodiesIrradianceCore += bodyFlux.coreFlux;
 
 				bodyFluxes.Add(bodyFlux);
 			}
@@ -1027,7 +1027,7 @@ namespace KERBALISM
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvRadiation");
             gammaTransparency = Sim.GammaTransparency(Vessel.mainBody, Vessel.altitude);
 
-            radiation = Radiation.Compute(this, vesselPosition, EnvGammaTransparency, mainStar.starSunlightFactor,
+            radiation = Radiation.Compute(this, vesselPosition, EnvGammaTransparency, mainStar.sunlightFactor,
 	            out blackout, out bool new_magnetosphere, out bool new_innerBelt, out bool new_outerBelt, out interstellar);
 
             if (new_innerBelt != innerBelt || new_outerBelt != outerBelt || new_magnetosphere != magnetosphere)
@@ -1043,7 +1043,7 @@ namespace KERBALISM
             if (Storm.InProgress(this))
 			{
 				double sunActivity = Radiation.Info(mainStar.body).SolarActivity(false) / 2.0;
-				stormRadiation = PreferencesRadiation.Instance.StormRadiation * mainStar.starSunlightFactor * (sunActivity + 0.5);
+				stormRadiation = PreferencesRadiation.Instance.StormRadiation * mainStar.sunlightFactor * (sunActivity + 0.5);
 			}
 			else
 			{

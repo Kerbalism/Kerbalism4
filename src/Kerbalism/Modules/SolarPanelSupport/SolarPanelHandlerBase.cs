@@ -352,7 +352,7 @@ namespace KERBALISM
 				}
 			}
 
-			if (trackedStar.starSunlightFactor == 0.0)
+			if (trackedStar.sunlightFactor == 0.0)
 				exposureState = ExposureState.InShadow;
 			else
 				exposureState = ExposureState.Exposed;
@@ -363,13 +363,13 @@ namespace KERBALISM
 			foreach (StarFlux starFlux in VesselData.StarFluxes)
 			{
 				// update tracked body in auto mode
-				if (!manualTracking && trackedStar.starDirectRawFluxProportion < starFlux.starDirectRawFluxProportion)
+				if (!manualTracking && trackedStar.directRawFluxProportion < starFlux.directRawFluxProportion)
 				{
 					SetTrackedBody(starFlux.body);
 				}
 
 				// ignore non-visible stars
-				if (starFlux.starSunlightFactor == 0.0)
+				if (starFlux.sunlightFactor == 0.0)
 				{
 					if (starFlux == trackedStar)
 						exposureState = ExposureState.InShadow;
@@ -378,10 +378,10 @@ namespace KERBALISM
 				}
 
 				// ignore stars whose luminosity is less than 1% of the total flux
-				if (starFlux.starDirectRawFluxProportion < 0.01)
+				if (starFlux.directRawFluxProportion < 0.01)
 					continue;
 
-				starsFlux += starFlux.starDirectFlux;
+				starsFlux += starFlux.directFlux;
 
 				double cosineFactor = 1.0;
 				double occlusionFactor = 1.0;
@@ -418,7 +418,7 @@ namespace KERBALISM
 				}
 
 				// Compute final aggregate exposure factor
-				exposureFactor += cosineFactor * occlusionFactor * starFlux.starDirectRawFluxProportion;
+				exposureFactor += cosineFactor * occlusionFactor * starFlux.directRawFluxProportion;
 			}
 
 			//VesselData.SaveSolarPanelExposure(persistentFactor);

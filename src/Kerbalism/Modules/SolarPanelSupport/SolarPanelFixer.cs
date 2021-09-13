@@ -393,7 +393,7 @@ namespace KERBALISM
 				trackedSunInfo = vd.StarFluxes.Find(p => p.bodyIndex == trackedSunIndex);
 			}
 
-			if (trackedSunInfo.starSunlightFactor == 0.0)
+			if (trackedSunInfo.sunlightFactor == 0.0)
 				exposureState = ExposureState.InShadow;
 			else
 				exposureState = ExposureState.Exposed;
@@ -479,7 +479,7 @@ namespace KERBALISM
 					}
 
 					// Compute final aggregate exposure factor
-					double sunExposureFactor = sunCosineFactor * sunOccludedFactor * star.starDirectRawFluxProportion;
+					double sunExposureFactor = sunCosineFactor * sunOccludedFactor * star.directRawFluxProportion;
 
 					// Add the final factor to the saved exposure factor to be used in analytical / unloaded states.
 					// If occlusion is from the scene, not a part (terrain, building...) don't save the occlusion factor,
@@ -487,10 +487,10 @@ namespace KERBALISM
 					if (occludingPart != null)
 						persistentFactor += sunExposureFactor;
 					else
-						persistentFactor += sunCosineFactor * star.starDirectRawFluxProportion;
+						persistentFactor += sunCosineFactor * star.directRawFluxProportion;
 
 					// Only apply the exposure factor if not in shadow (body occlusion check)
-					if (star.starSunlightFactor == 1.0) exposureFactor += sunExposureFactor;
+					if (star.sunlightFactor == 1.0) exposureFactor += sunExposureFactor;
 					else if (star == trackedSunInfo) exposureState = ExposureState.InShadow;
 				}
 				vd.SaveSolarPanelExposure(persistentFactor);
@@ -694,7 +694,7 @@ namespace KERBALISM
 					factor += SolarPanel.GetOccludedFactor(sunDir, out occluding, true);
 				}
 				factor /= 16.0;
-				finalFactor += factor * star.starDirectRawFluxProportion;
+				finalFactor += factor * star.directRawFluxProportion;
 			}
 			return finalFactor;
 		}

@@ -171,13 +171,13 @@ namespace KERBALISM
 		public Vector3d MainStarDirection => MainStar.direction;
 
 		/// <summary> % of time spent in the main star direct light (for the current environment update)</summary>
-		public double MainStarSunlightFactor => MainStar.starSunlightFactor;
+		public double MainStarSunlightFactor => MainStar.sunlightFactor;
 
 		/// <summary> True if at least half of the current update was spent in the direct light of the main star</summary>
-		public bool InSunlight => MainStar.starSunlightFactor > 0.45;
+		public bool InSunlight => MainStar.sunlightFactor > 0.45;
 
 		/// <summary> True if less than 10% of the current update was spent in the direct light of the main star</summary>
-		public bool InFullShadow => MainStar.starSunlightFactor < 0.1;
+		public bool InFullShadow => MainStar.sunlightFactor < 0.1;
 
 		
 
