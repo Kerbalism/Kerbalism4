@@ -100,10 +100,6 @@ namespace KERBALISM
 				simBody.Init();
 			}
 
-			TempStarData.Init();
-			TempBodyData.Init();
-
-
 			// get scaled space planetary layer for physic raytracing
 			planetaryLayerMask = 1 << LayerMask.NameToLayer("Scaled Scenery");
 		}
