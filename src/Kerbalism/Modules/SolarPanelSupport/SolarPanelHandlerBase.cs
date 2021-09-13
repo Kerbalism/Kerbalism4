@@ -190,6 +190,7 @@ namespace KERBALISM
 		private double exposureFactor;
 		private string occludingObject;
 		private double wearFactor;
+		private StarFlux trackedStar;
 
 		// PAW UI backing fields
 		private string panelStatus;
@@ -342,16 +343,6 @@ namespace KERBALISM
 				return;
 			}
 
-			StarFlux trackedStar = default;
-			foreach (StarFlux starFlux in VesselData.StarFluxes)
-			{
-				if (starFlux.bodyIndex == trackedStarIndex)
-				{
-					trackedStar = starFlux;
-					break;
-				}
-			}
-
 			if (trackedStar.sunlightFactor == 0.0)
 				exposureState = ExposureState.InShadow;
 			else
@@ -365,7 +356,7 @@ namespace KERBALISM
 				// update tracked body in auto mode
 				if (!manualTracking && trackedStar.directRawFluxProportion < starFlux.directRawFluxProportion)
 				{
-					SetTrackedBody(starFlux.body);
+					SetTrackedBody(starFlux.bodyData.body);
 				}
 
 				// ignore non-visible stars
@@ -387,7 +378,7 @@ namespace KERBALISM
 				double occlusionFactor = 1.0;
 
 				// Get the cosine factor (alignement between the sun and the panel surface)
-				cosineFactor = GetCosineFactor(starFlux.direction);
+				cosineFactor = GetCosineFactor(starFlux.bodyData.direction);
 
 				if (cosineFactor == 0.0)
 				{
@@ -407,7 +398,7 @@ namespace KERBALISM
 					bool occluderIsPart = false;
 					if (IsLoaded && !isSubstepping)
 					{
-						occlusionFactor = GetOccludedFactor(starFlux.direction, out occludingObject, out occluderIsPart);
+						occlusionFactor = GetOccludedFactor(starFlux.bodyData.direction, out occludingObject, out occluderIsPart);
 					}
 
 					// If this is the tracked sun and the panel is occluded, update the gui info string. 
@@ -522,6 +513,7 @@ namespace KERBALISM
 		private void SetTrackedBody(CelestialBody body)
 		{
 			trackedStarIndex = body.flightGlobalsIndex;
+			trackedStar = (StarFlux)VesselData.BodiesData[trackedStarIndex].fluxData;
 
 			if (IsLoaded)
 			{

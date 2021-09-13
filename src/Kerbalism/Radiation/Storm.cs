@@ -132,7 +132,7 @@ namespace KERBALISM
 			if (v.isEVA) return;
 
             var bd = vd.stormData;
-            CreateStorm(bd, v.mainBody, vd.MainStar.distance);
+            CreateStorm(bd, v.mainBody, vd.MainStar.bodyData.distance);
 
             if (vd.cfg_storm)
             {

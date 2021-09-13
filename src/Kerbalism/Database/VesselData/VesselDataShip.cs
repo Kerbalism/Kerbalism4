@@ -252,7 +252,7 @@ namespace KERBALISM
 			step.Init(simVessel);
 			step.Evaluate();
 			ProcessSimStep(step);
-			mainStar.direction = EditorDriver.editorFacility == EditorFacility.VAB ? new Vector3d(1.0, 1.0, 0.0).normalized : new Vector3d(0.0, 1.0, -1.0).normalized;
+			mainStar.bodyData.direction = EditorDriver.editorFacility == EditorFacility.VAB ? new Vector3d(1.0, 1.0, 0.0).normalized : new Vector3d(0.0, 1.0, -1.0).normalized;
 			atmoFactor = mainStar.directFlux / mainStar.directRawFlux;
 			breathable = Sim.Breathable(body) && landed;
 			temperature = Sim.VesselTemperature(irradianceTotal);

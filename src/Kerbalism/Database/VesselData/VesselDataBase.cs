@@ -158,17 +158,20 @@ namespace KERBALISM
 		/// <summary> direct star(s) irradiance (W/m²) from all stars, including atmospheric absorption if inside an atmosphere </summary>
 		public double StarsIrradiance => starsIrradiance; protected double starsIrradiance;
 
-		/// <summary> Irradiances from all bodies (both stars and other bodies). Indexes match the FlightGlobals.Bodies indexes</summary>
-		public List<BodyFlux> BodyFluxes => bodyFluxes; protected List<BodyFlux> bodyFluxes = new List<BodyFlux>();
+		/// <summary> bodies direction, distance, visibility, irradiances and radiation</summary>
+		public VesselBodyData[] BodiesData => bodiesData; protected VesselBodyData[] bodiesData;
 
-		/// <summary> Irradiances from all bodies (both stars and other bodies). Indexes match the FlightGlobals.Bodies indexes</summary>
-		public List<StarFlux> StarFluxes => starFluxes; protected List<StarFlux> starFluxes = new List<StarFlux>();
+		/// <summary> Irradiances from stars</summary>
+		public StarFlux[] StarFluxes => starFluxes; protected StarFlux[] starFluxes;
+
+		/// <summary> Irradiances from other bodies than stars.</summary>
+		public NonStarFlux[] NonStarFluxes => nonStarFluxes; protected NonStarFlux[] nonStarFluxes;
 
 		/// <summary> Star that send the highest nominal flux (in W/m²) at the vessel position (ignoring occlusion / atmo absorbtion)</summary>
 		public StarFlux MainStar => mainStar; protected StarFlux mainStar;
 
 		/// <summary> Nomalized direction vector to the main star</summary>
-		public Vector3d MainStarDirection => MainStar.direction;
+		public Vector3d MainStarDirection => MainStar.bodyData.direction;
 
 		/// <summary> % of time spent in the main star direct light (for the current environment update)</summary>
 		public double MainStarSunlightFactor => MainStar.sunlightFactor;
@@ -178,8 +181,6 @@ namespace KERBALISM
 
 		/// <summary> True if less than 10% of the current update was spent in the direct light of the main star</summary>
 		public bool InFullShadow => MainStar.sunlightFactor < 0.1;
-
-		
 
 		#endregion
 

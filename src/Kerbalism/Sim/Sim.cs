@@ -11,7 +11,8 @@ namespace KERBALISM
 
 		/// <summary>List of all suns/stars, with reference to their CB and their (total) luminosity</summary>
 		public static readonly List<SimStar> stars = new List<SimStar>();
-		private static readonly List<int> starsIndex = new List<int>();
+		public static readonly List<int> starIndexes = new List<int>();
+		public static readonly List<int> nonStarIndexes = new List<int>();
 
 		/// <summary>
 		/// Solar luminosity from all stars/suns at the home body, in W/m².
@@ -63,7 +64,7 @@ namespace KERBALISM
 					{
 						double starFluxAtHome = Lib.ReflectionValue<double>(c, "solarLuminosity");
 						stars.Add(new SimStar(body, starFluxAtHome));
-						starsIndex.Add(body.flightGlobalsIndex);
+						starIndexes.Add(body.flightGlobalsIndex);
 						if (starFluxAtHome > 1.0)
 							SolarFluxAtHome += starFluxAtHome;
 					}
@@ -77,7 +78,7 @@ namespace KERBALISM
 			if (stars.Count == 0)
 			{
 				stars.Add(new SimStar(FlightGlobals.Bodies[0], PhysicsGlobals.SolarLuminosityAtHome));
-				starsIndex.Add(0);
+				starIndexes.Add(0);
 				SolarFluxAtHome = PhysicsGlobals.SolarLuminosityAtHome;
 			}
 
@@ -88,10 +89,19 @@ namespace KERBALISM
 				Bodies[star.body.flightGlobalsIndex].isSun = true;
 			}
 
+			foreach (CelestialBody body in FlightGlobals.Bodies)
+			{
+				if (!IsStar(body))
+					nonStarIndexes.Add(body.flightGlobalsIndex);
+			}
+
 			foreach (SimBody simBody in Bodies)
 			{
 				simBody.Init();
 			}
+
+			TempStarData.Init();
+			TempBodyData.Init();
 
 
 			// get scaled space planetary layer for physic raytracing
@@ -219,13 +229,13 @@ namespace KERBALISM
 		/// <summary> Is this body a star ? </summary>
 		public static bool IsStar(CelestialBody body)
 		{
-			return starsIndex.Contains(body.flightGlobalsIndex);
+			return starIndexes.Contains(body.flightGlobalsIndex);
 		}
 
 		/// <summary> get the star data for this body (if it is a star) </summary>
 		public static bool TryGetStarData(CelestialBody body, out SimStar starData)
 		{
-			int index = starsIndex.IndexOf(body.flightGlobalsIndex);
+			int index = starIndexes.IndexOf(body.flightGlobalsIndex);
 			if (index < 0)
 			{
 				starData = null;

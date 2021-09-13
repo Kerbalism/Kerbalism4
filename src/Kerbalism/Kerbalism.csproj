@@ -223,12 +223,13 @@
     <Compile Include="Modules\Base\DepreciatedSoon\IPlannerModule.cs" />
     <Compile Include="ResourceSim\VesselVirtualPartResource.cs" />
     <Compile Include="Science\ScienceModuleInfo.cs" />
-    <Compile Include="SteppedSim\BodyFlux.cs" />
+    <Compile Include="SteppedSim\VesselBodyData.cs" />
     <Compile Include="SteppedSim\FluxAnalysisFactory.cs" />
     <Compile Include="SteppedSim\FrameManager.cs" />
     <Compile Include="SteppedSim\Jobs\FluxAnalysisJobs.cs" />
     <Compile Include="SteppedSim\Jobs\Jobs.cs" />
     <Compile Include="SteppedSim\Jobs\PositionComputeJobs.cs" />
+    <Compile Include="SteppedSim\ManagedAggregationHelpers.cs" />
     <Compile Include="SteppedSim\PositionComputeFactory.cs" />
     <Compile Include="SteppedSim\SubstepBody.cs" />
     <Compile Include="SteppedSim\SubStepOrbit.cs" />

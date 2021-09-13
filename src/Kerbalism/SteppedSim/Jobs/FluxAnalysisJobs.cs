@@ -352,6 +352,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			double denomRecipOcclusion = Unity.Burst.CompilerServices.Hint.Likely(valid) ? denomRecipNoOcclusion : 0;
 			irradiance[index] = new VesselBodyIrradiance
 			{
+				visibility = valid,
 				solar = body.solarLuminosity * denomRecipOcclusion,
 				solarRaw = body.solarLuminosity * denomRecipNoOcclusion,
 				core = body.bodyCoreThermalFlux * denomRecipOcclusion,

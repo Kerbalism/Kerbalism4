@@ -382,15 +382,15 @@ namespace KERBALISM
 			StarFlux trackedSunInfo;
 
 			// Update tracked sun in auto mode
-			if (!manualTracking && trackedSunIndex != vd.MainStar.bodyIndex)
+			if (!manualTracking && trackedSunIndex != vd.MainStar.bodyData.bodyIndex)
 			{
 				trackedSunInfo = vd.MainStar;
-				trackedSunIndex = trackedSunInfo.bodyIndex;
-				SolarPanel.SetTrackedBody(trackedSunInfo.body);
+				trackedSunIndex = trackedSunInfo.bodyData.bodyIndex;
+				SolarPanel.SetTrackedBody(trackedSunInfo.bodyData.body);
 			}
 			else
 			{
-				trackedSunInfo = vd.StarFluxes.Find(p => p.bodyIndex == trackedSunIndex);
+				trackedSunInfo = (StarFlux)vd.BodiesData[trackedSunIndex].fluxData;
 			}
 
 			if (trackedSunInfo.sunlightFactor == 0.0)
@@ -450,7 +450,7 @@ namespace KERBALISM
 					string occludingPart = null;
 
 					// Get the cosine factor (alignement between the sun and the panel surface)
-					sunCosineFactor = SolarPanel.GetCosineFactor(star.direction);
+					sunCosineFactor = SolarPanel.GetCosineFactor(star.bodyData.direction);
 
 					if (sunCosineFactor == 0.0)
 					{
@@ -461,7 +461,7 @@ namespace KERBALISM
 					else
 					{
 						// The panel is oriented toward the sun, do a physic raycast to check occlusion from parts, terrain, buildings...
-						sunOccludedFactor = SolarPanel.GetOccludedFactor(star.direction, out occludingPart, star != trackedSunInfo);
+						sunOccludedFactor = SolarPanel.GetOccludedFactor(star.bodyData.direction, out occludingPart, star != trackedSunInfo);
 
 						// If this is the tracked sun and the panel is occluded, update the gui info string. 
 						if (star == trackedSunInfo && sunOccludedFactor == 0.0)
@@ -681,7 +681,7 @@ namespace KERBALISM
 			double finalFactor = 0.0;
 			foreach (StarFlux star in vd.StarFluxes)
 			{
-				Vector3d sunDir = star.direction;
+				Vector3d sunDir = star.bodyData.direction;
 				// get a rotation of 45° perpendicular to the sun direction
 				Quaternion sunRot = Quaternion.AngleAxis(45, Vector3d.Cross(Vector3d.left, sunDir));
 

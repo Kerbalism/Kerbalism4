@@ -541,6 +541,7 @@ namespace KERBALISM
 
 		private void SetInstantiateDefaults(ProtoVessel protoVessel)
 		{
+			VesselBodyData.Factory(out bodiesData, out starFluxes, out nonStarFluxes);
 			filesTransmitted = new List<DriveFile>();
 			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
@@ -886,117 +887,101 @@ namespace KERBALISM
 
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep");
 
-			// TODO : these lists can be made static
-			List<int> starIndexes = new List<int>();
-			List<int> bodyIndexes = new List<int>();
-			foreach (CelestialBody body in FlightGlobals.Bodies)
-			{
-				if (Sim.IsStar(body))
-					starIndexes.Add(body.flightGlobalsIndex);
-				else
-					bodyIndexes.Add(body.flightGlobalsIndex);
-			}
+			VesselBodyData.Clear(bodiesData);
+			int starCount = starFluxes.Length;
+			int bodyCount = nonStarFluxes.Length;
 
-			// TODO : these arrays should be made static and cleared
-			int starCount = starIndexes.Count;
-			int bodyCount = bodyIndexes.Count;
-			double[] starsRawIrradianceTemp = new double[starCount];
-			double[] starsIrradianceTemp = new double[starCount];
-			double[] starsSunlightFactorTemp = new double[starCount];
-			double[] bodiesAlbedoTemp = new double[bodyCount];
-			double[] bodiesEmissiveTemp = new double[bodyCount];
-			double[] bodiesCoreTemp = new double[bodyCount];
-
-
-			// TODO: Weight averages by duration of each timestamp, since they can vary
+			double lastUT = lastEvalUT;
 			foreach (double timestamp in timestamps)
 			{
 				if (!sim.frameManager.Frames.TryGetValue(timestamp, out SteppedSim.SubstepFrame frame)
 				    || !frame.guidVesselMap.TryGetValue(VesselId, out int index))
 					continue;
 
+				double stepDuration = timestamp - lastUT;
+				lastUT = timestamp;
+
 				int baseIrradianceIndex = index * frame.bodies.Length;
 
-				for (int i = 0; i < starIndexes.Count; i++)
+				for (int i = 0; i < starCount; i++)
 				{
-					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + starIndexes[i]];
-					starsRawIrradianceTemp[i] += irradiance.solarRaw;
-					starsIrradianceTemp[i] += irradiance.solar;
+					StarFlux starFlux = starFluxes[i];
+					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + starFlux.bodyData.bodyIndex];
+
+					starFlux.directRawFlux += irradiance.solarRaw * stepDuration;
+
+					if (irradiance.visibility)
+						starFlux.bodyData.visibility += 1.0;
+					else
+						continue;
+
+					starFlux.directFlux += irradiance.solar * stepDuration;
+
 					if (irradiance.solar > 0.0)
-						starsSunlightFactorTemp[i] += 1.0;
+						starFlux.sunlightFactor += 1.0;
 				}
 
-				for (int i = 0; i < bodyIndexes.Count; i++)
+				for (int i = 0; i < bodyCount; i++)
 				{
-					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + bodyIndexes[i]];
-					bodiesAlbedoTemp[i] += irradiance.albedo;
-					bodiesEmissiveTemp[i] += irradiance.emissive;
-					bodiesCoreTemp[i] += irradiance.core;
+					NonStarFlux bodyData = nonStarFluxes[i];
+					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + bodyData.bodyData.bodyIndex];
+
+					if (irradiance.visibility)
+						bodyData.bodyData.visibility += 1.0;
+					else
+						continue;
+
+					bodyData.albedoFlux += irradiance.albedo * stepDuration;
+					bodyData.emissiveFlux += irradiance.emissive * stepDuration;
+					bodyData.coreFlux += irradiance.core * stepDuration;
 				}
 			}
 
 			double subStepCountD = timestamps.Count;
-			double maxStarDirectRawFlux = 0.0;
+			double totalDuration = lastUT - lastEvalUT;
 			double totalStarDirectRawFlux = 0.0;
 
 			starsIrradiance = 0.0;
 			bodiesIrradianceAlbedo = 0.0;
 			bodiesIrradianceEmissive = 0.0;
 			bodiesIrradianceCore = 0.0;
-			bodyFluxes.Clear();
-			starFluxes.Clear();
 
-			for (int i = 0; i < starIndexes.Count; i++)
+			mainStar = starFluxes[0];
+			for (int i = 0; i < starCount; i++)
 			{
-				CelestialBody body = FlightGlobals.Bodies[starIndexes[i]];
-				StarFlux starFlux = new StarFlux();
-				starFlux.body = body;
-				starFlux.bodyIndex = body.flightGlobalsIndex;
-				starFlux.direction = body.position - vesselPosition;
-				starFlux.distance = starFlux.direction.magnitude;
-				starFlux.direction /= starFlux.distance;
-
-				starFlux.directFlux = starsIrradianceTemp[i] / subStepCountD;
-				starFlux.directRawFlux = starsRawIrradianceTemp[i] / subStepCountD;
-				starFlux.sunlightFactor = starsSunlightFactorTemp[i] / subStepCountD;
+				StarFlux starFlux = starFluxes[i];
+				starFlux.bodyData.UpdateVesselPosition(vesselPosition);
+				starFlux.directFlux /= totalDuration;
+				starFlux.directRawFlux /= totalDuration;
+				starFlux.sunlightFactor /= subStepCountD;
+				starFlux.bodyData.visibility /= subStepCountD;
 
 				starsIrradiance += starFlux.directFlux;
 				totalStarDirectRawFlux += starFlux.directRawFlux;
-				if (starFlux.directRawFlux > maxStarDirectRawFlux)
-				{
-					maxStarDirectRawFlux = starFlux.directRawFlux;
-					mainStar = starFlux;
-				}
 
-				starFluxes.Add(starFlux);
+				if (starFlux.directRawFlux > mainStar.directRawFlux)
+					mainStar = starFlux;
 			}
 
-			for (int i = 0; i < starFluxes.Count; i++)
+			for (int i = 0; i < starCount; i++)
 			{
 				StarFlux starFlux = starFluxes[i];
 				starFlux.directRawFluxProportion = starFlux.directRawFlux / totalStarDirectRawFlux;
-				starFluxes[i] = starFlux;
 			}
 
-			for (int i = 0; i < bodyIndexes.Count; i++)
+			for (int i = 0; i < bodyCount; i++)
 			{
-				CelestialBody body = FlightGlobals.Bodies[bodyIndexes[i]];
-				BodyFlux bodyFlux = new BodyFlux();
-				bodyFlux.body = FlightGlobals.Bodies[i];
-				bodyFlux.bodyIndex = body.flightGlobalsIndex;
-				bodyFlux.direction = body.position - vesselPosition;
-				bodyFlux.distance = bodyFlux.direction.magnitude;
-				bodyFlux.direction /= bodyFlux.distance;
+				NonStarFlux nonStarFlux = nonStarFluxes[i];
+				nonStarFlux.bodyData.UpdateVesselPosition(vesselPosition);
 
-				bodyFlux.albedoFlux = bodiesAlbedoTemp[i] / subStepCountD;
-				bodyFlux.emissiveFlux = bodiesEmissiveTemp[i] / subStepCountD;
-				bodyFlux.coreFlux = bodiesCoreTemp[i] / subStepCountD;
+				nonStarFlux.albedoFlux /= totalDuration;
+				nonStarFlux.emissiveFlux /= totalDuration;
+				nonStarFlux.coreFlux /= totalDuration;
+				nonStarFlux.bodyData.visibility /= subStepCountD;
 
-				bodiesIrradianceAlbedo += bodyFlux.albedoFlux;
-				bodiesIrradianceEmissive += bodyFlux.emissiveFlux;
-				bodiesIrradianceCore += bodyFlux.coreFlux;
-
-				bodyFluxes.Add(bodyFlux);
+				bodiesIrradianceAlbedo += nonStarFlux.albedoFlux;
+				bodiesIrradianceEmissive += nonStarFlux.emissiveFlux;
+				bodiesIrradianceCore += nonStarFlux.coreFlux;
 			}
 
 			irradianceTotal = starsIrradiance + bodiesIrradianceAlbedo + bodiesIrradianceEmissive + bodiesIrradianceCore;
@@ -1015,7 +1000,7 @@ namespace KERBALISM
             zeroG = !EnvLanded && !inAtmosphere;
 
 			visibleBodies = Sim.GetLargeBodies(vesselPosition).ToArray();
-            sunBodyAngle = Sim.SunBodyAngle(Vessel, vesselPosition, mainStar.body);
+            sunBodyAngle = Sim.SunBodyAngle(Vessel, vesselPosition, mainStar.bodyData.body);
 
             // temperature at vessel position
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvTemperature");
@@ -1042,7 +1027,7 @@ namespace KERBALISM
             exosphere = Sim.InsideExosphere(Vessel);
             if (Storm.InProgress(this))
 			{
-				double sunActivity = Radiation.Info(mainStar.body).SolarActivity(false) / 2.0;
+				double sunActivity = Radiation.Info(mainStar.bodyData.body).SolarActivity(false) / 2.0;
 				stormRadiation = PreferencesRadiation.Instance.StormRadiation * mainStar.sunlightFactor * (sunActivity + 0.5);
 			}
 			else
