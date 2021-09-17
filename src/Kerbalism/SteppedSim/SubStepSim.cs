@@ -223,7 +223,7 @@ namespace KERBALISM.SteppedSim
 				f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
 				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
 				f.irradiances.Slice(0, numVessels * numBodies).CopyFrom(vesselBodyIrradiance.Slice(i * numVessels * numBodies, numVessels * numBodies));
-				frameManager.Frames.Add(timestepsSource[i], f);
+				frameManager.Add(f);
 			}
 			Profiler.EndSample();
 

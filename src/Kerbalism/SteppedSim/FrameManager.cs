@@ -8,18 +8,22 @@ namespace KERBALISM.SteppedSim
 {
 	public class FrameManager
 	{
-		public Dictionary<double, SubstepFrame> Frames = new Dictionary<double, SubstepFrame>(256);
-		private readonly List<double> oldFrameTimes = new List<double>();
+		public LinkedList<SubstepFrame> Frames = new LinkedList<SubstepFrame>();
+		private readonly List<SubstepFrame> oldFrames = new List<SubstepFrame>();
+
+		public void Add(SubstepFrame f)
+		{
+			Frames.AddLast(f);
+		}
 
 		public void ClearExpiredFrames(double ts)
 		{
-			oldFrameTimes.Clear();
-			oldFrameTimes.AddRange(Frames.Keys.Where(x => x < ts));
-			foreach (var t in oldFrameTimes)
+			oldFrames.Clear();
+			oldFrames.AddRange(Frames.Where(x => x.timestamp < ts));
+			foreach (var f in oldFrames)
 			{
-				var f = Frames[t];
+				Frames.Remove(f);
 				f.Release();
-				Frames.Remove(t);
 			}
 		}
 	}

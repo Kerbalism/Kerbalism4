@@ -229,6 +229,7 @@
     <Compile Include="SteppedSim\Jobs\FluxAnalysisJobs.cs" />
     <Compile Include="SteppedSim\Jobs\Jobs.cs" />
     <Compile Include="SteppedSim\Jobs\PositionComputeJobs.cs" />
+    <Compile Include="SteppedSim\Jobs\VesselDataJobs.cs" />
     <Compile Include="SteppedSim\PositionComputeFactory.cs" />
     <Compile Include="SteppedSim\SubstepBody.cs" />
     <Compile Include="SteppedSim\SubStepOrbit.cs" />

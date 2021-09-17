@@ -2,6 +2,8 @@ using Flee.PublicTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace KERBALISM
@@ -878,7 +880,7 @@ namespace KERBALISM
 		private void EnvironmentUpdate(SteppedSim.SubStepSim sim)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
-			isSubstepping = timestamps.Count > 1; // TODO : is that always right ?
+			isSubstepping = timestamps.Count > 1; // TODO : This is essentially always true, every FixedUpdate produces 1+ datapoints for every vessel
 
 			Vector3d vesselPosition = Lib.VesselPosition(Vessel);
 			landed = Lib.Landed(Vessel);
@@ -888,105 +890,108 @@ namespace KERBALISM
 			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep");
 
 			VesselBodyData.Clear(bodiesData);
-			int starCount = starFluxes.Length;
-			int bodyCount = nonStarFluxes.Length;
 
-			double lastUT = lastEvalUT;
-			foreach (double timestamp in timestamps)
-			{
-				if (!sim.frameManager.Frames.TryGetValue(timestamp, out SteppedSim.SubstepFrame frame)
-				    || !frame.guidVesselMap.TryGetValue(VesselId, out int index))
-					continue;
-
-				double stepDuration = timestamp - lastUT;
-				lastUT = timestamp;
-
-				int baseIrradianceIndex = index * frame.bodies.Length;
-
-				for (int i = 0; i < starCount; i++)
-				{
-					StarFlux starFlux = starFluxes[i];
-					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + starFlux.bodyData.bodyIndex];
-
-					starFlux.directRawFlux += irradiance.solarRaw * stepDuration;
-
-					if (irradiance.visibility)
-						starFlux.bodyData.visibility += 1.0;
-					else
-						continue;
-
-					starFlux.directFlux += irradiance.solar * stepDuration;
-
-					if (irradiance.solar > 0.0)
-						starFlux.sunlightFactor += 1.0;
-				}
-
-				for (int i = 0; i < bodyCount; i++)
-				{
-					NonStarFlux bodyData = nonStarFluxes[i];
-					SteppedSim.VesselBodyIrradiance irradiance = frame.irradiances[baseIrradianceIndex + bodyData.bodyData.bodyIndex];
-
-					if (irradiance.visibility)
-						bodyData.bodyData.visibility += 1.0;
-					else
-						continue;
-
-					bodyData.albedoFlux += irradiance.albedo * stepDuration;
-					bodyData.emissiveFlux += irradiance.emissive * stepDuration;
-					bodyData.coreFlux += irradiance.core * stepDuration;
-				}
-			}
-
-			double subStepCountD = timestamps.Count;
-			double totalDuration = lastUT - lastEvalUT;
-			double totalStarDirectRawFlux = 0.0;
-
+			// Irradiance totals to compute (all steps, all body sources, for this vessel)
+			irradianceTotal = 0;
 			starsIrradiance = 0.0;
 			bodiesIrradianceAlbedo = 0.0;
 			bodiesIrradianceEmissive = 0.0;
 			bodiesIrradianceCore = 0.0;
 
-			mainStar = starFluxes[0];
-			for (int i = 0; i < starCount; i++)
+			int numSteps = timestamps.Count;
+			if (numSteps > 0 && sim.frameManager.Frames.First is LinkedListNode<SteppedSim.SubstepFrame> frameNode)
 			{
-				StarFlux starFlux = starFluxes[i];
-				starFlux.bodyData.UpdateVesselPosition(vesselPosition);
-				starFlux.directFlux /= totalDuration;
-				starFlux.directRawFlux /= totalDuration;
-				starFlux.sunlightFactor /= subStepCountD;
-				starFlux.bodyData.visibility /= subStepCountD;
+				// Advance to the first frame
+				while (frameNode.Value.timestamp < timestamps[0])
+					frameNode = frameNode.Next;
 
-				starsIrradiance += starFlux.directFlux;
-				totalStarDirectRawFlux += starFlux.directRawFlux;
+				double finalTimestamp = timestamps[numSteps - 1];
+				int localNumBodies = frameNode.Value.bodies.Length;
+				var allFramesIrradiances = new NativeArray<SteppedSim.VesselBodyIrradiance>(numSteps * localNumBodies, Allocator.TempJob);
+				var localTS = new NativeArray<double>(numSteps, Allocator.TempJob);
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep.CollectFrames");
+				// FIXME: Unbreak the weighted averages by duration of each ts in the jobs, since they can vary.
+				// TODO: Technically this abandons the idea that each vesselData is tracking a list of timesteps
+				//       to compute, and instead is grabbing all frames between start and end inclusive.  This probably lines up
+				//       but is it more restrictive?  Consider iterating simultaneously the timestamp list and the linkedlist.
+				// For each frame, copy the timestep and this vessel's irradiance source data into the working arrays
+				int afiIndex = 0;
+				while (frameNode?.Value is SteppedSim.SubstepFrame frame && frame.timestamp <= finalTimestamp)
+				{
+					if (frame.guidVesselMap.TryGetValue(VesselId, out int index))
+					{
+						allFramesIrradiances.Slice(afiIndex * localNumBodies, localNumBodies).CopyFrom(frame.irradiances.Slice(index * localNumBodies, localNumBodies));
+						localTS[afiIndex] = frame.timestamp;
+						afiIndex++;
+					}
+					frameNode = frameNode.Next;
+				}
+				UnityEngine.Profiling.Profiler.EndSample();
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep.SumFrames");
 
-				if (starFlux.directRawFlux > mainStar.directRawFlux)
-					mainStar = starFlux;
+				var irradiancePerBody = new NativeArray<SteppedSim.VesselBodyIrradiance>(localNumBodies, Allocator.TempJob);
+				var irradianceCumulative = new NativeArray<SteppedSim.VesselBodyIrradiance>(1, Allocator.TempJob);
+				// FIXME?: Over-specified namespace because alternate versions of these summations may move to the substep sim
+				// Sum each body's irradiances separately across all timesteps
+				var sumIrr1 = new SteppedSim.Jobs.VesselDataJobs.SumIrradiancesJob
+				{
+					//previousUT = lastEvalUT,        // FIXME: Make job timestep-aware
+					numBodies = localNumBodies,
+					times = localTS,
+					irradiances = allFramesIrradiances,
+					output = irradiancePerBody,
+				}.Schedule(localNumBodies, 1);
+				// Sum all body irradiances for the vessel-cumulative data
+				var sumIrr2 = new SteppedSim.Jobs.VesselDataJobs.SumIrradiancesJobFinal
+				{
+					numBodies = localNumBodies,
+					irradiances = irradiancePerBody,
+					output = irradianceCumulative,
+				}.Schedule(sumIrr1);
+				sumIrr2.Complete();
+
+				double totalDuration = finalTimestamp - lastEvalUT;
+				double totalStarDirectRawFlux = irradianceCumulative[0].solarRaw;
+				bodiesIrradianceAlbedo = irradianceCumulative[0].albedo;
+				bodiesIrradianceCore = irradianceCumulative[0].core;
+				bodiesIrradianceEmissive = irradianceCumulative[0].emissive;
+				starsIrradiance = irradianceCumulative[0].solar;
+				irradianceTotal = starsIrradiance + bodiesIrradianceEmissive + bodiesIrradianceAlbedo + bodiesIrradianceCore;
+
+				mainStar = starFluxes[0];
+				// FIXME: Unbreak the variable-timestep-awareness of the summation
+				// FIXME: Unbreak sunlightFactor and/or visibility?  (Visibility = true when an irradiance != 0)
+				foreach (StarFlux starFlux in starFluxes)
+				{
+					starFlux.bodyData.UpdateVesselPosition(vesselPosition);
+					var irradiance = irradiancePerBody[starFlux.bodyData.bodyIndex];
+					starFlux.directFlux = irradiance.solar / numSteps;
+					starFlux.directRawFlux = irradiance.solarRaw / numSteps;
+					starFlux.directRawFluxProportion = irradiance.solarRaw / totalStarDirectRawFlux;
+					//starFlux.sunlightFactor = irradiance.visibility ? 1 : 0;	// FIXME?
+					//starFlux.bodyData.visibility /= subStepCountD;
+
+					if (starFlux.directRawFlux > mainStar.directRawFlux)
+						mainStar = starFlux;
+				}
+
+				foreach (NonStarFlux nonStarFlux in nonStarFluxes)
+				{
+					nonStarFlux.bodyData.UpdateVesselPosition(vesselPosition);
+					var irradiance = irradiancePerBody[nonStarFlux.bodyData.bodyIndex];
+					nonStarFlux.albedoFlux = irradiance.albedo / numSteps;
+					nonStarFlux.emissiveFlux = irradiance.emissive / numSteps;
+					nonStarFlux.coreFlux = irradiance.core / numSteps;
+					//nonStarFlux.bodyData.visibility /= numSteps;
+				}
+				UnityEngine.Profiling.Profiler.EndSample();  // End .SumFrames
+
+				allFramesIrradiances.Dispose();
+				localTS.Dispose();
+				irradiancePerBody.Dispose();
+				irradianceCumulative.Dispose();
 			}
-
-			for (int i = 0; i < starCount; i++)
-			{
-				StarFlux starFlux = starFluxes[i];
-				starFlux.directRawFluxProportion = starFlux.directRawFlux / totalStarDirectRawFlux;
-			}
-
-			for (int i = 0; i < bodyCount; i++)
-			{
-				NonStarFlux nonStarFlux = nonStarFluxes[i];
-				nonStarFlux.bodyData.UpdateVesselPosition(vesselPosition);
-
-				nonStarFlux.albedoFlux /= totalDuration;
-				nonStarFlux.emissiveFlux /= totalDuration;
-				nonStarFlux.coreFlux /= totalDuration;
-				nonStarFlux.bodyData.visibility /= subStepCountD;
-
-				bodiesIrradianceAlbedo += nonStarFlux.albedoFlux;
-				bodiesIrradianceEmissive += nonStarFlux.emissiveFlux;
-				bodiesIrradianceCore += nonStarFlux.coreFlux;
-			}
-
-			irradianceTotal = starsIrradiance + bodiesIrradianceAlbedo + bodiesIrradianceEmissive + bodiesIrradianceCore;
-
-			UnityEngine.Profiling.Profiler.EndSample();
+			UnityEngine.Profiling.Profiler.EndSample();  // End .ProcessStep
 
 			// situation
 			gravity = Math.Abs(FlightGlobals.getGeeForceAtPosition(vesselPosition, mainBody).magnitude * PhysicsGlobals.GraviticForceMultiplier) / PhysicsGlobals.GravitationalAcceleration;
