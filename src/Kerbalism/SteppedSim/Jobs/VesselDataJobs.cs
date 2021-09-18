@@ -46,6 +46,7 @@ namespace KERBALISM.SteppedSim.Jobs.VesselDataJobs
 				result.core += vbi.core * weight;
 				result.solar += vbi.solar * weight;
 				result.solarRaw += vbi.solarRaw * weight;
+				result.visibility += vbi.visibility * weight;
 			}
 			output[index] = result;
 		}
@@ -70,6 +71,7 @@ namespace KERBALISM.SteppedSim.Jobs.VesselDataJobs
 				result.core += vbi.core;
 				result.solar += vbi.solar;
 				result.solarRaw += vbi.solarRaw;
+				result.visibility += vbi.visibility;
 			}
 			output[0] = result;
 		}

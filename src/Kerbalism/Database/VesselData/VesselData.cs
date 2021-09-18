@@ -963,8 +963,6 @@ namespace KERBALISM
 				irradianceTotal = starsIrradiance + bodiesIrradianceEmissive + bodiesIrradianceAlbedo + bodiesIrradianceCore;
 
 				mainStar = starFluxes[0];
-				// FIXME: Unbreak the variable-timestep-awareness of the summation
-				// FIXME: Unbreak sunlightFactor and/or visibility?  (Visibility = true when an irradiance != 0)
 				foreach (StarFlux starFlux in starFluxes)
 				{
 					starFlux.bodyData.UpdateVesselPosition(vesselPosition);
@@ -972,8 +970,8 @@ namespace KERBALISM
 					starFlux.directFlux = irradiance.solar;
 					starFlux.directRawFlux = irradiance.solarRaw;
 					starFlux.directRawFluxProportion = irradiance.solarRaw / totalStarDirectRawFlux;
-					//starFlux.sunlightFactor = irradiance.visibility ? 1 : 0;	// FIXME?
-					//starFlux.bodyData.visibility /= subStepCountD;
+					starFlux.sunlightFactor = irradiance.visibility;
+					starFlux.bodyData.visibility = irradiance.visibility;
 
 					if (starFlux.directRawFlux > mainStar.directRawFlux)
 						mainStar = starFlux;
@@ -986,7 +984,7 @@ namespace KERBALISM
 					nonStarFlux.albedoFlux = irradiance.albedo;
 					nonStarFlux.emissiveFlux = irradiance.emissive;
 					nonStarFlux.coreFlux = irradiance.core;
-					//nonStarFlux.bodyData.visibility /= numSteps;
+					nonStarFlux.bodyData.visibility = irradiance.visibility;
 				}
 				UnityEngine.Profiling.Profiler.EndSample();  // End .SumFrames
 

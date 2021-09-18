@@ -349,15 +349,16 @@ namespace KERBALISM.SteppedSim.Jobs
 			var distSq = math.distancesq(vessel.position, body.position);
 			bool valid = vesselOccludedFromBody[index] == false && distSq > 0;
 			double denomRecipNoOcclusion = 1.0 / (4.0 * math.PI_DBL * distSq);
-			double denomRecipOcclusion = Unity.Burst.CompilerServices.Hint.Likely(valid) ? denomRecipNoOcclusion : 0;
+			double denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? denomRecipNoOcclusion : 0;
+			float visibility = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 : 0;
 			irradiance[index] = new VesselBodyIrradiance
 			{
-				visibility = valid,
-				solar = body.solarLuminosity * denomRecipOcclusion,
+				visibility = visibility,
+				solar = body.solarLuminosity * denomRecip,
 				solarRaw = body.solarLuminosity * denomRecipNoOcclusion,
-				core = body.bodyCoreThermalFlux * denomRecipOcclusion,
-				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecipOcclusion,
-				albedo = bodyAlbedoLuminosity[index] * denomRecipOcclusion,
+				core = body.bodyCoreThermalFlux * denomRecip,
+				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecip,
+				albedo = bodyAlbedoLuminosity[index] * denomRecip,
 			};
 		}
 	}

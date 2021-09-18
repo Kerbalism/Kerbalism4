@@ -54,7 +54,7 @@ namespace KERBALISM.SteppedSim
 
 	public struct VesselBodyIrradiance
 	{
-		public bool visibility;
+		public float visibility;
 		public double solarRaw;
 		public double solar;
 		public double core;
