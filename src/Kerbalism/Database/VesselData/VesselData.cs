@@ -910,7 +910,6 @@ namespace KERBALISM
 				var allFramesIrradiances = new NativeArray<SteppedSim.VesselBodyIrradiance>(numSteps * localNumBodies, Allocator.TempJob);
 				var localTS = new NativeArray<double>(numSteps, Allocator.TempJob);
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep.CollectFrames");
-				// FIXME: Unbreak the weighted averages by duration of each ts in the jobs, since they can vary.
 				// TODO: Technically this abandons the idea that each vesselData is tracking a list of timesteps
 				//       to compute, and instead is grabbing all frames between start and end inclusive.  This probably lines up
 				//       but is it more restrictive?  Consider iterating simultaneously the timestamp list and the linkedlist.
@@ -929,18 +928,24 @@ namespace KERBALISM
 				UnityEngine.Profiling.Profiler.EndSample();
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep.SumFrames");
 
+				var frameWeights = new NativeArray<float>(numSteps, Allocator.TempJob);
 				var irradiancePerBody = new NativeArray<SteppedSim.VesselBodyIrradiance>(localNumBodies, Allocator.TempJob);
 				var irradianceCumulative = new NativeArray<SteppedSim.VesselBodyIrradiance>(1, Allocator.TempJob);
 				// FIXME?: Over-specified namespace because alternate versions of these summations may move to the substep sim
+				var frameWeightsJob = new SteppedSim.Jobs.VesselDataJobs.ComputeFrameWeights
+				{
+					start = lastEvalUT,
+					times = localTS,
+					weights = frameWeights,
+				}.Schedule();
 				// Sum each body's irradiances separately across all timesteps
 				var sumIrr1 = new SteppedSim.Jobs.VesselDataJobs.SumIrradiancesJob
 				{
-					//previousUT = lastEvalUT,        // FIXME: Make job timestep-aware
 					numBodies = localNumBodies,
-					times = localTS,
+					weights = frameWeights,
 					irradiances = allFramesIrradiances,
 					output = irradiancePerBody,
-				}.Schedule(localNumBodies, 1);
+				}.Schedule(localNumBodies, 1, frameWeightsJob);
 				// Sum all body irradiances for the vessel-cumulative data
 				var sumIrr2 = new SteppedSim.Jobs.VesselDataJobs.SumIrradiancesJobFinal
 				{
@@ -950,7 +955,6 @@ namespace KERBALISM
 				}.Schedule(sumIrr1);
 				sumIrr2.Complete();
 
-				double totalDuration = finalTimestamp - lastEvalUT;
 				double totalStarDirectRawFlux = irradianceCumulative[0].solarRaw;
 				bodiesIrradianceAlbedo = irradianceCumulative[0].albedo;
 				bodiesIrradianceCore = irradianceCumulative[0].core;
@@ -965,8 +969,8 @@ namespace KERBALISM
 				{
 					starFlux.bodyData.UpdateVesselPosition(vesselPosition);
 					var irradiance = irradiancePerBody[starFlux.bodyData.bodyIndex];
-					starFlux.directFlux = irradiance.solar / numSteps;
-					starFlux.directRawFlux = irradiance.solarRaw / numSteps;
+					starFlux.directFlux = irradiance.solar;
+					starFlux.directRawFlux = irradiance.solarRaw;
 					starFlux.directRawFluxProportion = irradiance.solarRaw / totalStarDirectRawFlux;
 					//starFlux.sunlightFactor = irradiance.visibility ? 1 : 0;	// FIXME?
 					//starFlux.bodyData.visibility /= subStepCountD;
@@ -979,13 +983,14 @@ namespace KERBALISM
 				{
 					nonStarFlux.bodyData.UpdateVesselPosition(vesselPosition);
 					var irradiance = irradiancePerBody[nonStarFlux.bodyData.bodyIndex];
-					nonStarFlux.albedoFlux = irradiance.albedo / numSteps;
-					nonStarFlux.emissiveFlux = irradiance.emissive / numSteps;
-					nonStarFlux.coreFlux = irradiance.core / numSteps;
+					nonStarFlux.albedoFlux = irradiance.albedo;
+					nonStarFlux.emissiveFlux = irradiance.emissive;
+					nonStarFlux.coreFlux = irradiance.core;
 					//nonStarFlux.bodyData.visibility /= numSteps;
 				}
 				UnityEngine.Profiling.Profiler.EndSample();  // End .SumFrames
 
+				frameWeights.Dispose();
 				allFramesIrradiances.Dispose();
 				localTS.Dispose();
 				irradiancePerBody.Dispose();
@@ -1004,6 +1009,7 @@ namespace KERBALISM
 
             zeroG = !EnvLanded && !inAtmosphere;
 
+			// TODO: Return the occlusionRelevance map from the substep calcs, rather than recompute here?
 			visibleBodies = Sim.GetLargeBodies(vesselPosition).ToArray();
             sunBodyAngle = Sim.SunBodyAngle(Vessel, vesselPosition, mainStar.bodyData.body);
 

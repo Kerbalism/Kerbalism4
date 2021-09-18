@@ -4,12 +4,31 @@ using Unity.Jobs;
 
 namespace KERBALISM.SteppedSim.Jobs.VesselDataJobs
 {
-	// TODO: Make timestep-aware
-    [BurstCompile]
+	[BurstCompile]
+	public struct ComputeFrameWeights : IJob
+	{
+		[ReadOnly] public double start;
+		[ReadOnly] public NativeArray<double> times;
+		[WriteOnly] public NativeArray<float> weights;
+
+		public void Execute()
+		{
+			double totalTime = times[times.Length - 1] - start;
+			double totalTimeRecip = Unity.Burst.CompilerServices.Hint.Likely(totalTime > 0) ? 1 / totalTime : 1;
+			double prev = start;
+			for (int i=0; i<times.Length; i++)
+			{
+				weights[i] = (float) ((times[i] - prev) * totalTimeRecip);
+				prev = times[i];
+			}
+		}
+	}
+
+	[BurstCompile]
 	public struct SumIrradiancesJob : IJobParallelFor
 	{
 		[ReadOnly] public int numBodies;
-		[ReadOnly] public NativeArray<double> times;
+		[ReadOnly] public NativeArray<float> weights;
 		[ReadOnly] public NativeArray<VesselBodyIrradiance> irradiances;
 		[WriteOnly] public NativeArray<VesselBodyIrradiance> output;
 
@@ -18,14 +37,15 @@ namespace KERBALISM.SteppedSim.Jobs.VesselDataJobs
 		public void Execute(int index)
 		{
 			VesselBodyIrradiance result = default;
-			for (int time=0; time < times.Length; time++)
+			for (int frameIndex=0; frameIndex < weights.Length; frameIndex++)
 			{
-				VesselBodyIrradiance vbi = irradiances[time * numBodies + index];
-				result.albedo += vbi.albedo;
-				result.emissive += vbi.emissive;
-				result.core += vbi.core;
-				result.solar += vbi.solar;
-				result.solarRaw += vbi.solarRaw;
+				VesselBodyIrradiance vbi = irradiances[frameIndex * numBodies + index];
+				float weight = weights[frameIndex];
+				result.albedo += vbi.albedo * weight;
+				result.emissive += vbi.emissive * weight;
+				result.core += vbi.core * weight;
+				result.solar += vbi.solar * weight;
+				result.solarRaw += vbi.solarRaw * weight;
 			}
 			output[index] = result;
 		}
