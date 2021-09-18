@@ -239,11 +239,15 @@ namespace KERBALISM.SteppedSim
 
 			/*
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
+			var frameNode = frameManager.Frames.First;
+			while (frameNode.Value.timestamp < timestepsSource[0])
+				frameNode = frameNode.Next;
 			for (int i=0; i<numSteps; i++)
 			{
+				SubstepFrame f = frameNode.Value;
 				bool doVessels = i == numSteps - 1;
-				if (frameManager.Frames.TryGetValue(timestepsSource[i], out var f))
-					ValidateComputations(Bodies, Vessels, f, doVessels);
+				ValidateComputations(Bodies, Vessels, f, doVessels);
+				frameNode = frameNode.Next;
 			}
 			Profiler.EndSample();
 			*/

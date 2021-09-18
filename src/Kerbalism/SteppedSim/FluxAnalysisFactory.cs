@@ -187,7 +187,7 @@ namespace KERBALISM.SteppedSim
 			var bodyStarOcclusionJob = new BodyStarOcclusionJob()
 			{
 				bodies = bodies,
-				numBodiesPerStep = numBodies,
+				stats = frameStats,
 				occlusionRelevance = bodyBodyOcclusionRelevance,
 				timeBodyStarIndex = timeBodyStarIndex,
 				occluded = bodyStarOcclusion,
@@ -199,7 +199,7 @@ namespace KERBALISM.SteppedSim
 			var vesselBodyOcclusionJob = new VesselBodyOcclusionJob
 			{
 				timeVesselBodyIndex = timeVesselBodyIndex,
-				numBodiesPerStep = numBodies,
+				stats = frameStats,
 				vessels = vessels,
 				bodies = bodies,
 				occlusionRelevance = vesselBodyOcclusionRelevance,

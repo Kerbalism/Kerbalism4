@@ -148,7 +148,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	public struct BodyStarOcclusionJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<TimeBodyStarIndex> timeBodyStarIndex;
-		[ReadOnly] public int numBodiesPerStep;
+		[ReadOnly] public FrameStats stats;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<bool> occlusionRelevance;
 		[WriteOnly] public NativeArray<bool> occluded;
@@ -158,13 +158,16 @@ namespace KERBALISM.SteppedSim.Jobs
 			TimeBodyStarIndex i = timeBodyStarIndex[index];
 			var body = bodies[i.directBody];
 			var star = bodies[i.directStar];
-			int occluderIndex = i.time * numBodiesPerStep;
+			// Occlusion Relevance is a time-body-body unrolled array
+			int occlusionRelevanceIndex = (i.time * (stats.numBodies + stats.numBodies)) + (i.origBody * stats.numBodies);
+			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
 			bool occludedTemp = false;
-			for (int ind = 0; ind < numBodiesPerStep && !occludedTemp; ind++)
+			for (int ind = 0; ind < stats.numBodies && !occludedTemp; ind++)
 			{
 				var occluder = bodies[occluderIndex];
-				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occluderIndex] && occluderIndex != i.directStar))
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origStar))
 					occludedTemp |= FluxAnalysisFactory.OcclusionTest(body.position, star.position, occluder.position, occluder.radius);
+				occlusionRelevanceIndex++;
 				occluderIndex++;
 			}
 			occluded[index] = occludedTemp;
@@ -175,7 +178,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	public struct VesselBodyOcclusionJob : IJobParallelFor
 	{
 		[ReadOnly] public NativeArray<TimeVesselBodyIndex> timeVesselBodyIndex;
-		[ReadOnly] public int numBodiesPerStep;
+		[ReadOnly] public FrameStats stats;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<bool> occlusionRelevance;
@@ -186,14 +189,17 @@ namespace KERBALISM.SteppedSim.Jobs
 			TimeVesselBodyIndex i = timeVesselBodyIndex[index];
 			var vessel = vessels[i.directVessel];
 			var body = bodies[i.directBody];
-			int occluderIndex = i.time * numBodiesPerStep;
+			// Occlusion Relevance is a time-vessel-body unrolled array
+			int occlusionRelevanceIndex = (i.time * (stats.numVessels + stats.numBodies)) + (i.origVessel * stats.numBodies);
+			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
 			bool occludedTemp = false;
-			for (int ind = 0; ind < numBodiesPerStep && !occludedTemp; ind++)
+			for (int ind = 0; ind < stats.numBodies && !occludedTemp; ind++)
 			{
 				var occluder = bodies[occluderIndex];
-				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occluderIndex] && occluderIndex != i.directBody))
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origBody))
 					//occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
 					occludedTemp |= LocalOcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
+				occlusionRelevanceIndex++;
 				occluderIndex++;
 			}
 			occluded[index] = occludedTemp;
@@ -347,18 +353,19 @@ namespace KERBALISM.SteppedSim.Jobs
 			var vessel = vessels[i.directVessel];
 			var body = bodies[i.directBody];
 			var distSq = math.distancesq(vessel.position, body.position);
-			bool valid = vesselOccludedFromBody[index] == false && distSq > 0;
-			double denomRecipNoOcclusion = 1.0 / (4.0 * math.PI_DBL * distSq);
-			double denomRecip = Unity.Burst.CompilerServices.Hint.Likely(valid) ? denomRecipNoOcclusion : 0;
-			float visibility = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1 : 0;
+			bool valid = distSq > 0;
+			bool unoccluded = !vesselOccludedFromBody[index];
+			double areaRecipNoOcclusion = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1.0 / (4.0 * math.PI_DBL * distSq) : 0;
+			double areaRecip = Unity.Burst.CompilerServices.Hint.Likely(unoccluded && valid) ? areaRecipNoOcclusion : 0;
+			float visibility = Unity.Burst.CompilerServices.Hint.Likely(unoccluded && valid) ? 1 : 0;
 			irradiance[index] = new VesselBodyIrradiance
 			{
 				visibility = visibility,
-				solar = body.solarLuminosity * denomRecip,
-				solarRaw = body.solarLuminosity * denomRecipNoOcclusion,
-				core = body.bodyCoreThermalFlux * denomRecip,
-				emissive = bodyEmissiveLuminosity[i.directBody] * denomRecip,
-				albedo = bodyAlbedoLuminosity[index] * denomRecip,
+				solar = body.solarLuminosity * areaRecip,
+				solarRaw = body.solarLuminosity * areaRecipNoOcclusion,
+				core = body.bodyCoreThermalFlux * areaRecip,
+				emissive = bodyEmissiveLuminosity[i.directBody] * areaRecip,
+				albedo = bodyAlbedoLuminosity[index] * areaRecip,
 			};
 		}
 	}
