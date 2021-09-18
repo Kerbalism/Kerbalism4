@@ -8,6 +8,9 @@ namespace KERBALISM.SteppedSim
 		public double3 position;
 		public Planetarium.CelestialFrame bodyFrame;
 		public double radius;
+		public double atmosphereDepth;
+		public double atmDensityASL;
+		public double radiusAtmoFactor;
 
 		public double solarLuminosity;    // For stars
 		public double albedo;

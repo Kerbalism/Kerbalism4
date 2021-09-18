@@ -337,6 +337,9 @@ namespace KERBALISM.SteppedSim
 					bodyFrame = body.BodyFrame,
 					position = double3.zero,
 					radius = body.Radius,
+					atmosphereDepth = body.atmosphereDepth,
+					atmDensityASL = body.atmDensityASL,
+					radiusAtmoFactor = body.radiusAtmoFactor,
 					solarLuminosity = body.isStar ? defaultLuminosity : 0,	// FIXME
 					albedo = body.albedo,
 					bodyCoreThermalFlux = body.coreTemperatureOffset,
@@ -372,6 +375,7 @@ namespace KERBALISM.SteppedSim
 					rotation = 0,
 					isLanded = v.Landed,
 					LLA = new double3(v.latitude, v.longitude, v.altitude + v.mainBody.Radius),
+					atmosphericDensity = GetAtmosphericDensity(v),
 					mainBodyIndex = BodyIndex[v.mainBody],
 				};
 				rotationsSource[i++] = new RotationCondition()
@@ -384,6 +388,14 @@ namespace KERBALISM.SteppedSim
 				};
 			}
 			Profiler.EndSample();
+		}
+
+		private double GetAtmosphericDensity(Vessel v)
+		{
+			CelestialBody body = v.mainBody;
+			double static_pressure = body.GetPressure(v.altitude);
+			double density = static_pressure > 0 ? body.GetDensity(static_pressure, body.GetTemperature(v.altitude)) : 0;
+			return density;
 		}
 
 		private bool ValidateComputations(in List<CelestialBody> bodies, in List<Vessel> vessels, in SubstepFrame frame, bool checkVessels = false)

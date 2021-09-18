@@ -67,12 +67,16 @@ namespace KERBALISM.SteppedSim
 		private NativeArray<TimeBodyOccluderIndex> timeBodyOccluderIndex;
 		private NativeArray<TimeVesselBodyIndex> timeVesselBodyIndex;
 		private NativeArray<TimeVesselBodyStarIndex> timeVesselBodyStarIndex;
+		private readonly double homeAtmDensityASL = 1.225;
+		private readonly double solarInsolationAtHome;
 
 		public FluxAnalysisFactory()
 		{
 			timeBodyOccluderIndex = new NativeArray<TimeBodyOccluderIndex>(20, Allocator.Persistent);
 			timeVesselBodyIndex = new NativeArray<TimeVesselBodyIndex>(20, Allocator.Persistent);
 			timeVesselBodyStarIndex = new NativeArray<TimeVesselBodyStarIndex>(20, Allocator.Persistent);
+			homeAtmDensityASL = (Planetarium.fetch?.Home.atmosphereDepth > 0.0) ? Planetarium.fetch.Home.atmDensityASL : 1.225;
+			solarInsolationAtHome = PhysicsGlobals.SolarInsolationAtHome;
 		}
 
 		/// <summary>
@@ -111,6 +115,7 @@ namespace KERBALISM.SteppedSim
 		 *   BodyStarOcclusionJob: For each (body, star) pair, evaluate occlusion from all [relevant] (body, occluder) pairs.
 		 *   VesselBodyOcclusionJob: For each (vessel, body) pair, evaluate occlusion from all [relevant] (vessel, occluder) pairs.
 		 * BodySolarIncidentFluxJob: For each (body, star) pair, evaluate the solar flux through the body cross-sectional area
+		 * SolarAtmosphericEffectsJob: For each (vessel, body) pair, evaluate the atmospheric effect between the vessel and the body
 		 * BodyEmissiveLuminositiesJob: Compute Re-emissive and isotropic albedo luminosities for each body-star relationship
 		 * AlbedoLuminosityForVesselJob: Apply 3-body (vessel, body, star) geometry effects to albedo
 		 * CombinePerStarLuminosity: Roll per-star emissive and albedo luminosities together into the body
@@ -219,6 +224,18 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Luminosities");
+			var solarAtmosphericEffects = new NativeArray<double>(numStepsVesselsBodies, Allocator.TempJob);
+			var solarAtmosphericEffectsJob = new SolarAtmosphericEffectsJob
+			{
+				tuples = timeVesselBodyIndex,
+				stats = frameStats,
+				vessels = vessels,
+				bodies = bodies,
+				homeAtmDensityASL = homeAtmDensityASL,
+				solarInsolationAtHome = solarInsolationAtHome,
+				fluxMultipliers = solarAtmosphericEffects,
+			}.Schedule(numStepsVesselsBodies, 16, buildTimeVesselBodyIndexJob);
+
 			// 1 standard unit Solar luminosity = 3.828e26 W
 			// Solar Irradiance (energy / unit area, ie W/m^2) relates to solar luminosity:
 			// Irradiance = Luminosity / 4 * pi * (d * d) where d = distance where irradiance was measured
@@ -273,12 +290,7 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			Profiler.BeginSample("BodyIrradiances");
-			/*
-			var directIrradiance = new NativeArray<double>(numStepsVesselsBodies, Allocator.TempJob);
-			var coreIrradiance = new NativeArray<double>(numStepsVesselsBodies, Allocator.TempJob);
-			var emissiveIrradiance = new NativeArray<double>(numStepsVesselsBodies, Allocator.TempJob);
-			var albedoIrradiance = new NativeArray<double>(numStepsVesselsBodies, Allocator.TempJob);
-			*/
+			var combineLuminositiesJob = JobHandle.CombineDependencies(combineAlbedoLuminositySourcesJob, combineEmissiveLuminositySourcesJob);
 			vesselBodyIrradiances = new NativeArray<VesselBodyIrradiance>(numStepsVesselsBodies, Allocator.TempJob);
 			var bodyIrradiancesJob = new BodyIrradiancesJob
 			{
@@ -288,33 +300,14 @@ namespace KERBALISM.SteppedSim
 				bodyEmissiveLuminosity = combinedEmissiveLuminosity,
 				bodyAlbedoLuminosity = combinedAlbedoLuminosity,
 				vesselOccludedFromBody = vesselBodyOcclusionMap,
+				atmosphericEffects = solarAtmosphericEffects,
 				irradiance = vesselBodyIrradiances,
-			}.Schedule(numStepsVesselsBodies, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, combineAlbedoLuminositySourcesJob, combineEmissiveLuminositySourcesJob));
+			}.Schedule(numStepsVesselsBodies, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, combineLuminositiesJob, solarAtmosphericEffectsJob));
 			Profiler.EndSample();
 
 			var d0 = timeBodyStarIndex.Dispose(bodyIrradiancesJob);
 			outputJob = bodyStarOcclusion.Dispose(d0);
 			JobHandle.ScheduleBatchedJobs();
-
-			/*
-			//var directRawFlux = sunFluxAtVessels[i];
-			//var directFlux = directRawFlux;
-			//if (MainBody.hasAtmosphere && altitude < MainBody.atmosphereDepth)
-			//directFlux *= MainBody.LightTransparencyFactor(mainBodyPosition, starFlux.direction, vesselPosition, altitude);
-
-			// if we are inside the atmosphere, scale down both fluxes by the atmosphere absorbtion at the current altitude
-			// rationale : the atmosphere itself play a role in refracting the solar flux toward space, and the proportion of
-			// the emissive flux released by the atmosphere itself is really only valid when you're in space. The real effects
-			// are quite complex, this is a first approximation.
-			//
-			/*
-			if (body.hasAtmosphere && altitude < body.atmosphereDepth)
-			{
-				double atmoFactor = body.LightTransparencyFactor(altitude);
-				albedoFlux *= atmoFactor;
-				emissiveFlux *= atmoFactor;
-			}
-			*/
 		}
 		public static double SolarFlux(double luminosity, double distance)
 		{

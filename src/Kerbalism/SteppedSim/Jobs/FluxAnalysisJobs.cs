@@ -324,6 +324,67 @@ namespace KERBALISM.SteppedSim.Jobs
 		}
 	}
 
+	[BurstCompile]
+	public struct SolarAtmosphericEffectsJob : IJobParallelFor
+	{
+		[ReadOnly] public NativeArray<TimeVesselBodyIndex> tuples;
+		[ReadOnly] public FrameStats stats;
+		[ReadOnly] public NativeArray<SubstepVessel> vessels;
+		[ReadOnly] public NativeArray<SubstepBody> bodies;
+		[ReadOnly] public double homeAtmDensityASL;
+		[ReadOnly] public double solarInsolationAtHome;
+		[WriteOnly] public NativeArray<double> fluxMultipliers;
+
+		public void Execute(int index)
+		{
+			TimeVesselBodyIndex i = tuples[index];
+			var vessel = vessels[i.directVessel];
+			double density = vessel.atmosphericDensity;
+			double solarFluxMultiplier = 1;
+			if (Unity.Burst.CompilerServices.Hint.Unlikely(density > 0))
+			{
+				int directMainBody = i.time * stats.numBodies + vessel.mainBodyIndex;
+				var mainBody = bodies[directMainBody];
+				var body = bodies[i.directBody];
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(vessel.mainBodyIndex == i.origBody))
+				{
+					GetSolarAtmosphericEffects(1, density, body.radiusAtmoFactor, homeAtmDensityASL, solarInsolationAtHome, out _, out solarFluxMultiplier);
+					// When looking at the main body, the atmosphere -below- the vessel is the important part.
+					solarFluxMultiplier = 1 - solarFluxMultiplier;
+				} else
+				{
+					double3 up = math.normalize(vessel.position - mainBody.position);
+					double3 source_dir = math.normalize(body.position - vessel.position);
+					GetSolarAtmosphericEffects(math.dot(up, source_dir), density, body.radiusAtmoFactor, homeAtmDensityASL, solarInsolationAtHome, out _, out solarFluxMultiplier);
+				}
+			}
+			fluxMultipliers[index] = solarFluxMultiplier;
+		}
+
+		// Re-implementation of stock body.GetSolarAtmosphericEffects(Vector3d.Dot(up, source_dir), density, out _, out double stockFluxFactor);
+		private  void GetSolarAtmosphericEffects(
+		  double sunDot,
+		  double density,
+		  double radiusAtmoFactor,
+		  double homeAtmDensityASL,
+		  double solarInsolationAtHome,
+		  out double solarAirMass,
+		  out double solarFluxMultiplier)
+		{
+			// When sunDot == 1, num = radiusAtmoFactor.  Sqrt parameter becomes (x^2 + 2x + 1) = (x+1)^2 where x = radiusAtmoFactor
+			// so compute result = 1.  When sunDot <= 0, parameter is 2x+1, result ~= 1.4 * sqrt(radiusAtmoFactor)
+			double num = math.max(radiusAtmoFactor * sunDot, 0);
+			solarAirMass = math.sqrt(num * num + 2.0 * radiusAtmoFactor + 1.0) - num;
+			solarFluxMultiplier = GetSolarPowerFactor(density * solarAirMass, homeAtmDensityASL, solarInsolationAtHome);
+		}
+
+		private double GetSolarPowerFactor(double density, double homeAtmDensityASL, double solarInsolationAtHome)
+		{
+			double num2 = (1.0 - solarInsolationAtHome) * homeAtmDensityASL;
+			return num2 / (num2 + density * solarInsolationAtHome);
+		}
+	}
+
 	/// <summary>
 	/// Compute final matrix of irradiances per (vessel, body):
 	///     Stars (body.solarIrradiance)
@@ -344,6 +405,8 @@ namespace KERBALISM.SteppedSim.Jobs
 		[ReadOnly] public NativeArray<bool> vesselOccludedFromBody;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyEmissiveLuminosity;
 		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> bodyAlbedoLuminosity;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<double> atmosphericEffects;
+
 		[WriteOnly] public NativeArray<VesselBodyIrradiance> irradiance;
 
 		// TODO : ATMOSPHERIC FACTOR
@@ -358,14 +421,15 @@ namespace KERBALISM.SteppedSim.Jobs
 			double areaRecipNoOcclusion = Unity.Burst.CompilerServices.Hint.Likely(valid) ? 1.0 / (4.0 * math.PI_DBL * distSq) : 0;
 			double areaRecip = Unity.Burst.CompilerServices.Hint.Likely(unoccluded && valid) ? areaRecipNoOcclusion : 0;
 			float visibility = Unity.Burst.CompilerServices.Hint.Likely(unoccluded && valid) ? 1 : 0;
+			double atmosphereEffect = atmosphericEffects[index];
 			irradiance[index] = new VesselBodyIrradiance
 			{
 				visibility = visibility,
-				solar = body.solarLuminosity * areaRecip,
+				solar = body.solarLuminosity * atmosphereEffect * areaRecip,
 				solarRaw = body.solarLuminosity * areaRecipNoOcclusion,
-				core = body.bodyCoreThermalFlux * areaRecip,
-				emissive = bodyEmissiveLuminosity[i.directBody] * areaRecip,
-				albedo = bodyAlbedoLuminosity[index] * areaRecip,
+				core = body.bodyCoreThermalFlux * atmosphereEffect * areaRecip,
+				emissive = bodyEmissiveLuminosity[i.directBody] * atmosphereEffect * areaRecip,
+				albedo = bodyAlbedoLuminosity[index] * atmosphereEffect * areaRecip,
 			};
 		}
 	}
