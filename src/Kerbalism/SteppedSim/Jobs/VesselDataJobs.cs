@@ -25,34 +25,6 @@ namespace KERBALISM.SteppedSim.Jobs.VesselDataJobs
 	}
 
 	[BurstCompile]
-	public struct SumIrradiancesJob : IJobParallelFor
-	{
-		[ReadOnly] public int numBodies;
-		[ReadOnly] public NativeArray<float> weights;
-		[ReadOnly] public NativeArray<VesselBodyIrradiance> irradiances;
-		[WriteOnly] public NativeArray<VesselBodyIrradiance> output;
-
-		// for each body, sum its irradiances over all times.
-		// index == which body
-		public void Execute(int index)
-		{
-			VesselBodyIrradiance result = default;
-			for (int frameIndex=0; frameIndex < weights.Length; frameIndex++)
-			{
-				VesselBodyIrradiance vbi = irradiances[frameIndex * numBodies + index];
-				float weight = weights[frameIndex];
-				result.albedo += vbi.albedo * weight;
-				result.emissive += vbi.emissive * weight;
-				result.core += vbi.core * weight;
-				result.solar += vbi.solar * weight;
-				result.solarRaw += vbi.solarRaw * weight;
-				result.visibility += vbi.visibility * weight;
-			}
-			output[index] = result;
-		}
-	}
-
-	[BurstCompile]
 	public struct SumIrradiancesJobFinal : IJob
 	{
 		[ReadOnly] public int numBodies;

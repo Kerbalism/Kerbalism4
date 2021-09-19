@@ -409,7 +409,6 @@ namespace KERBALISM.SteppedSim.Jobs
 
 		[WriteOnly] public NativeArray<VesselBodyIrradiance> irradiance;
 
-		// TODO : ATMOSPHERIC FACTOR
 		public void Execute(int index)
 		{
 			TimeVesselBodyIndex i = tuples[index];
@@ -431,6 +430,37 @@ namespace KERBALISM.SteppedSim.Jobs
 				emissive = bodyEmissiveLuminosity[i.directBody] * atmosphereEffect * areaRecip,
 				albedo = bodyAlbedoLuminosity[index] * atmosphereEffect * areaRecip,
 			};
+		}
+	}
+
+	[BurstCompile]
+	public struct SumVesselBodyIrradiancesJob : IJobParallelFor
+	{
+		[ReadOnly] public FrameStats stats;
+		[ReadOnly] public NativeArray<float> weights;
+		[ReadOnly] public NativeArray<VesselBodyIrradiance> irradiances;
+		[WriteOnly] public NativeArray<VesselBodyIrradiance> output;
+
+		// for each vessel,body: sum its irradiances over all times.
+		// index = vessel,body.  This isn't unrolled per vessel,body so do it manually.
+		public void Execute(int index)
+		{
+			int vesselIndex = index / stats.numBodies;
+			int bodyIndex = index - (vesselIndex * stats.numBodies);
+			int frameSize = stats.numBodies * stats.numVessels;
+			VesselBodyIrradiance result = default;
+			for (int frameIndex = 0; frameIndex < weights.Length; frameIndex++)
+			{
+				VesselBodyIrradiance vbi = irradiances[frameIndex * frameSize + (vesselIndex * stats.numBodies) + bodyIndex];
+				float weight = weights[frameIndex];
+				result.albedo += vbi.albedo * weight;
+				result.emissive += vbi.emissive * weight;
+				result.core += vbi.core * weight;
+				result.solar += vbi.solar * weight;
+				result.solarRaw += vbi.solarRaw * weight;
+				result.visibility += vbi.visibility * weight;
+			}
+			output[index] = result;
 		}
 	}
 }
