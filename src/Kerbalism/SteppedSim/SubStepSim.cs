@@ -32,6 +32,7 @@ namespace KERBALISM.SteppedSim
 		public float maxSubstepTime = 30;
 		private const float SimErrorThreshold = 10; // Detect positional errors > 10m
 		private bool runStockCalcs = false;
+		private bool runValidator = false;
 
 		private Planetarium.CelestialFrame currentZup;
 		private double currentInverseRotAngle;
@@ -214,57 +215,60 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			// Do things
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.RecordFrames");
-			int numVessels = Vessels.Count;
-			int numBodies = Bodies.Count;
 			int numSteps = timestepsSource.Length;
-			for (int i = 0; i < numSteps; i++)
+			if (numSteps > 0)
 			{
-				var f = SubstepFrame.Acquire();
-				f.Init(timestepsSource[i], numBodies, numVessels);
-				f.guidVesselMap = vesselIndexMap;
-				f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
-				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
-				f.irradiances.Slice(0, numVessels * numBodies).CopyFrom(vesselBodyIrradiance.Slice(i * numVessels * numBodies, numVessels * numBodies));
-				frameManager.Frames.AddLast(f);
-			}
-
-			var summaryFrame = SubstepFrame.Acquire();
-			summaryFrame.Init(timestepsSource[numSteps-1], numBodies, numVessels);
-			summaryFrame.guidVesselMap = vesselIndexMap;
-			summaryFrame.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice((numSteps-1) * numVessels, numVessels));
-			summaryFrame.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice((numSteps-1) * numBodies, numBodies));
-			summaryFrame.irradiances.CopyFrom(vesselBodyIrradianceSummary);
-			frameManager.AggregateFrames.AddLast(summaryFrame);
-
-			Profiler.EndSample();
-
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.DeliverTimestamps");
-			foreach (var v in Vessels)
-			{
-				if (v.TryGetVesselData(out VesselData vd))
+				Profiler.BeginSample("Kerbalism.RunSubstepSim.RecordFrames");
+				int numVessels = Vessels.Count;
+				int numBodies = Bodies.Count;
+				for (int i = 0; i < numSteps; i++)
 				{
-					vd.NotifyPushedFrames(numSteps);
-					vd.PushFrame(summaryFrame);
+					var f = SubstepFrame.Acquire();
+					f.Init(timestepsSource[i], numBodies, numVessels);
+					f.guidVesselMap = vesselIndexMap;
+					f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
+					f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
+					f.irradiances.Slice(0, numVessels * numBodies).CopyFrom(vesselBodyIrradiance.Slice(i * numVessels * numBodies, numVessels * numBodies));
+					frameManager.Frames.AddLast(f);
 				}
-			}
-			Profiler.EndSample();
 
-			/*
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
-			var frameNode = frameManager.Frames.First;
-			while (frameNode.Value.timestamp < timestepsSource[0])
-				frameNode = frameNode.Next;
-			for (int i=0; i<numSteps; i++)
+				var summaryFrame = SubstepFrame.Acquire();
+				summaryFrame.Init(timestepsSource[numSteps - 1], numBodies, numVessels);
+				summaryFrame.guidVesselMap = vesselIndexMap;
+				summaryFrame.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice((numSteps - 1) * numVessels, numVessels));
+				summaryFrame.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice((numSteps - 1) * numBodies, numBodies));
+				summaryFrame.irradiances.CopyFrom(vesselBodyIrradianceSummary);
+				frameManager.AggregateFrames.AddLast(summaryFrame);
+
+				Profiler.EndSample();
+
+				Profiler.BeginSample("Kerbalism.RunSubstepSim.DeliverTimestamps");
+				foreach (var v in Vessels)
+				{
+					if (v.TryGetVesselData(out VesselData vd))
+					{
+						vd.NotifyPushedFrames(numSteps);
+						vd.PushFrame(summaryFrame);
+					}
+				}
+				Profiler.EndSample();
+			}
+
+			if (runValidator)
 			{
-				SubstepFrame f = frameNode.Value;
-				bool doVessels = i == numSteps - 1;
-				ValidateComputations(Bodies, Vessels, f, doVessels);
-				frameNode = frameNode.Next;
+				Profiler.BeginSample("Kerbalism.RunSubstepSim.Validator");
+				var frameNode = frameManager.Frames.First;
+				while (frameNode.Value.timestamp < timestepsSource[0])
+					frameNode = frameNode.Next;
+				for (int i = 0; i < numSteps; i++)
+				{
+					SubstepFrame f = frameNode.Value;
+					bool doVessels = i == numSteps - 1;
+					ValidateComputations(Bodies, Vessels, f, doVessels);
+					frameNode = frameNode.Next;
+				}
+				Profiler.EndSample();
 			}
-			Profiler.EndSample();
-			*/
-
 
 			if (runStockCalcs) RunStockCalcs();
 
