@@ -162,7 +162,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			int occlusionRelevanceIndex = (i.time * (stats.numBodies + stats.numBodies)) + (i.origBody * stats.numBodies);
 			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
 			bool occludedTemp = false;
-			for (int ind = 0; ind < stats.numBodies && !occludedTemp; ind++)
+			for (int ind = 0; ind < stats.numBodies; ind++)
 			{
 				var occluder = bodies[occluderIndex];
 				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origStar))
@@ -193,34 +193,15 @@ namespace KERBALISM.SteppedSim.Jobs
 			int occlusionRelevanceIndex = (i.time * (stats.numVessels + stats.numBodies)) + (i.origVessel * stats.numBodies);
 			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
 			bool occludedTemp = false;
-			for (int ind = 0; ind < stats.numBodies && !occludedTemp; ind++)
+			for (int ind = 0; ind < stats.numBodies; ind++)
 			{
 				var occluder = bodies[occluderIndex];
 				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origBody))
-					//occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
-					occludedTemp |= LocalOcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
+					occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
 				occlusionRelevanceIndex++;
 				occluderIndex++;
 			}
 			occluded[index] = occludedTemp;
-		}
-		private bool LocalOcclusionTest(double3 a, double3 b, double3 v, double dist)
-		{
-			double3 ab = b - a;
-			var abLenSq = math.lengthsq(ab);
-			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 1))
-			{
-				var distSq = dist * dist;
-				double3 av = v - a;
-				double3 bv = v - b;
-				if (math.dot(av, ab) < 0)
-					return math.lengthsq(av) <= distSq;
-				else if (math.dot(bv, ab) > 0)
-					return math.lengthsq(bv) <= distSq;
-				else
-					return math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
-			}
-			return false;
 		}
 	}
 

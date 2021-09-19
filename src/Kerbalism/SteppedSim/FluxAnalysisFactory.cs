@@ -342,21 +342,34 @@ namespace KERBALISM.SteppedSim
 			//else
 				return math.pow(sunBodyObserverAngleFactor * 1.225, 2);
 		}
-		public static bool OcclusionTest(double3 bodyPos, double3 starPos, double3 occluderPos, double occluderRadius)
+		/// <summary>
+		/// Calculate if point v is within dist of line segment AB.
+		/// Compute if occluder centered at V with radius = dist occludes line AB.
+		/// </summary>
+		/// <param name="a">First point of line segment</param>
+		/// <param name="b">Second point of line segment</param>
+		/// <param name="v">Vertex to measure</param>
+		/// <param name="dist">Maximum distance to vertex V</param>
+		/// <returns>True if <paramref name="v"/> is within <paramref name="dist"/> of line segment AB</returns>
+		public static bool OcclusionTest(double3 a, double3 b, double3 v, double dist)
 		{
-			double3 ab = starPos - bodyPos;
+			double3 ab = b - a;
 			var abLenSq = math.lengthsq(ab);
-			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 1))
+			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 0))
 			{
-				var distSq = occluderRadius * occluderRadius;
-				double3 av = occluderPos - bodyPos;
-				double3 bv = occluderPos - starPos;
-				if (math.dot(av, ab) < 0)
-					return math.lengthsq(av) <= distSq;
-				else if (math.dot(bv, ab) > 0)
-					return math.lengthsq(bv) <= distSq;
-				else
-					return math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
+				var distSq = dist * dist;
+				double3 av = v - a;
+				double3 bv = v - b;
+
+				//bool vBehindA = math.dot(av, ab) < 0;
+				//bool vPastB = math.dot(bv, ab) > 0;
+				//bool vBetweenAB = !(vBehindA || vPastB);
+				bool aCloseEnough = math.lengthsq(av) <= distSq;
+				bool bCloseEnough = math.lengthsq(bv) <= distSq;
+				bool crossClose = math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
+
+				//	return (vBehindA && aCloseEnough) || (vPastB & bCloseEnough) || (vBetweenAB && crossClose);
+				return aCloseEnough || bCloseEnough || crossClose;
 			}
 			return false;
 		}
