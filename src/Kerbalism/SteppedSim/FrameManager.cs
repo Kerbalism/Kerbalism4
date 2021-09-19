@@ -9,12 +9,8 @@ namespace KERBALISM.SteppedSim
 	public class FrameManager
 	{
 		public LinkedList<SubstepFrame> Frames = new LinkedList<SubstepFrame>();
+		public LinkedList<SubstepFrame> AggregateFrames = new LinkedList<SubstepFrame>();
 		private readonly List<SubstepFrame> oldFrames = new List<SubstepFrame>();
-
-		public void Add(SubstepFrame f)
-		{
-			Frames.AddLast(f);
-		}
 
 		public void ClearExpiredFrames(double ts)
 		{
@@ -23,6 +19,13 @@ namespace KERBALISM.SteppedSim
 			foreach (var f in oldFrames)
 			{
 				Frames.Remove(f);
+				f.Release();
+			}
+			oldFrames.Clear();
+			oldFrames.AddRange(AggregateFrames.Where(x => x.timestamp < ts));
+			foreach (var f in oldFrames)
+			{
+				AggregateFrames.Remove(f);
 				f.Release();
 			}
 		}

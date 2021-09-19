@@ -66,6 +66,7 @@ namespace KERBALISM.SteppedSim
 		public JobHandle FluxJob => fluxJob;
 		private NativeArray<bool> vesselBodyOcclusionMap;
 		private NativeArray<VesselBodyIrradiance> vesselBodyIrradiance;
+		private NativeArray<VesselBodyIrradiance> vesselBodyIrradianceSummary;
 		private NativeArray<RotationCondition> rotations;
 		//private NativeArray<double3> relativePositions;
 		private NativeArray<double3> worldPositions;
@@ -194,9 +195,11 @@ namespace KERBALISM.SteppedSim
 				bodyDataGlobalArray,
 				vesselDataGlobalArray,
 				starsIndex,
+				startUT,
 				out fluxJob,
 				out vesselBodyOcclusionMap,
-				out vesselBodyIrradiance);
+				out vesselBodyIrradiance,
+				out vesselBodyIrradianceSummary);
 			Profiler.EndSample();
 
 			Profiler.EndSample();
@@ -223,8 +226,17 @@ namespace KERBALISM.SteppedSim
 				f.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice(i * numVessels, numVessels));
 				f.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice(i * numBodies, numBodies));
 				f.irradiances.Slice(0, numVessels * numBodies).CopyFrom(vesselBodyIrradiance.Slice(i * numVessels * numBodies, numVessels * numBodies));
-				frameManager.Add(f);
+				frameManager.Frames.AddLast(f);
 			}
+
+			var summaryFrame = SubstepFrame.Acquire();
+			summaryFrame.Init(timestepsSource[numSteps-1], numBodies, numVessels);
+			summaryFrame.guidVesselMap = vesselIndexMap;
+			summaryFrame.vessels.Slice(0, numVessels).CopyFrom(vesselDataGlobalArray.Slice((numSteps-1) * numVessels, numVessels));
+			summaryFrame.bodies.Slice(0, numBodies).CopyFrom(bodyDataGlobalArray.Slice((numSteps-1) * numBodies, numBodies));
+			summaryFrame.irradiances.CopyFrom(vesselBodyIrradianceSummary);
+			frameManager.AggregateFrames.AddLast(summaryFrame);
+
 			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.DeliverTimestamps");
@@ -232,7 +244,8 @@ namespace KERBALISM.SteppedSim
 			{
 				if (v.TryGetVesselData(out VesselData vd))
 				{
-					vd.timestamps.AddRange(timestepsSource);
+					vd.NotifyPushedFrames(numSteps);
+					vd.PushFrame(summaryFrame);
 				}
 			}
 			Profiler.EndSample();
@@ -267,32 +280,10 @@ namespace KERBALISM.SteppedSim
 
 			vesselBodyOcclusionMap.Dispose();
 			vesselBodyIrradiance.Dispose();
+			vesselBodyIrradianceSummary.Dispose();
 			Profiler.EndSample();
 		}
 
-		/*
-		public void ComputeNextStep()
-		{
-			stepCount++;
-			lastStepUT = currentUT + (stepCount * subStepInterval);
-
-			lastStep = SubStepGlobalData.GetFromPool();
-			lastStep.ut = lastStepUT;
-			lastStep.inverseRotAngle = currentInverseRotAngle;
-			lastStep.zup = currentZup;
-			steps.Enqueue(lastStep);
-
-			foreach (SubStepBody body in Bodies)
-			{
-				body.ComputeNextStep();
-			}
-
-			foreach (SubStepVessel vessel in vessels.Values)
-			{
-				vessel.ComputeNextStep();
-			}
-		}
-		*/
 		private void GenerateBodyVesselOrbitData(List<CelestialBody> bodies,
 			List<Vessel> vessels,
 			List<(Orbit, CelestialBody)> orbits,

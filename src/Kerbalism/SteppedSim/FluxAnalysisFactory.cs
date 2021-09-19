@@ -126,9 +126,11 @@ namespace KERBALISM.SteppedSim
 			in NativeArray<SubstepBody> bodies,
 			in NativeArray<SubstepVessel> vessels,
 			in NativeArray<int> starIndexes,
+			in double prevUT,
 			out JobHandle outputJob,
 			out NativeArray<bool> vesselBodyOcclusionMap,
-			out NativeArray<VesselBodyIrradiance> vesselBodyIrradiances)
+			out NativeArray<VesselBodyIrradiance> vesselBodyIrradiances,
+			out NativeArray<VesselBodyIrradiance> vesselBodyIrradiancesSummary)
 		{
 			int numSteps = timesteps.Length;
 			int numBodies = bodies.Length / numSteps;
@@ -158,7 +160,6 @@ namespace KERBALISM.SteppedSim
 						out JobHandle buildTimeVesselBodyIndexJob,
 						out JobHandle buildTimeVesselBodyStarIndexJob);
 			Profiler.EndSample();
-
 
 			Profiler.BeginSample("BodyOcclusionRelevance");
 			// Optimize occlusion checks: determine how relevant every [other] body is from perspective of every source body/vessel
@@ -305,8 +306,29 @@ namespace KERBALISM.SteppedSim
 			}.Schedule(numStepsVesselsBodies, 256, JobHandle.CombineDependencies(vesselBodyOcclusionJob, combineLuminositiesJob, solarAtmosphericEffectsJob));
 			Profiler.EndSample();
 
-			var d0 = timeBodyStarIndex.Dispose(bodyIrradiancesJob);
-			outputJob = bodyStarOcclusion.Dispose(d0);
+			Profiler.BeginSample("AllStepsSummation");
+			var frameWeights = new NativeArray<float>(numSteps, Allocator.TempJob);
+			vesselBodyIrradiancesSummary = new NativeArray<VesselBodyIrradiance>(numVessels * numBodies, Allocator.TempJob);
+			var frameWeightsJob = new Jobs.VesselDataJobs.ComputeFrameWeights
+			{
+				start = prevUT,
+				times = timesteps,
+				weights = frameWeights,
+			}.Schedule(dependencyHandle);
+
+			// Sum each (vessel,body)'s irradiances separately across all timesteps
+			var vesselBodyIrradianceSummaryJob = new SumVesselBodyIrradiancesJob
+			{
+				stats = frameStats,
+				weights = frameWeights,
+				irradiances = vesselBodyIrradiances,
+				output = vesselBodyIrradiancesSummary,
+			}.Schedule(numVessels * numBodies, 64, JobHandle.CombineDependencies(frameWeightsJob, bodyIrradiancesJob));
+			Profiler.EndSample();
+
+			var d0 = timeBodyStarIndex.Dispose(vesselBodyIrradianceSummaryJob);
+			var d1 = frameWeights.Dispose(d0);
+			outputJob = bodyStarOcclusion.Dispose(d1);
 			JobHandle.ScheduleBatchedJobs();
 		}
 		public static double SolarFlux(double luminosity, double distance)
