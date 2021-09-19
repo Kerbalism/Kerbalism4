@@ -10,9 +10,6 @@ namespace KERBALISM
 {
     public partial class VesselData : VesselDataBase
 	{
-		//public List<SimStep> subSteps = new List<SimStep>();
-		public readonly List<double> timestamps = new List<double>(4096);
-
 
 		#region FIELDS/PROPERTIES : CORE STATE AND SUBSYSTEMS
 
@@ -765,7 +762,7 @@ namespace KERBALISM
 		//   vessels update.
 		public void Evaluate(double elapsedSeconds, SteppedSim.SubStepSim sim)
 		{
-			if (timestamps.Count == 0)
+			if (detailedFrameCount == 0)
 			{
 				Lib.LogDebug("Can't update vessel : environemment not evaluated yet", Lib.LogLevel.Warning);
 				return;
@@ -789,8 +786,9 @@ namespace KERBALISM
 
 			FixedUpdate(elapsedSeconds);
 
-			lastEvalUT = timestamps[timestamps.Count - 1];
-			timestamps.Clear();
+			lastEvalUT = sim.frameManager.Frames.Last.Value.timestamp;
+			detailedFrameCount = 0;
+			summaryFrameCount = 0;
 		}
 
 		private void FixedUpdate(double elapsedSec)
@@ -877,10 +875,10 @@ namespace KERBALISM
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
-		private void EnvironmentUpdate(SteppedSim.SubStepSim sim)
+		private void EnvironmentUpdate(SteppedSim.SubStepSim sim, double stopTImestamp = double.PositiveInfinity)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.EnvironmentUpdate");
-			isSubstepping = timestamps.Count > 1; // TODO : This is essentially always true, every FixedUpdate produces 1+ datapoints for every vessel
+			isSubstepping = detailedFrameCount > 1; // TODO : This is essentially always true, every FixedUpdate produces 1+ datapoints for every vessel
 
 			Vector3d vesselPosition = Lib.VesselPosition(Vessel);
 			landed = Lib.Landed(Vessel);
@@ -898,21 +896,21 @@ namespace KERBALISM
 			bodiesIrradianceEmissive = 0.0;
 			bodiesIrradianceCore = 0.0;
 
-			int numSteps = timestamps.Count;
-			if (numSteps > 0 && sim.frameManager.Frames.First is LinkedListNode<SteppedSim.SubstepFrame> frameNode)
+			int numSteps = summaryFrameCount;
+			if (numSteps > 0 && sim.frameManager.AggregateFrames.First is LinkedListNode<SteppedSim.SubstepFrame> frameNode)
 			{
 				// Advance to the first frame
-				while (frameNode.Value.timestamp < timestamps[0])
+				while (frameNode.Value.timestamp <= lastEvalUT)
 					frameNode = frameNode.Next;
 
-				double finalTimestamp = timestamps[numSteps - 1];
+				// TODO: stopTimestamp definitely doesn't work yet.  Need to recompute how many frames would be covered when reaching it.
+				double finalTimestamp = math.min(stopTImestamp, sim.frameManager.AggregateFrames.Last.Value.timestamp);
 				int localNumBodies = frameNode.Value.bodies.Length;
 				var allFramesIrradiances = new NativeArray<SteppedSim.VesselBodyIrradiance>(numSteps * localNumBodies, Allocator.TempJob);
 				var localTS = new NativeArray<double>(numSteps, Allocator.TempJob);
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.ProcessStep.CollectFrames");
-				// TODO: Technically this abandons the idea that each vesselData is tracking a list of timesteps
-				//       to compute, and instead is grabbing all frames between start and end inclusive.  This probably lines up
-				//       but is it more restrictive?  Consider iterating simultaneously the timestamp list and the linkedlist.
+				// Given the last evaluated frame, reference to an ordered LinkedList of frames, and a stop time (frame to stop at)
+				// collect all aggregate frames and sum them.
 				// For each frame, copy the timestep and this vessel's irradiance source data into the working arrays
 				int afiIndex = 0;
 				while (frameNode?.Value is SteppedSim.SubstepFrame frame && frame.timestamp <= finalTimestamp)
@@ -931,17 +929,22 @@ namespace KERBALISM
 				var frameWeights = new NativeArray<float>(numSteps, Allocator.TempJob);
 				var irradiancePerBody = new NativeArray<SteppedSim.VesselBodyIrradiance>(localNumBodies, Allocator.TempJob);
 				var irradianceCumulative = new NativeArray<SteppedSim.VesselBodyIrradiance>(1, Allocator.TempJob);
-				// FIXME?: Over-specified namespace because alternate versions of these summations may move to the substep sim
+				var frameStats = new SteppedSim.FrameStats
+				{
+					numSteps = numSteps,
+					numBodies = localNumBodies,
+					numVessels = 1,
+				};
 				var frameWeightsJob = new SteppedSim.Jobs.VesselDataJobs.ComputeFrameWeights
 				{
 					start = lastEvalUT,
 					times = localTS,
 					weights = frameWeights,
 				}.Schedule();
-				// Sum each body's irradiances separately across all timesteps
-				var sumIrr1 = new SteppedSim.Jobs.VesselDataJobs.SumIrradiancesJob
+				// Sum each body's irradiances separately across all timesteps (numVessels = 1)
+				var sumIrr1 = new SteppedSim.Jobs.SumVesselBodyIrradiancesJob
 				{
-					numBodies = localNumBodies,
+					stats = frameStats,
 					weights = frameWeights,
 					irradiances = allFramesIrradiances,
 					output = irradiancePerBody,
@@ -1052,6 +1055,17 @@ namespace KERBALISM
             gravioli = Sim.Graviolis(Vessel);
             UnityEngine.Profiling.Profiler.EndSample();
         }
+
+		private int detailedFrameCount = 0;
+		private int summaryFrameCount = 0;
+		public void NotifyPushedFrames(int newFrames)
+		{
+			detailedFrameCount += newFrames;
+		}
+		public void PushFrame(SteppedSim.SubstepFrame summaryFrame)
+		{
+			summaryFrameCount++;
+		}
 
 		#endregion
 
