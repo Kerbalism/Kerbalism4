@@ -361,15 +361,15 @@ namespace KERBALISM.SteppedSim
 				double3 av = v - a;
 				double3 bv = v - b;
 
-				//bool vBehindA = math.dot(av, ab) < 0;
-				//bool vPastB = math.dot(bv, ab) > 0;
-				//bool vBetweenAB = !(vBehindA || vPastB);
+				bool vBehindA = math.dot(av, ab) < 0;
+				bool vPastB = math.dot(bv, ab) > 0;
+				bool vBetweenAB = !(vBehindA || vPastB);
 				bool aCloseEnough = math.lengthsq(av) <= distSq;
 				bool bCloseEnough = math.lengthsq(bv) <= distSq;
 				bool crossClose = math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
 
 				//	return (vBehindA && aCloseEnough) || (vPastB & bCloseEnough) || (vBetweenAB && crossClose);
-				return aCloseEnough || bCloseEnough || crossClose;
+				return aCloseEnough || bCloseEnough || (vBetweenAB && crossClose);
 			}
 			return false;
 		}
