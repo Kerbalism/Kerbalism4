@@ -342,36 +342,45 @@ namespace KERBALISM.SteppedSim
 			//else
 				return math.pow(sunBodyObserverAngleFactor * 1.225, 2);
 		}
+
 		/// <summary>
-		/// Calculate if point v is within dist of line segment AB.
-		/// Compute if occluder centered at V with radius = dist occludes line AB.
+		/// Returns true if ray starting at <paramref name="rayOrigin"/> and passing through <paramref name="pointOnRay"/>
+		/// intersects the sphere of <paramref name="radius"/> at <paramref name="spherePosition"/>. <br/>
+		/// If <paramref name="rayOrigin"/> is inside the sphere, this will act as if the field of view was reduced. 
 		/// </summary>
-		/// <param name="a">First point of line segment</param>
-		/// <param name="b">Second point of line segment</param>
-		/// <param name="v">Vertex to measure</param>
-		/// <param name="dist">Maximum distance to vertex V</param>
-		/// <returns>True if <paramref name="v"/> is within <paramref name="dist"/> of line segment AB</returns>
-		public static bool OcclusionTest(double3 a, double3 b, double3 v, double dist)
+		// reference : https://github.com/MonoGame/MonoGame/blob/da9227e1347a7587d50cfe9b09c01d33610d4fba/MonoGame.Framework/Ray.cs#L266-L308
+		public static bool RayFromPointsIntersectSphere(double3 rayOrigin, double3 pointOnRay, double3 spherePosition, double radius)
 		{
-			double3 ab = b - a;
-			var abLenSq = math.lengthsq(ab);
-			if (Unity.Burst.CompilerServices.Hint.Likely(abLenSq > 0))
-			{
-				var distSq = dist * dist;
-				double3 av = v - a;
-				double3 bv = v - b;
+			// normalized ray
+			double3 ray = math.normalize(pointOnRay - rayOrigin);
 
-				bool vBehindA = math.dot(av, ab) < 0;
-				bool vPastB = math.dot(bv, ab) > 0;
-				bool vBetweenAB = !(vBehindA || vPastB);
-				bool aCloseEnough = math.lengthsq(av) <= distSq;
-				bool bCloseEnough = math.lengthsq(bv) <= distSq;
-				bool crossClose = math.lengthsq(math.cross(ab, av)) <= distSq * abLenSq;
+			// vector from ray origin to sphere center
+			double3 diff = spherePosition - rayOrigin;
 
-				//	return (vBehindA && aCloseEnough) || (vPastB & bCloseEnough) || (vBetweenAB && crossClose);
-				return aCloseEnough || bCloseEnough || (vBetweenAB && crossClose);
-			}
-			return false;
+			// projection of ray origin -> sphere center over the raytracing direction
+			double k = math.dot(diff, ray);
+
+			// the ray hit the sphere if its minimal analytical distance along the ray is more than the radius
+			return k > 0.0 && math.lengthsq(ray * k - diff) < radius * radius;
+		}
+
+
+		/// <summary>
+		/// Returns true if the normalized <paramref name="ray"/> starting at <paramref name="rayOrigin"/>
+		/// intersects the sphere of <paramref name="radius"/> at <paramref name="spherePosition"/>. <br/>
+		/// If <paramref name="rayOrigin"/> is inside the sphere, this will act as if the field of view was reduced.
+		/// </summary>
+		// reference : https://github.com/MonoGame/MonoGame/blob/da9227e1347a7587d50cfe9b09c01d33610d4fba/MonoGame.Framework/Ray.cs#L266-L308
+		public static bool RayIntersectSphere(double3 rayOrigin, double3 ray, double3 spherePosition, double radius)
+		{
+			// vector from ray origin to sphere center
+			double3 diff = spherePosition - rayOrigin;
+
+			// projection of ray origin -> sphere center over the raytracing direction
+			double k = math.dot(diff, ray);
+
+			// the ray hit the sphere if its minimal analytical distance along the ray is more than the radius
+			return k > 0.0 && math.lengthsq(ray * k - diff) < radius * radius;
 		}
 
 		public void Dispose()
