@@ -279,12 +279,11 @@ namespace KERBALISM.SteppedSim.Jobs
 				// ALDEBO COSINE FACTOR
 				// the full albedo flux is received only when the vessel is positioned along the sun-body axis, and goes
 				// down to zero on the night side.
-				// Since the total flux is the same, but is re-emitted only over 1 hemisphere, the effective luminosity in a direction is *2 * the geometric albedo factor
 				var bodyToSun = math.normalize(star.position - body.position);
 				var bodyToVessel = math.normalize(vessel.position - body.position);
 				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
 				int luminIndex = (tuple.directBody * stats.numStars) + tuple.origStar;
-				luminosity[index] = isotropicAlbedoLuminosityPerStar[luminIndex] * 2 * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
+				luminosity[index] = isotropicAlbedoLuminosityPerStar[luminIndex] * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}
 		}
 	}

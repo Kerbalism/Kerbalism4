@@ -337,10 +337,7 @@ namespace KERBALISM.SteppedSim
 		}
 		public static double GeometricAlbedoFactor(double sunBodyObserverAngleFactor)
 		{
-			//if (hasAtmosphere)
-				//return Math.Pow(sunBodyObserverAngleFactor * 1.113, 1.3);
-			//else
-				return math.pow(sunBodyObserverAngleFactor * 1.225, 2);
+			return 4.0 * math.pow(sunBodyObserverAngleFactor, 3.0);
 		}
 
 		/// <summary>

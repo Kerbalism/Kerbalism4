@@ -174,7 +174,7 @@ namespace KERBALISM
 				}
 
 				// direct flux from this sun
-				starFlux.directRawFlux = starFlux.Star.SolarFlux(starFlux.distance);
+				starFlux.directRawFlux = starFlux.Star.Irradiance(starFlux.distance);
 
 				if (isOccluded)
 				{
@@ -232,7 +232,7 @@ namespace KERBALISM
 			// Get solar flux re-emitted by the body at the vessel position
 			// We work on the assumption that all solar flux blocked by the body disc
 			// is reflected back to space, either directly (albedo) or trough thermal re-emission.
-			double sunFluxAtBody = starFlux.Star.SolarFlux(bodyToSunDist);
+			double sunFluxAtBody = starFlux.Star.Irradiance(bodyToSunDist);
 
 			// ALBEDO
 			double albedoFlux = 0.0;

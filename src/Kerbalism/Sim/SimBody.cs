@@ -365,7 +365,7 @@ namespace KERBALISM
 					starDistance = (Sim.Apoapsis(planet) + Sim.Periapsis(planet)) * 0.5;
 				}
 
-				irradiance += star.SolarFlux(starDistance);
+				irradiance += star.Irradiance(starDistance);
 			}
 			return irradiance;
 		}

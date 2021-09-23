@@ -327,6 +327,9 @@ namespace KERBALISM.SteppedSim
 					isValidOrbit = body.orbit != null,
 				};
 				stepOrbits[i] = new SubStepOrbit(o, body.referenceBody, BodyIndex);
+
+				bool isStar = Sim.TryGetStarData(body, out SimStar simStar);
+
 				bodyTemplates[i] = new SubstepBody
 				{
 					bodyFrame = body.BodyFrame,
@@ -335,7 +338,7 @@ namespace KERBALISM.SteppedSim
 					atmosphereDepth = body.atmosphereDepth,
 					atmDensityASL = body.atmDensityASL,
 					radiusAtmoFactor = body.radiusAtmoFactor,
-					solarLuminosity = body.isStar ? defaultLuminosity : 0,	// FIXME
+					solarLuminosity = isStar ? simStar.Luminosity : 0,
 					albedo = body.albedo,
 					bodyCoreThermalFlux = body.coreTemperatureOffset,
 				};
