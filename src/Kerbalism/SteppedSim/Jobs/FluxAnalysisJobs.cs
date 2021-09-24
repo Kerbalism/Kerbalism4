@@ -166,7 +166,7 @@ namespace KERBALISM.SteppedSim.Jobs
 			{
 				var occluder = bodies[occluderIndex];
 				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origStar))
-					occludedTemp |= FluxAnalysisFactory.RayFromPointsIntersectSphere(body.position, star.position, occluder.position, occluder.radius);
+					occludedTemp |= FluxAnalysisFactory.OcclusionTest(body.position, star.position, occluder.position, occluder.radius);
 				occlusionRelevanceIndex++;
 				occluderIndex++;
 			}
@@ -193,14 +193,15 @@ namespace KERBALISM.SteppedSim.Jobs
 			int occlusionRelevanceIndex = (i.time * (stats.numVessels + stats.numBodies)) + (i.origVessel * stats.numBodies);
 			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
 			bool occludedTemp = false;
-
-			// For a vessel, it's very likely that at least one body will be relevant, so always compute the ray 
-			double3 ray = math.normalize(body.position - vessel.position);
 			for (int ind = 0; ind < stats.numBodies; ind++)
 			{
 				var occluder = bodies[occluderIndex];
+				// TODO/FIXME : We should handle the case where a vessel has a negative altitude.
+				// The current occlusion code will return "always occluded" if the vessel is inside the sphere of its main body.
+				// Ideally, the vessel FoV shoud be reduced according to it's "depth", but a fallback where we consider it to be 
+				// at an altitude of 0 is acceptable.
 				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origBody))
-					occludedTemp |= FluxAnalysisFactory.RayIntersectSphere(vessel.position, ray, occluder.position, occluder.radius);
+					occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
 				occlusionRelevanceIndex++;
 				occluderIndex++;
 			}
