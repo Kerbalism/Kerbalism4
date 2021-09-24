@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine.Profiling;
 
 namespace KERBALISM.SteppedSim
@@ -52,47 +53,116 @@ namespace KERBALISM.SteppedSim
 			};
 
 			int sz = numSteps * numOrbits;
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateTimeOrbitIndex");
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.FastestAllocations");
+			var flags = new NativeArray<SubstepComputeFlags>(sz, Allocator.TempJob);
+			var times = new NativeArray<double>(sz, Allocator.TempJob);
+			var obtAtUTs = new NativeArray<double>(sz, Allocator.TempJob);
+			var eccAnomalies = new NativeArray<double>(sz, Allocator.TempJob);
+			var trueAnomalies = new NativeArray<double>(sz, Allocator.TempJob);
+			var eccentricitiesSource = new NativeArray<double>(numOrbits, Allocator.TempJob);
+			var sqrt_EccPlus1sSource = new NativeArray<double>(numOrbits, Allocator.TempJob);
+			var sqrt_EccMinus1sSource = new NativeArray<double>(numOrbits, Allocator.TempJob);
+			var eccentricities = new NativeArray<double>(sz, Allocator.TempJob);
+			var sqrt_EccPlus1s = new NativeArray<double>(sz, Allocator.TempJob);
+			var sqrt_EccMinus1s = new NativeArray<double>(sz, Allocator.TempJob);
+			Profiler.EndSample();
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.MediumAllocations");
 			var timeOrbitIndex = new NativeArray<TimeOrbitIndex>(sz, Allocator.TempJob);
+			var eccAnomaliesData = new NativeArray<double4>(sz, Allocator.TempJob);
+			var relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
+			worldPositions = new NativeArray<double3>(sz, Allocator.TempJob);
 			Profiler.EndSample();
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateRotationsOutput");
 			rotations = new NativeArray<RotationCondition>(sz, Allocator.TempJob);
 			Profiler.EndSample();
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateRelPositions");
-			var relativePositions = new NativeArray<double3>(sz, Allocator.TempJob);
-			Profiler.EndSample();
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateWorldPositions");
-			worldPositions = new NativeArray<double3>(sz, Allocator.TempJob);
-			Profiler.EndSample();
 
 			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.MakeAndScheduleJobs");
+			var eccSourceJob = new EccentricityPrecalcJob
+			{
+				orbits = stepOrbitsSource,
+				eccentricity = eccentricitiesSource,
+				sqrt_eccMinus1 = sqrt_EccMinus1sSource,
+				sqrt_eccPlus1 = sqrt_EccPlus1sSource,
+			}.Schedule(numOrbits, 8);
 			var buildIndexesJob = new BuildIndexes
 			{
 				stats = frameStats,
 				timeOrbitIndex = timeOrbitIndex,
 			}.Schedule(stepGeneratorJob);
+			var unrollJob = new UnrollUsefulData
+			{
+				timeOrbitIndex = timeOrbitIndex,
+				timestepSource = timestepsSource,
+				flagsSource = flagsSource,
+				sqrt_EccMinus1sSource = sqrt_EccMinus1sSource,
+				sqrt_EccPlus1sSource = sqrt_EccPlus1sSource,
+				eccentricitiesSource = eccentricitiesSource,
+				times = times,
+				flags = flags,
+				sqrt_EccMinus1s = sqrt_EccMinus1s,
+				sqrt_EccPlus1s = sqrt_EccPlus1s,
+				eccentricities = eccentricities,
+			}.Schedule(sz, 256, JobHandle.CombineDependencies(eccSourceJob, buildIndexesJob));
 
 			var computeRotationsJob = new RotationsComputeJob
 			{
 				timeOrbitIndex = timeOrbitIndex,
 				PlanetariumInverseRotAngle = Planetarium.InverseRotAngle,
-				times = timestepsSource,
+				times = times,
 				rotationsIn = rotationsSource,
 				rotationsOut = rotations
-			}.Schedule(sz, 16, buildIndexesJob);
+			}.Schedule(sz, 128, unrollJob);
 
-			var computeRelPositionsJob = new NaiveOrbitComputeJob
+			var computeObTsJob = new ComputeObTJob
+			{
+				timeOrbitIndex = timeOrbitIndex,
+				times = times,
+				flags = flags,
+				orbitsSource = stepOrbitsSource,
+				obtAtUTs = obtAtUTs,
+			}.Schedule(sz, 256, unrollJob);
+			JobHandle.ScheduleBatchedJobs();
+
+			var solveEccAnomaliesJob = new SolveEccentricAnomalyJob
+			{
+				timeOrbitIndex = timeOrbitIndex,
+				flags = flags,
+				orbitsSource = stepOrbitsSource,
+				obtAtUTs = obtAtUTs,
+				eccAnomalies = eccAnomalies,
+			}.Schedule(sz, 32, computeObTsJob);
+
+			var getAnomalyDataJob = new GetEccAnomalyRefData
+			{
+				eccAnomalies = eccAnomalies,
+				eccentricities = eccentricities,
+				eccAnomalyData = eccAnomaliesData,
+			}.Schedule(sz, 256, solveEccAnomaliesJob);
+
+			var getTrueAnomaliesJob = new GetTrueAnomalyJob
+			{
+				flags = flags,
+				eccentricities = eccentricities,
+				sqrt_eccMinus1s = sqrt_EccMinus1s,
+				sqrt_eccPlus1s = sqrt_EccPlus1s,
+				eccAnomalies = eccAnomalies,
+				eccAnomalyData = eccAnomaliesData,
+				trueAnomalies = trueAnomalies,
+			}.Schedule(sz, 128, getAnomalyDataJob);
+
+			var computeRelPositionsJob = new OrbitComputeJob
 			{
 				stats = frameStats,
 				timeOrbitIndex = timeOrbitIndex,
-				times = timestepsSource,
+				times = times,
+				trueAnomalies = trueAnomalies,
 				vesselTemplates = vesselTemplates,
 				orbitsSource = stepOrbitsSource,
-				flagsSource = flagsSource,
+				flags = flags,
 				rotations = rotations,
 				defaultPos = new double3(defPos.x, defPos.y, defPos.z).xzy,
 				relPositions = relativePositions,
-			}.Schedule(sz, 8, computeRotationsJob);
+			}.Schedule(sz, 32, JobHandle.CombineDependencies(getTrueAnomaliesJob, computeRotationsJob));
 
 			var computeWorldPositionJob = new ComputeWorldspacePositionsJob
 			{
