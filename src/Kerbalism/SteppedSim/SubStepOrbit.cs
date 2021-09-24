@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Unity.Mathematics;
 
 namespace KERBALISM.SteppedSim
@@ -72,17 +69,25 @@ namespace KERBALISM.SteppedSim
 
 		public double GetObtAtUT(double UT)
 		{
-			double obt;
-			if (double.IsInfinity(UT))
+			if (Unity.Burst.CompilerServices.Hint.Unlikely(double.IsInfinity(UT)))
 				return eccentricity < 1 ? double.NaN : UT;
-			if (this.eccentricity < 1)
+			double periodRecip = 1 / period;
+			double obt = ObTAtEpoch + UT - epoch;
+			if (Unity.Burst.CompilerServices.Hint.Likely(eccentricity < 1))
 			{
-				obt = (UT - this.epoch + this.ObTAtEpoch) % this.period;
-				if (obt > this.period / 2)
-					obt -= this.period;
+				//obt %= period;
+				// mod returns result in [0..period).  Convert to [-period/2..period/2]
+				//if (obt > period / 2)
+				//  obt -= period;
+
+				// Optimize mod operation with remainder = x - (x/y)*y pattern
+				// Optimize away if by rotating before and after the mod operation.
+				double halfPeriod = period * 0.5;
+				obt += halfPeriod;
+				int div = (int)(obt * periodRecip);
+				obt -= div * period;
+				obt -= halfPeriod;
 			}
-			else
-				obt = this.ObTAtEpoch + (UT - this.epoch);
 			return obt;
 		}
 
@@ -92,7 +97,7 @@ namespace KERBALISM.SteppedSim
 		public double3 getPositionFromTrueAnomaly(double tA, bool worldToLocal)
 		{
 			math.sincos(tA, out double sintA, out double costA);
-			Vector3d r = this.semiLatusRectum / (1.0 + this.eccentricity * costA) * (this.OrbitFrame.X * costA + this.OrbitFrame.Y * sintA);
+			Vector3d r = semiLatusRectum / (1.0 + (eccentricity * costA)) * ((OrbitFrame.X * costA) + (OrbitFrame.Y * sintA));
 			if (worldToLocal)
 				r = PlanetariumZup.WorldToLocal(r);
 			return new double3(r.x, r.y, r.z);
@@ -122,12 +127,12 @@ namespace KERBALISM.SteppedSim
 
 		public double solveEccentricAnomaly(double M, double ecc, double maxError = 1E-07, int maxIterations = 8)
 		{
-			if (this.eccentricity >= 1.0)
+			if (Unity.Burst.CompilerServices.Hint.Likely(eccentricity < 0.8))
+				return solveEccentricAnomalyStd(M, eccentricity, maxError);
+			else if (Unity.Burst.CompilerServices.Hint.Likely(eccentricity >= 1))
 				return solveEccentricAnomalyHyp(M, eccentricity, maxError);
-			else if (this.eccentricity < 0.8)
-				return this.solveEccentricAnomalyStd(M, this.eccentricity, maxError);
 			else
-				return this.solveEccentricAnomalyExtremeEcc(M, this.eccentricity, maxIterations);
+				return solveEccentricAnomalyExtremeEcc(M, eccentricity, maxIterations);
 		}
 
 		private double solveEccentricAnomalyStd(double M, double ecc, double maxError = 1E-07)
@@ -136,8 +141,9 @@ namespace KERBALISM.SteppedSim
 			double eccAnomaly = M + ecc * math.sin(M) + 0.5 * ecc * ecc * math.sin(2 * M);
 			while (math.abs(error) > maxError)
 			{
-				double num3 = eccAnomaly - ecc * math.sin(eccAnomaly);
-				error = (M - num3) / (1.0 - ecc * math.cos(eccAnomaly));
+				math.sincos(eccAnomaly, out double sinEccAnomaly, out double cosEccAnomaly);
+				double num3 = eccAnomaly - ecc * sinEccAnomaly;
+				error = (M - num3) / (1.0 - ecc * cosEccAnomaly);
 				eccAnomaly += error;
 			}
 			return eccAnomaly;
@@ -163,7 +169,7 @@ namespace KERBALISM.SteppedSim
 
 		private double solveEccentricAnomalyHyp(double M, double ecc, double maxError = 1E-07)
 		{
-			if (double.IsInfinity(M))
+			if (Unity.Burst.CompilerServices.Hint.Unlikely(double.IsInfinity(M)))
 			{
 				return M;
 			}
