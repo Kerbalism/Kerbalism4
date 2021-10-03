@@ -6,6 +6,20 @@ using Unity.Mathematics;
 namespace KERBALISM.SteppedSim.Jobs
 {
 	[BurstCompile]
+	public struct BuildTimeVesselIndexJob : IJob
+	{
+		[ReadOnly] public FrameStats stats;
+		[WriteOnly] public NativeArray<TimeVesselIndex> tuples;
+		public void Execute()
+		{
+			int index = 0;
+			for (int step = 0; step < stats.numSteps; step++)
+				for (int vessel = 0; vessel < stats.numVessels; vessel++)
+					tuples[index++] = new TimeVesselIndex { time = step, origVessel = vessel };
+		}
+	}
+
+	[BurstCompile]
 	public struct BuildTimeBodyStarsIndexJob : IJob
 	{
 		[ReadOnly] public FrameStats stats;
@@ -125,21 +139,38 @@ namespace KERBALISM.SteppedSim.Jobs
 	[BurstCompile]
 	public struct VesselBodyOcclusionRelevanceJob : IJobParallelFor
 	{
+		[ReadOnly] public FrameStats stats;
+		[ReadOnly] public NativeArray<TimeVesselIndex> indices;
 		[ReadOnly] public double minRequiredHalfAngleRadians;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[ReadOnly] public NativeArray<TimeVesselBodyIndex> indices;
-		[WriteOnly] public NativeArray<bool> relevance;
+		[WriteOnly] public NativeArray<int> relevanceLengths;
+		[WriteOnly] public NativeArray<int> relevance;
 
+		// Index is called for each step, vessel == directVessel index
 		public void Execute(int index)
 		{
-			TimeVesselBodyIndex i = indices[index];
-			var vessel = vessels[i.directVessel];
-			var occluder = bodies[i.directBody];
-			double dist = math.distance(vessel.position, occluder.position);
-			// Take advantage of fact that sin(x) == x, cos(x) == 1, tan(x) == x for small x
-			// Simplify atan(x/y) > min ==> (x/y) > min ==> x > min * y
-			relevance[index] = occluder.radius > minRequiredHalfAngleRadians * dist;
+			TimeVesselIndex TVI = indices[index];
+			int step = TVI.time;
+			int occluderIndex = step * stats.numBodies;
+			int relevanceBaseIndex = (step * stats.numVessels * stats.numBodies) + (TVI.origVessel * stats.numBodies);
+			int numOccluders = 0;
+			var vessel = vessels[TVI.origVessel + step * stats.numVessels];
+			double minRequiredHalfAngleRadiansSq = minRequiredHalfAngleRadians * minRequiredHalfAngleRadians;
+			for (int i = 0; i<stats.numBodies; i++)
+			{
+				var occluder = bodies[occluderIndex++];
+				double distSq = math.distancesq(vessel.position, occluder.position);
+				// Take advantage of fact that sin(x) == x, cos(x) == 1, tan(x) == x for small x
+				// Simplify atan(x/y) > min ==> (x/y) > min ==> x > min * y
+				bool relevant = occluder.radius * occluder.radius > minRequiredHalfAngleRadiansSq * distSq;
+				if (Unity.Burst.CompilerServices.Hint.Unlikely(relevant))
+				{
+					relevance[relevanceBaseIndex + numOccluders] = i;
+					numOccluders++;
+				}
+			}
+			relevanceLengths[index] = numOccluders;
 		}
 	}
 
@@ -181,7 +212,8 @@ namespace KERBALISM.SteppedSim.Jobs
 		[ReadOnly] public FrameStats stats;
 		[ReadOnly] public NativeArray<SubstepVessel> vessels;
 		[ReadOnly] public NativeArray<SubstepBody> bodies;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<bool> occlusionRelevance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<int> occlusionRelevance;
+		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<int> occlusionRelevanceLengths;
 		[WriteOnly] public NativeArray<bool> occluded;
 
 		public void Execute(int index)
@@ -189,21 +221,20 @@ namespace KERBALISM.SteppedSim.Jobs
 			TimeVesselBodyIndex i = timeVesselBodyIndex[index];
 			var vessel = vessels[i.directVessel];
 			var body = bodies[i.directBody];
-			// Occlusion Relevance is a time-vessel-body unrolled array
+			// OcclusionRelevanceLengths is a Time-Vessel unrolled array
+			// OcclusionRelevance is a Time-Vessel-Body unrolled array.
+			int numOccluders = occlusionRelevanceLengths[i.directVessel];
 			int occlusionRelevanceIndex = (i.time * (stats.numVessels + stats.numBodies)) + (i.origVessel * stats.numBodies);
-			int occluderIndex = i.time * stats.numBodies;    // Bodies is a time-body unrolled array
+			NativeSlice<int> occlusionIndexes = occlusionRelevance.Slice(occlusionRelevanceIndex, stats.numBodies);
 			bool occludedTemp = false;
-			for (int ind = 0; ind < stats.numBodies; ind++)
+			for (int ind = 0; ind < numOccluders; ind++)
 			{
-				var occluder = bodies[occluderIndex];
+				var occluder = bodies[occlusionIndexes[ind]];
 				// TODO/FIXME : We should handle the case where a vessel has a negative altitude.
 				// The current occlusion code will return "always occluded" if the vessel is inside the sphere of its main body.
 				// Ideally, the vessel FoV shoud be reduced according to it's "depth", but a fallback where we consider it to be 
 				// at an altitude of 0 is acceptable.
-				if (Unity.Burst.CompilerServices.Hint.Unlikely(occlusionRelevance[occlusionRelevanceIndex] && ind != i.origBody))
-					occludedTemp |= FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
-				occlusionRelevanceIndex++;
-				occluderIndex++;
+				occludedTemp |= (occlusionIndexes[ind] != i.origBody) && FluxAnalysisFactory.OcclusionTest(vessel.position, body.position, occluder.position, occluder.radius);
 			}
 			occluded[index] = occludedTemp;
 		}
@@ -280,9 +311,12 @@ namespace KERBALISM.SteppedSim.Jobs
 				// ALDEBO COSINE FACTOR
 				// the full albedo flux is received only when the vessel is positioned along the sun-body axis, and goes
 				// down to zero on the night side.
-				var bodyToSun = math.normalize(star.position - body.position);
-				var bodyToVessel = math.normalize(vessel.position - body.position);
-				double angleFactor = (math.dot(bodyToSun, bodyToVessel) + 1) * 0.5;    // [-1,1] => [0,1]
+				var bodyToSun = star.position - body.position;
+				var bodyToVessel = vessel.position - body.position;
+				// Normalize after dot product
+				double mag = math.sqrt(math.lengthsq(bodyToSun) * math.lengthsq(bodyToVessel));
+				double dot = math.dot(bodyToSun, bodyToVessel) / mag;
+				double angleFactor = (dot + 1) * 0.5;    // [-1,1] => [0,1]
 				int luminIndex = (tuple.directBody * stats.numStars) + tuple.origStar;
 				luminosity[index] = isotropicAlbedoLuminosityPerStar[luminIndex] * FluxAnalysisFactory.GeometricAlbedoFactor(angleFactor);
 			}

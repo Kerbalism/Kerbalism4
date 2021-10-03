@@ -8,6 +8,12 @@ using UnityEngine.Profiling;
 namespace KERBALISM.SteppedSim
 {
 	#region IndexStructs
+	public struct TimeVesselIndex
+	{
+		public int time;
+		public int origVessel;
+	}
+
 	public struct TimeBodyStarIndex
 	{
 		public int time;
@@ -155,6 +161,8 @@ namespace KERBALISM.SteppedSim
 						in frameStats,
 						in starIndexes,
 						out NativeArray<TimeBodyStarIndex> timeBodyStarIndex,
+						out NativeArray<TimeVesselIndex> timeVesselIndices,
+						out JobHandle buildTimeVesselIndexJob,
 						out JobHandle buildTimeBodyStarsJob,
 						out JobHandle buildTimeBodyOccludersJob,
 						out JobHandle buildTimeVesselBodyIndexJob,
@@ -176,15 +184,18 @@ namespace KERBALISM.SteppedSim
 			Profiler.EndSample();
 
 			Profiler.BeginSample("VesselBodyOcclusionRelevance");
-			var vesselBodyOcclusionRelevance = new NativeArray<bool>(numStepsVesselsBodies, Allocator.TempJob);
+			var vesselBodyOcclusionRelevanceLength = new NativeArray<int>(numSteps * numVessels, Allocator.TempJob);
+			var vesselBodyOcclusionRelevance = new NativeArray<int>(numStepsVesselsBodies, Allocator.TempJob);
 			var vesselBodyOcclusionRelevanceJob = new VesselBodyOcclusionRelevanceJob
 			{
+				indices = timeVesselIndices,
+				stats = frameStats,
 				minRequiredHalfAngleRadians = 0.002909 / 2,
 				bodies = bodies,
 				vessels = vessels,
-				indices = timeVesselBodyIndex,
 				relevance = vesselBodyOcclusionRelevance,
-			}.Schedule(numStepsVesselsBodies, 512, buildTimeVesselBodyIndexJob);
+				relevanceLengths = vesselBodyOcclusionRelevanceLength,
+			}.Schedule(numSteps * numVessels, 512, buildTimeVesselIndexJob);
 			Profiler.EndSample();
 
 			Profiler.BeginSample("BodyStarOcclusion");
@@ -209,8 +220,9 @@ namespace KERBALISM.SteppedSim
 				vessels = vessels,
 				bodies = bodies,
 				occlusionRelevance = vesselBodyOcclusionRelevance,
+				occlusionRelevanceLengths = vesselBodyOcclusionRelevanceLength,
 				occluded = vesselBodyOcclusionMap,
-			}.Schedule(numStepsVesselsBodies, 16, vesselBodyOcclusionRelevanceJob);
+			}.Schedule(numStepsVesselsBodies, 16, JobHandle.CombineDependencies(buildTimeVesselBodyIndexJob, vesselBodyOcclusionRelevanceJob));
 			Profiler.EndSample();
 
 			Profiler.BeginSample("SolarFlux");
@@ -337,7 +349,7 @@ namespace KERBALISM.SteppedSim
 		}
 		public static double GeometricAlbedoFactor(double sunBodyObserverAngleFactor)
 		{
-			return 4.0 * math.pow(sunBodyObserverAngleFactor, 3.0);
+			return 4.0 * sunBodyObserverAngleFactor * sunBodyObserverAngleFactor * sunBodyObserverAngleFactor;
 		}
 
 		/// <summary>
@@ -405,11 +417,20 @@ namespace KERBALISM.SteppedSim
 			in FrameStats frameStats,
 			in NativeArray<int> starIndexes,
 			out NativeArray<TimeBodyStarIndex> timeBodyStarIndex,
+			out NativeArray<TimeVesselIndex> timeVesselIndices,
+			out JobHandle buildTimeVesselIndexJob,
 			out JobHandle buildTimeBodyStarsJob,
 			out JobHandle buildTimeBodyOccludersJob,
 			out JobHandle buildTimeVesselBodyIndexJob,
 			out JobHandle buildTimeVesselBodyStarIndexJob)
 		{
+			timeVesselIndices = new NativeArray<TimeVesselIndex>(frameStats.numSteps * frameStats.numVessels, Allocator.TempJob);
+			buildTimeVesselIndexJob = new BuildTimeVesselIndexJob
+			{
+				stats = frameStats,
+				tuples = timeVesselIndices,
+			}.Schedule(dependencyHandle);
+
 			// Build index of all body-star pairings
 			timeBodyStarIndex = new NativeArray<TimeBodyStarIndex>(frameStats.numSteps * frameStats.numBodies * frameStats.numStars, Allocator.TempJob);
 			buildTimeBodyStarsJob = new BuildTimeBodyStarsIndexJob
