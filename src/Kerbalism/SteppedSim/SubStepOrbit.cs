@@ -137,15 +137,15 @@ namespace KERBALISM.SteppedSim
 
 		private double solveEccentricAnomalyStd(double M, double ecc, double maxError = 1E-07)
 		{
-			double error = 1;
+			double error;
 			double eccAnomaly = M + ecc * math.sin(M) + 0.5 * ecc * ecc * math.sin(2 * M);
-			while (math.abs(error) > maxError)
+			do
 			{
 				math.sincos(eccAnomaly, out double sinEccAnomaly, out double cosEccAnomaly);
 				double num3 = eccAnomaly - ecc * sinEccAnomaly;
 				error = (M - num3) / (1.0 - ecc * cosEccAnomaly);
 				eccAnomaly += error;
-			}
+			} while (math.abs(error) > maxError);
 			return eccAnomaly;
 		}
 

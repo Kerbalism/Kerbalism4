@@ -340,7 +340,8 @@ namespace KERBALISM.SteppedSim
 
 			var d0 = timeBodyStarIndex.Dispose(vesselBodyIrradianceSummaryJob);
 			var d1 = frameWeights.Dispose(d0);
-			outputJob = bodyStarOcclusion.Dispose(d1);
+			var d2 = timeVesselIndices.Dispose(d1);
+			outputJob = bodyStarOcclusion.Dispose(d2);
 			JobHandle.ScheduleBatchedJobs();
 		}
 		public static double SolarFlux(double luminosity, double distance)
