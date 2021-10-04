@@ -355,7 +355,7 @@ namespace KERBALISM.SteppedSim.Jobs
 	}
 
 	[BurstCompile]
-	struct BuildBodyAndVesselHolders : IJobParallelFor
+	struct BuildBodyAndVesselOutputs : IJobParallelFor
 	{
 		[ReadOnly] internal PositionComputeFactory.FrameStats stats;
 		[DeallocateOnJobCompletion] [ReadOnly] internal NativeArray<TimeOrbitIndex> timeOrbitIndex;
@@ -366,45 +366,29 @@ namespace KERBALISM.SteppedSim.Jobs
 		[WriteOnly] public NativeArray<SubstepBody> bodyData;
 		[WriteOnly] public NativeArray<SubstepVessel> vesselData;
 
+		// index corresponds with each timestep
 		public void Execute(int index)
 		{
-			TimeOrbitIndex i = timeOrbitIndex[index];
-			if (!i.isVessel)
+			int vesselIndex = index * stats.numVessels;
+			int bodyIndex = index * stats.numBodies;
+			int offset = index * stats.numOrbits;
+			for (int i=0; i<stats.numOrbits; i++, offset++)
 			{
-				var body = bodySourceData[i.origOrbit];
-				body.bodyFrame = rotations[index].celestialFrame;
-				body.position = worldPositions[index];
-				bodyData[index] = body;
-			}
-			else
-			{
-				var vessel = vesselSourceData[i.origOrbit - stats.numBodies];
-				vessel.position = worldPositions[index];
-				vessel.rotation = rotations[index].angle;
-				vesselData[index] = vessel;
-			}
-		}
-	}
-
-	[BurstCompile]
-	public struct RealignBodyAndVesselArrays : IJob
-	{
-		// Source/Holder data is as built in BuildBodyAndVesselHolders
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepBody> bodyHolderData;
-		[DeallocateOnJobCompletion] [ReadOnly] public NativeArray<SubstepVessel> vesselHolderData;
-		[ReadOnly] internal PositionComputeFactory.FrameStats stats;
-		[WriteOnly] public NativeArray<SubstepBody> bodyData;
-		[WriteOnly] public NativeArray<SubstepVessel> vesselData;
-
-		public void Execute()
-		{
-			int bodyIndex = 0, vesselIndex = 0;
-			for (int i=0; i<stats.numSteps; i++)
-			{
-				bodyData.Slice(bodyIndex, stats.numBodies).CopyFrom(bodyHolderData.Slice(i * stats.numOrbits, stats.numBodies));
-				vesselData.Slice(vesselIndex, stats.numVessels).CopyFrom(vesselHolderData.Slice(i * stats.numOrbits + stats.numBodies, stats.numVessels));
-				bodyIndex += stats.numBodies;
-				vesselIndex += stats.numVessels;
+				TimeOrbitIndex TOI = timeOrbitIndex[offset];
+				if (!TOI.isVessel)
+				{
+					var body = bodySourceData[TOI.origOrbit];
+					body.bodyFrame = rotations[offset].celestialFrame;
+					body.position = worldPositions[offset];
+					bodyData[bodyIndex++] = body;
+				}
+				else
+				{
+					var vessel = vesselSourceData[TOI.origOrbit - stats.numBodies];
+					vessel.rotation = rotations[offset].angle;
+					vessel.position = worldPositions[offset];
+					vesselData[vesselIndex++] = vessel;
+				}
 			}
 		}
 	}

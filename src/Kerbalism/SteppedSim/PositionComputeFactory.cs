@@ -178,12 +178,12 @@ namespace KERBALISM.SteppedSim
 
 			Profiler.EndSample();
 
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateTempBodyVesselData");
-			var bodyDataTemp = new NativeArray<SubstepBody>(sz, Allocator.TempJob);
-			var vesselDataTemp = new NativeArray<SubstepVessel>(sz, Allocator.TempJob);
+			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateFinalBodyVesselData");
+			bodyData = new NativeArray<SubstepBody>(numBodies * numSteps, Allocator.TempJob);
+			vesselData = new NativeArray<SubstepVessel>(numVessels * numSteps, Allocator.TempJob);
 			Profiler.EndSample();
 
-			var buildHoldersJob = new BuildBodyAndVesselHolders
+			finalJob = new BuildBodyAndVesselOutputs
 			{
 				stats = frameStats,
 				timeOrbitIndex = timeOrbitIndex,
@@ -191,22 +191,10 @@ namespace KERBALISM.SteppedSim
 				vesselSourceData = vesselTemplates,
 				rotations = rotations,
 				worldPositions = worldPositions,
-				bodyData = bodyDataTemp,
-				vesselData = vesselDataTemp,
-			}.Schedule(sz, 128, computeWorldPositionJob);
-
-			Profiler.BeginSample("Kerbalism.RunSubstepSim.ComputePositions.AllocateFinalBodyVesselData");
-			bodyData = new NativeArray<SubstepBody>(numBodies * numSteps, Allocator.TempJob);
-			vesselData = new NativeArray<SubstepVessel>(numVessels * numSteps, Allocator.TempJob);
-			Profiler.EndSample();
-			finalJob = new RealignBodyAndVesselArrays
-			{
-				stats = frameStats,
-				bodyHolderData = bodyDataTemp,
-				vesselHolderData = vesselDataTemp,
 				bodyData = bodyData,
 				vesselData = vesselData,
-			}.Schedule(buildHoldersJob);
+			}.Schedule(numSteps, 1, computeWorldPositionJob);
+
 			JobHandle.ScheduleBatchedJobs();
 		}
 	}
