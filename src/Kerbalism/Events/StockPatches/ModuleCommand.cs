@@ -86,7 +86,7 @@ namespace KERBALISM
 				if (__instance.hibernation)
 					ecRate *= Settings.HibernatingEcFactor;
 
-				ec.Consume(ecRate * Kerbalism.elapsed_s, ResourceBroker.Command, true);
+				ec.Consume(ecRate * Kerbalism.fixedUpdateElapsedSec, ResourceBroker.Command, true);
 			}
 
 			// replicate the resource checking code of ModuleCommand.UpdateControlSourceState()

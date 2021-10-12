@@ -11,7 +11,7 @@ namespace KERBALISM
 
 		/// <summary>List of all suns/stars, with reference to their CB and their (total) luminosity</summary>
 		public static readonly List<SimStar> stars = new List<SimStar>();
-		private static readonly List<int> starsIndex = new List<int>();
+		private static SimStar[] starsByFlightGlobalsIndex;
 
 		/// <summary>
 		/// Solar luminosity from all stars/suns at the home body, in W/m².
@@ -45,6 +45,7 @@ namespace KERBALISM
 		public static void Init()
 		{
 			Bodies = new SimBody[FlightGlobals.Bodies.Count];
+			starsByFlightGlobalsIndex = new SimStar[FlightGlobals.Bodies.Count];
 
 			// see CelestialBody.GetSolarPowerFactor()
 			CelestialBody stockHome = FlightGlobals.GetHomeBody();
@@ -62,8 +63,9 @@ namespace KERBALISM
 					if (c.GetType().ToString().Contains("LightShifter"))
 					{
 						double starFluxAtHome = Lib.ReflectionValue<double>(c, "solarLuminosity");
-						stars.Add(new SimStar(body, starFluxAtHome));
-						starsIndex.Add(body.flightGlobalsIndex);
+						SimStar star = new SimStar(body, starFluxAtHome);
+						stars.Add(star);
+						starsByFlightGlobalsIndex[star.body.flightGlobalsIndex] = star;
 						if (starFluxAtHome > 1.0)
 							SolarFluxAtHome += starFluxAtHome;
 					}
@@ -76,8 +78,9 @@ namespace KERBALISM
 			// if nothing was found, assume the sun is the stock default
 			if (stars.Count == 0)
 			{
-				stars.Add(new SimStar(FlightGlobals.Bodies[0], PhysicsGlobals.SolarLuminosityAtHome));
-				starsIndex.Add(0);
+				SimStar star = new SimStar(FlightGlobals.Bodies[0], PhysicsGlobals.SolarLuminosityAtHome);
+				stars.Add(star);
+				starsByFlightGlobalsIndex[star.body.flightGlobalsIndex] = star;
 				SolarFluxAtHome = PhysicsGlobals.SolarLuminosityAtHome;
 			}
 
@@ -85,14 +88,15 @@ namespace KERBALISM
 			foreach (SimStar star in stars)
 			{
 				star.InitSolarFluxTotal();
+				
 				Bodies[star.body.flightGlobalsIndex].isSun = true;
+
 			}
 
 			foreach (SimBody simBody in Bodies)
 			{
 				simBody.Init();
 			}
-
 
 			// get scaled space planetary layer for physic raytracing
 			planetaryLayerMask = 1 << LayerMask.NameToLayer("Scaled Scenery");
@@ -219,21 +223,14 @@ namespace KERBALISM
 		/// <summary> Is this body a star ? </summary>
 		public static bool IsStar(CelestialBody body)
 		{
-			return starsIndex.Contains(body.flightGlobalsIndex);
+			return starsByFlightGlobalsIndex[body.flightGlobalsIndex] != null;
 		}
 
 		/// <summary> get the star data for this body (if it is a star) </summary>
 		public static bool TryGetStarData(CelestialBody body, out SimStar starData)
 		{
-			int index = starsIndex.IndexOf(body.flightGlobalsIndex);
-			if (index < 0)
-			{
-				starData = null;
-				return false;
-			}
-
-			starData = stars[index];
-			return true;
+			starData = starsByFlightGlobalsIndex[body.flightGlobalsIndex];
+			return starData != null;
 		}
 
 		/// <summary> return the first found parent star for a given body </summary>

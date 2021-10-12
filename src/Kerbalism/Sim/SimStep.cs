@@ -24,7 +24,7 @@ namespace KERBALISM
 		// step results
 		public double thermalFlux;
 		public double bodiesCoreIrradiance;
-		public StarFlux[] starFluxes;
+		public StarFluxOld[] starFluxes;
 
 		// step parameters
 		private SimVessel simVessel;
@@ -50,7 +50,7 @@ namespace KERBALISM
 
 		public SimStep()
 		{
-			starFluxes = StarFlux.StarArrayFactory();
+			starFluxes = StarFluxOld.StarArrayFactory();
 		}
 
 		public void ReleaseToPool()
@@ -146,7 +146,7 @@ namespace KERBALISM
 
 		private void AnalyzeSunFluxes()
 		{
-			foreach (StarFlux starFlux in starFluxes)
+			foreach (StarFluxOld starFlux in starFluxes)
 			{
 				SimBody sun = Bodies[starFlux.Star.body.flightGlobalsIndex];
 
@@ -174,7 +174,7 @@ namespace KERBALISM
 				}
 
 				// direct flux from this sun
-				starFlux.directRawFlux = starFlux.Star.SolarFlux(starFlux.distance);
+				starFlux.directRawFlux = starFlux.Star.Irradiance(starFlux.distance);
 
 				if (isOccluded)
 				{
@@ -227,12 +227,12 @@ namespace KERBALISM
 		/// <param name="starFlux">Sun fluxes data to update</param>
 		/// <param name="sunFluxAtBody">flux in W/m² received by this body from the considered sun</param>
 		/// <param name="bodyIsVisibleFromSun">false if the sun LOS for a moon is blocked by it's parent planet</param>
-		private void GetBodyIndirectSunFluxes(StarFlux starFlux, SimBody body, Vector3d bodyPosition, Vector3d sunPosition, double bodyToSunDist, bool bodyIsVisibleFromSun)
+		private void GetBodyIndirectSunFluxes(StarFluxOld starFlux, SimBody body, Vector3d bodyPosition, Vector3d sunPosition, double bodyToSunDist, bool bodyIsVisibleFromSun)
 		{
 			// Get solar flux re-emitted by the body at the vessel position
 			// We work on the assumption that all solar flux blocked by the body disc
 			// is reflected back to space, either directly (albedo) or trough thermal re-emission.
-			double sunFluxAtBody = starFlux.Star.SolarFlux(bodyToSunDist);
+			double sunFluxAtBody = starFlux.Star.Irradiance(bodyToSunDist);
 
 			// ALBEDO
 			double albedoFlux = 0.0;
@@ -333,7 +333,7 @@ namespace KERBALISM
 		private void AnalyzeThermalFlux()
 		{
 			thermalFlux = 0.0;
-			foreach (StarFlux star in starFluxes)
+			foreach (StarFluxOld star in starFluxes)
 			{
 
 				// irradiance for the portion of the 360° angle that is exposed to both the sun and the main body

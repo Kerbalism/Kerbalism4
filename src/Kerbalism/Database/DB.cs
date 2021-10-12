@@ -130,8 +130,6 @@ namespace KERBALISM
 				uiData = new UIData();
             }
 
-            SubStepSim.Load(node);
-
 			// if an old savegame was imported, log some debug info
 			if (version != Lib.KerbalismVersion) Lib.Log("savegame converted from version " + version + " to " + Lib.KerbalismVersion);
         }
@@ -177,8 +175,6 @@ namespace KERBALISM
 
 			// save ui data
 			uiData.Save(node.AddNode(NODENAME_GUI));
-
-			SubStepSim.Save(node);
 		}
 
 		/// <summary> Avoid leading and trailing spaces from being removed when saving a string to a ConfigNode value</summary>

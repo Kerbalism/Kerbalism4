@@ -112,6 +112,7 @@ namespace KERBALISM
 		public static long lastKerbalismFuTicks;
 		public static double workerTimeMissed;
 		public static double workerTimeUsed;
+		public static double workerLag;
 		static double lastFps;
 
 		static Measure fps = new Measure("Update (FPS)", (v) => v.ToString("00.0;--"));
@@ -122,6 +123,7 @@ namespace KERBALISM
 		static Measure workerLoad = new Measure("Sim thread load", (v) => v.ToString("00.0 %;--"));
 		static Measure wTimeMissed = new Measure("Sim time missed", (v) => Lib.HumanReadableDuration(v));
 		static Measure wTimeUsed = new Measure("Sim time used", (v) => Lib.HumanReadableDuration(v));
+		static Measure wBlock = new Measure("Sim lag", (v) => v.ToString("00.00 ms;--"));
 
 		// permit global access
 		public static MiniProfiler Fetch { get; private set; } = null;
@@ -176,6 +178,7 @@ namespace KERBALISM
 			workerLoad.CreateDialogEntry();
 			wTimeMissed.CreateDialogEntry();
 			wTimeUsed.CreateDialogEntry();
+			wBlock.CreateDialogEntry();
 		}
 
 		private void FixedUpdate()
@@ -198,11 +201,13 @@ namespace KERBALISM
 			workerLoad.Update(lastWorkerPercent);
 			wTimeMissed.Update(workerTimeMissed);
 			wTimeUsed.Update(workerTimeUsed);
+			wBlock.Update(workerLag);
 		}
 
 		private string GetIntervalInfo()
 		{
-			return Lib.BuildString("Sim sub-stepping interval : ", Lib.HumanReadableDuration(SubStepSim.subStepInterval), ", max sub-steps : ", SubStepSim.subStepsAtMaxWarp.ToString());
+			//return Lib.BuildString("Sim sub-stepping interval : ", Lib.HumanReadableDuration(SubStepSim.subStepInterval), ", max sub-steps : ", SubStepSim.subStepsAtMaxWarp.ToString());
+			return "Sub-stepping interval temporarily unavailable";
 		}
 
 		private void Update()

@@ -351,12 +351,12 @@ namespace KERBALISM
 			exposureFactor = 0.0;
 			double starsFlux = 0.0;
 			// iterate over all stars, compute the exposure factor
-			foreach (StarFlux starFlux in VesselData.StarsIrradiance)
+			foreach (StarFlux starFlux in VesselData.StarFluxes)
 			{
 				// update tracked body in auto mode
 				if (!manualTracking && trackedStar.directRawFluxProportion < starFlux.directRawFluxProportion)
 				{
-					SetTrackedBody(starFlux.Star.body);
+					SetTrackedBody(starFlux.bodyData.body);
 				}
 
 				// ignore non-visible stars
@@ -378,7 +378,7 @@ namespace KERBALISM
 				double occlusionFactor = 1.0;
 
 				// Get the cosine factor (alignement between the sun and the panel surface)
-				cosineFactor = GetCosineFactor(starFlux.direction);
+				cosineFactor = GetCosineFactor(starFlux.bodyData.direction);
 
 				if (cosineFactor == 0.0)
 				{
@@ -398,7 +398,7 @@ namespace KERBALISM
 					bool occluderIsPart = false;
 					if (IsLoaded && !isSubstepping)
 					{
-						occlusionFactor = GetOccludedFactor(starFlux.direction, out occludingObject, out occluderIsPart);
+						occlusionFactor = GetOccludedFactor(starFlux.bodyData.direction, out occludingObject, out occluderIsPart);
 					}
 
 					// If this is the tracked sun and the panel is occluded, update the gui info string. 
@@ -513,15 +513,7 @@ namespace KERBALISM
 		private void SetTrackedBody(CelestialBody body)
 		{
 			trackedStarIndex = body.flightGlobalsIndex;
-
-			for (int i = 0; i < VesselData.StarsIrradiance.Length; i++)
-			{
-				if (VesselData.StarsIrradiance[i].Star.body.flightGlobalsIndex == trackedStarIndex)
-				{
-					trackedStar = VesselData.StarsIrradiance[i];
-					break;
-				}
-			}
+			trackedStar = (StarFlux)VesselData.BodiesData[trackedStarIndex].fluxData;
 
 			if (IsLoaded)
 			{
@@ -533,7 +525,7 @@ namespace KERBALISM
 				trackingPAWEvent.guiName = KsmString.Get
 					.Add(Local.SolarPanelFixer_Trackedstar, KF.WhiteSpace)
 					.Add(manualTracking ? ":" : Local.SolarPanelFixer_AutoTrack, KF.WhiteSpace)
-					.Add(trackedStar.Star.body.name)
+					.Add(body.name)
 					.End();
 			}
 		}

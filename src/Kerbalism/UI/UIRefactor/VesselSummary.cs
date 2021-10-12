@@ -913,10 +913,10 @@ namespace KERBALISM
 			return KsmString.Get
 				.Format("Black body temperature at vessel position", KF.KolorYellow, KF.Bold, KF.Center, KF.BreakAfter)
 				.Info("Total irradiance", KF.ReadableIrradiance(vd.IrradianceTotal), 100)
-				.Info("Sun irradiance", KF.ReadableIrradiance(vd.IrradianceStarTotal), 100)
-				.Info("Bodies albedo", KF.ReadableIrradiance(vd.IrradianceAlbedo), 100)
-				.Info("Bodies core", KF.ReadableIrradiance(vd.IrradianceBodiesCore), 100)
-				.Info("Bodies emissive", KF.ReadableIrradiance(vd.IrradianceBodiesEmissive), 100).End();
+				.Info("Sun irradiance", KF.ReadableIrradiance(vd.StarsIrradiance), 100)
+				.Info("Bodies albedo", KF.ReadableIrradiance(vd.BodiesIrradianceAlbedo), 100)
+				.Info("Bodies core", KF.ReadableIrradiance(vd.BodiesIrradianceCore), 100)
+				.Info("Bodies emissive", KF.ReadableIrradiance(vd.BodiesIrradianceEmissive), 100).End();
 		}
 
 		private class RadiationTooltip : KsmGuiVerticalLayout

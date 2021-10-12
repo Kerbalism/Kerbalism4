@@ -46,7 +46,7 @@ namespace KERBALISM
 					break;
 				}
 
-				vd.subSteps.Add(stepsData.RemoveFromFront());
+				//vd.subSteps.Add(stepsData.RemoveFromFront());
 			}
 
 			if (soiHasChanged)

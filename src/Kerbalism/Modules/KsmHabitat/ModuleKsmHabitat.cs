@@ -502,7 +502,7 @@ namespace KERBALISM
 			// TODO : temporary, waiting for an implementation of the ModuleData.OnFixedUpdate() in-editor automatic invocation
 			if (Lib.IsEditor)
 			{
-				moduleHandler.OnFixedUpdate(Kerbalism.elapsed_s);
+				moduleHandler.OnFixedUpdate(Kerbalism.fixedUpdateElapsedSec);
 			}
 		}
 

@@ -176,10 +176,8 @@ namespace KERBALISM
 			level = resourceWrapper.capacity > 0.0 ? resourceWrapper.amount / resourceWrapper.capacity : 0.0;
 
 			// calculate rate of change per-second
-			// - don't update rate during warp blending (stock modules have instabilities during warp blending) 
 			// - ignore interval-based rules consumption/production
-			if (!Kerbalism.WarpBlending)
-				rate = (resourceWrapper.amount - resourceWrapper.oldAmount) / elapsed_s;
+			rate = (resourceWrapper.amount - resourceWrapper.oldAmount) / elapsed_s;
 
 			// For visualization purpose, update the brokers list, merging all detected sources :
 			// - normal brokers that use Consume() or Produce()
