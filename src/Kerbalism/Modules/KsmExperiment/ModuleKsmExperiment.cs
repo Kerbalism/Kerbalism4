@@ -7,7 +7,6 @@ using KSP.Localization;
 using System.Collections;
 using static KERBALISM.ExperimentRequirements;
 using static KERBALISM.ExperimentHandler;
-using KERBALISM.Planner;
 
 namespace KERBALISM
 {
@@ -16,8 +15,7 @@ namespace KERBALISM
 	public class ModuleKsmExperiment :
 		KsmPartModule<ModuleKsmExperiment, ExperimentHandler, ExperimentDefinition>,
 		IPartMassModifier,
-		IMultipleDragCube,
-		IPlannerModule
+		IMultipleDragCube
 	{
 		#region FIELDS
 
@@ -160,12 +158,6 @@ namespace KERBALISM
 			moduleHandler.shrouded = part.ShieldedFromAirstream;
 		}
 
-		public void PlannerUpdate(VesselResHandler resHandler, VesselDataShip vesselData)
-		{
-			if (moduleHandler.IsRunningRequested)
-				resHandler.ElectricCharge.Consume(moduleHandler.definition.RequiredEC, ResourceBroker.Experiment);
-		}
-
 		#endregion
 
 		#region USER INTERACTION
@@ -236,8 +228,8 @@ namespace KERBALISM
 						ed.State = RunningState.Stopped;
 						ed.loadedModule.deployAnimator.Play(true, false, null, Lib.IsEditor ? 5f : 1f);
 						ed.loadedModule.SetDragCubes(false);
-						if (Lib.IsEditor)
-							Planner.Planner.RefreshPlanner();
+						//if (Lib.IsEditor)
+						//	Planner.Planner.RefreshPlanner();
 					};
 
 					// wait for loop animation to stop before deploy animation
@@ -268,8 +260,8 @@ namespace KERBALISM
 						{
 							ed.loadedModule.animationGroup.DeployModule();
 							ed.State = setForcedRun ? RunningState.Forced : RunningState.Running;
-							if (Lib.IsEditor)
-								Planner.Planner.RefreshPlanner();
+							//if (Lib.IsEditor)
+							//	Planner.Planner.RefreshPlanner();
 						}
 					}
 					// if using our own animation handler, when the animation is done playing,
@@ -281,8 +273,8 @@ namespace KERBALISM
 							ed.State = setForcedRun ? RunningState.Forced : RunningState.Running;
 							ed.loadedModule.loopAnimator.Play(false, true);
 							ed.loadedModule.SetDragCubes(true);
-							if (Lib.IsEditor)
-								Planner.Planner.RefreshPlanner();
+							//if (Lib.IsEditor)
+							//	Planner.Planner.RefreshPlanner();
 						};
 
 						ed.loadedModule.deployAnimator.Play(false, false, onDeploy, Lib.IsEditor ? 5f : 1f);

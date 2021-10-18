@@ -9,27 +9,36 @@ namespace KERBALISM
 {
 	public class MainUIFlight
 	{
-		public MainUIFlight Instance { get; private set; }
+		public static MainUIFlight Instance { get; private set; }
 
 		private VesselsManager vesselsManager;
-		private VesselSummaryUI vesselSummary;
+		private VesselManager vesselManager;
 		private VesselDataBase selectedVessel;
 
-		public MainUIFlight(KsmGuiWindow window)
+		public MainUIFlight(KsmGuiWindow window, bool vesselListAtTop)
 		{
 			Instance = this;
+
+			vesselManager = new VesselManager(window);
 			vesselsManager = new VesselsManager(window);
-			vesselsManager.onVesselSelected = OnVesselSelected;
-			vesselSummary = new VesselSummaryUI(window, false);
-			vesselSummary.Enabled = false;
+
+			if (vesselListAtTop)
+			{
+				vesselsManager.MoveAsFirstChild();
+			}
+
+			vesselsManager.onVesselSelected = SelectVessel;
+
+			vesselManager.Enabled = false;
 		}
 
-		private void OnVesselSelected(VesselData vd)
+
+		public void SelectVessel(VesselData vd)
 		{
-			if (selectedVessel == vd)
+			if (vd == null || selectedVessel == vd)
 			{
 				selectedVessel = null;
-				vesselSummary.Enabled = false;
+				vesselManager.Enabled = false;
 				return;
 			}
 
@@ -37,12 +46,12 @@ namespace KERBALISM
 
 			if (vd.IsSimulated)
 			{
-				vesselSummary.SetVessel(vd);
-				vesselSummary.Enabled = true;
+				vesselManager.SetVessel(vd);
+				vesselManager.Enabled = true;
 			}
 			else
 			{
-				vesselSummary.Enabled = false;
+				vesselManager.Enabled = false;
 			}
 		}
 	}

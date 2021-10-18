@@ -4,98 +4,13 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Threading;
 using UnityEngine;
-using KSP.Localization;
-using static KERBALISM.HabitatHandler;
 
 namespace KERBALISM
 {
-    // the radiation system
-    public static class Radiation
+	// the radiation system
+	public static class Radiation
     {
-		public class ResourceOcclusion
-		{
-			public PartResourceDefinition StockDefinition { get; private set; }
-			public bool IsWallResource { get; private set; }
-			public double LowHVL { get; private set; }
-			public double HighHVL { get; private set; }
-
-			private ResourceOcclusion() {}
-
-			public ResourceOcclusion(PartResourceDefinition stockDefinition)
-			{
-				StockDefinition = stockDefinition;
-				IsWallResource = false;
-				LowHVL = waterHVL_Gamma1MeV / StockDefinition.RealDensity();
-				HighHVL = waterHVL_Gamma25MeV / StockDefinition.RealDensity();
-			}
-
-			public static bool TryParseResourceOcclusion(ConfigNode definitionNode, out ResourceOcclusion resourceOcclusion)
-			{
-				string resName = Lib.ConfigValue(definitionNode, "name", string.Empty);
-				PartResourceDefinition stockDefinition = PartResourceLibrary.Instance.GetDefinition(resName);
-				if (stockDefinition == null)
-				{
-					resourceOcclusion = null;
-					return false;
-				}
-
-				resourceOcclusion = new ResourceOcclusion
-				{
-					StockDefinition = stockDefinition,
-					IsWallResource = Lib.ConfigValue(definitionNode, "isWallResource", false),
-					LowHVL = Lib.ConfigValue(definitionNode, "lowHVL", 1.0),
-					HighHVL = Lib.ConfigValue(definitionNode, "highHVL", 1.0)
-				};
-				return true;
-			}
-		}
-
-		public static Dictionary<int, ResourceOcclusion> resourcesOcclusionLibrary = new Dictionary<int, ResourceOcclusion>();
-
-		public static void PopulateResourcesOcclusionLibrary(ConfigNode[] configDefinitions)
-		{
-			foreach (ConfigNode node in configDefinitions)
-			{
-				if (ResourceOcclusion.TryParseResourceOcclusion(node, out ResourceOcclusion resourceOcclusion))
-				{
-					resourcesOcclusionLibrary[resourceOcclusion.StockDefinition.id] = resourceOcclusion;
-				}
-			}
-
-			foreach (PartResourceDefinition resource in PartResourceLibrary.Instance.resourceDefinitions)
-			{
-				if (!resourcesOcclusionLibrary.ContainsKey(resource.id))
-				{
-					resourcesOcclusionLibrary[resource.id] = new ResourceOcclusion(resource);
-				}
-			}
-		}
-
-		public static ResourceOcclusion GetResourceOcclusion(PartResourceDefinition resource) => resourcesOcclusionLibrary[resource.id];
-		public static ResourceOcclusion GetResourceOcclusion(string resourceName)
-		{
-			PartResourceDefinition resource = PartResourceLibrary.Instance.GetDefinition(resourceName);
-			if (resource == null)
-				return null;
-
-			return resourcesOcclusionLibrary[resource.id];
-		}
-
-		/// <summary>
-		/// Half-Value Layer (meters) : the thickness of water required to divide 1 MeV gamma radiation by two.
-		/// </summary>
-		public const double waterHVL_Gamma1MeV = 0.10;
-
-		public const double waterHVL_Gamma25MeV = 0.40;
-
-		/// <summary>
-		/// Half-Value Layer (meters) : the thickness of aluminium required to divide 1 MeV gamma radiation by two.
-		/// </summary>
-		public const double aluminiumHVL_Gamma1MeV = 0.04;
-
-		public const double aluminiumHVL_Gamma25MeV = 0.12;
-
-		#region DECLARATIONS
+	    #region DECLARATIONS
 		static Dictionary<string, RadiationModel> models = new Dictionary<string, RadiationModel>(16);
 		static Dictionary<string, RadiationBody> bodies = new Dictionary<string, RadiationBody>(32);
 
@@ -770,21 +685,6 @@ namespace KERBALISM
 		}
 
 		/// <summary>
-		/// Calculate radiation shielding efficiency. Parameter shielding should be in range [0..1+] 
-		/// <para/>If you have a thickness which stops a known amount of radiation of a known and constant
-		/// type, then if you have a new thickness, you can calculate how much it stops by:
-		/// <para/>Stoppage = 1 - ((1 - AmountStoppedByKnownThickness)^(NewThickness / KnownThickness))
-		/// <para/>source : http://www.projectrho.com/public_html/rocket/radiation.php#id--Radiation_Shielding--Shielding--Shield_Rating
-		/// </summary>
-		// The default magic numbers are :
-		// - shieldingEfficiency (default 0.9) is for 20 mm of shielding material
-		// - 1 unit of shielding resource = 1m? of 20 mm thick shielding material
-		public static double ShieldingEfficiency(double shieldingFactor)
-		{
-			return 1.0 - Math.Pow(1.0 - PreferencesRadiation.Instance.shieldingEfficiency, Math.Max(shieldingFactor, 0.0));
-		}
-
-		/// <summary>
 		/// Return the proportion of radiation blocked by a material thickness,
 		/// given a known Half-Value Layer (HVL) for that material. 
 		/// <br/>Some values for low-medium (1 MeV) energy gamma/xray radiation :
@@ -817,13 +717,7 @@ namespace KERBALISM
 		/// <returns></returns>
 		public static double DensityBlockingFactor(double density, double thickness, bool highEnergy)
 		{
-			return 1 - Math.Pow(0.5, thickness / (highEnergy ? waterHVL_Gamma25MeV : waterHVL_Gamma1MeV / density));
-		}
-
-		/// <summary> return a verbose description of the vessel shielding factor</summary>
-		public static string VesselShieldingToString(double shieldingFactor)
-		{
-			return shieldingFactor <= 0.0 ? Local.Habitat_none : Lib.BuildString((20.0 * shieldingFactor / PreferencesRadiation.Instance.shieldingEfficiency).ToString("F2"), " mm");//"none"
+			return 1 - Math.Pow(0.5, thickness / (highEnergy ? ResourceHVLDefinition.waterHVL_Gamma25MeV : ResourceHVLDefinition.waterHVL_Gamma1MeV / density));
 		}
 
 		/// <summary> show warning message when a vessel cross a radiation belt</summary>
@@ -867,7 +761,6 @@ namespace KERBALISM
 			// result = radiation / (4 * Pi * r^2)
 			return radiation / Math.Max(1.0, 4 * Math.PI * distanceSqr);
 		}
-
-	}
+    }
 
 } // KERBALISM

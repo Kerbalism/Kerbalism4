@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace KERBALISM
 {
+	/*
 	public class GreenhouseDefinition : KsmModuleDefinition
 	{
 		[CFGValue] public string growthProcessName; // process name of in-flight food production process
@@ -24,4 +25,5 @@ namespace KERBALISM
 
 		[CFGValue] public string lamps;              // object with emissive texture used to represent intensity graphically
 	}
+	*/
 }

@@ -13,7 +13,7 @@ namespace KERBALISM.Events
 	public sealed class GameEventsHandler
 	{
 		private GameEventsHabitat gameEventsHabitat = new GameEventsHabitat();
-		private GameEventsCrew gameEventsCrew = new GameEventsCrew();
+		private GameEventsKerbals gameEventsCrew = new GameEventsKerbals();
 		private GameEventsUI gameEventsUI = new GameEventsUI();
 		private VesselLifecycle vesselLifecycle = new VesselLifecycle();
 		private PartLifecycle partLifecycle = new PartLifecycle();

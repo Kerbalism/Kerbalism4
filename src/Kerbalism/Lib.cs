@@ -207,21 +207,48 @@ namespace KERBALISM
 
 		#region MATH
 		///<summary>clamp a value</summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static int Clamp(int value, int min, int max)
 		{
-			return Math.Max(min, Math.Min(value, max));
+			if (min > max)
+				throw new ArgumentException($"{min} is higher than {max}");
+
+			if (value < min)
+				return min;
+			if (value > max)
+				return max;
+
+			return value;
 		}
 
 		///<summary>clamp a value</summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static float Clamp(float value, float min, float max)
 		{
-			return Math.Max(min, Math.Min(value, max));
+			if (min > max)
+				throw new ArgumentException($"{min} is higher than {max}");
+
+			if (value < min)
+				return min;
+			if (value > max)
+				return max;
+
+			return value;
 		}
 
 		///<summary>clamp a value</summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static double Clamp(double value, double min, double max)
 		{
-			return Math.Max(min, Math.Min(value, max));
+			if (min > max)
+				throw new ArgumentException($"{min} is higher than {max}");
+
+			if (value < min)
+				return min;
+			if (value > max)
+				return max;
+
+			return value;
 		}
 
 		///<summary>blend between two values</summary>
@@ -242,6 +269,20 @@ namespace KERBALISM
 		public static double MapValueToRange(double value, double inputMin, double inputMax, double outputMin, double outputMax)
 		{
 			return (outputMax - outputMin) * (value - inputMin) / (inputMax - inputMin) + outputMin;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe bool IsNegativeOrNaN(this double value)
+		{
+			long doubleAsLong = *(long*)(&value);
+			return doubleAsLong < 0L && doubleAsLong != -9223372036854775808L;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe bool IsZeroOrNegativeOrNaN(this double value)
+		{
+			long doubleAsLong = *(long*)(&value);
+			return doubleAsLong <= 0L;
 		}
 
 		#endregion
@@ -2196,12 +2237,15 @@ namespace KERBALISM
 			return Serenity.GetScienceCluster(v) != null;
 		}
 
-		public static bool IsPowered(Vessel v, VesselKSPResource ecRes)
+		// TODO : refactor the whole "is vessel controllable / linked" thing
+		[Obsolete("Due for a refactor")]
+		public static bool IsPowered(Vessel v, VesselResourceKSP ecRes)
 		{
 			var cluster = Serenity.GetScienceCluster(v);
 			if (cluster != null)
 				return cluster.IsPowered;
-			return ecRes.CriticalConsumptionSatisfied;
+
+			return ecRes.Amount > 0.0; // nope nope nope
 		}
 
 		public static Guid VesselID(Vessel v)
@@ -2889,12 +2933,36 @@ namespace KERBALISM
 			// then we have no chances of finding the module prefab so we return null
 			return data.index < data.prefabs.Count ? data.prefabs[data.index++] : null;
 		}
+
+		public static double GetBaseConverterEfficiencyBonus(BaseConverter module, VesselDataBase vessel)
+		{
+			int expLevel = -1;
+			if (module.UseSpecialistBonus)
+			{
+				foreach (KerbalData kerbal in vessel.Crew)
+				{
+					if (kerbal.stockKerbal.HasEffect(module.ExperienceEffect))
+					{
+						expLevel = Math.Max(expLevel, kerbal.stockKerbal.experienceLevel);
+					}
+
+					if (expLevel == 4)
+						break;
+				}
+			}
+
+			if (expLevel < 0)
+				return module.EfficiencyBonus;
+			else
+				return module.EfficiencyBonus * (module.SpecialistBonusBase + (module.SpecialistEfficiencyFactor * (expLevel + 1)));
+		}
+
 		#endregion
 
 		#region RESOURCE
 
 		/// <summary> density in t/m3 of a resource (KSP "density" is in ton/unit and doesn't account for the resource volume property) </summary>
-		public static double RealDensity(this PartResourceDefinition res)
+		public static double VolumetricMassDensity(this PartResourceDefinition res)
 		{
 			return (res.density * 1000.0) / res.volume;
 		}
@@ -3126,7 +3194,9 @@ namespace KERBALISM
 		#endregion
 
 		#region SCIENCE DATA
+
 		///<summary>return true if there is experiment data on the vessel</summary>
+		[Obsolete("Unused, require refactoring")]
 		public static bool HasData( Vessel v )
 		{
 			// stock science system
@@ -3149,13 +3219,14 @@ namespace KERBALISM
 			// our own science system
 			else
 			{
-				foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
-					if (drive.files.Count > 0) return true;
+				//foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
+				//	if (drive.files.Count > 0) return true;
 				return false;
 			}
 		}
 
 		///<summary>remove one experiment at random from the vessel</summary>
+		[Obsolete("Unused, require refactoring")]
 		public static void RemoveData( Vessel v )
 		{
 			// stock science system
@@ -3196,24 +3267,24 @@ namespace KERBALISM
 			else
 			{
 				// select a file at random and remove it
-				foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
-				{
-					if (drive.files.Count > 0) //< it should always be the case
-					{
-						SubjectData filename = null;
-						int i = Lib.RandomInt(drive.files.Count);
-						foreach (DriveFile file in drive.files.Values)
-						{
-							if (i-- == 0)
-							{
-								filename = file.subjectData;
-								break;
-							}
-						}
-						drive.files.Remove(filename);
-						break;
-					}
-				}
+				//foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
+				//{
+				//	if (drive.files.Count > 0) //< it should always be the case
+				//	{
+				//		SubjectData filename = null;
+				//		int i = Lib.RandomInt(drive.files.Count);
+				//		foreach (DriveFile file in drive.files.Values)
+				//		{
+				//			if (i-- == 0)
+				//			{
+				//				filename = file.subjectData;
+				//				break;
+				//			}
+				//		}
+				//		drive.files.Remove(filename);
+				//		break;
+				//	}
+				//}
 			}
 		}
 
@@ -3453,6 +3524,81 @@ namespace KERBALISM
 			return true;
 		}
 
+		public static void ParseFleeExpressionComfortCall(ref string expression)
+		{
+			Regex regex = new Regex(@"Comfort\(""(.*?)""\)");
+			try
+			{
+				expression = regex.Replace(expression, ComfortNameEvaluator);
+			}
+			catch (Exception e)
+			{
+				Log($"Can't parse modifier expression {expression}", LogLevel.Error);
+				throw;
+			}
+		}
+
+		private static string ComfortNameEvaluator(Match match)
+		{
+			if (match.Groups.Count != 2)
+				throw new Exception($"Error parsing Comfort call : {match.Value}");
+
+			if (!ComfortDefinition.definitionsByName.TryGetValue(match.Groups[1].Value, out ComfortDefinition comfort))
+				throw new Exception($"Error parsing Comfort call : {match.Value}, comfort {match.Groups[1].Value} not found !");
+
+			return nameof(VesselDataBase.Habitat) + "." + nameof(VesselHabitat.comforts) + "[" + comfort.definitionIndex + "]";
+		}
+
+		public static void ParseFleeExpressionProcessCall(ref string expression)
+		{
+			Regex regex = new Regex(@"Process\(""(.*?)""\)");
+			try
+			{
+				expression = regex.Replace(expression, ProcessNameEvaluator);
+			}
+			catch (Exception e)
+			{
+				Log($"Can't parse modifier expression {expression}", LogLevel.Error);
+				throw;
+			}
+		}
+
+		private static string ProcessNameEvaluator(Match match)
+		{
+			if (match.Groups.Count != 2)
+				throw new Exception($"Error parsing Process call : {match.Value}");
+
+			if (!ProcessDefinition.definitionsByName.TryGetValue(match.Groups[1].Value, out ProcessDefinition process))
+				throw new Exception($"Error parsing Process call : {match.Value}, process {match.Groups[1].Value} not found !");
+
+			return nameof(VesselDataBase.VesselProcesses) + "[" + process.definitionIndex + "]";
+		}
+
+		public static void ParseFleeExpressionResHandlerResourceCall(ref string expression)
+		{
+			Regex regex = new Regex(@"Resource\(""(.*?)""\)");
+			try
+			{
+				expression = regex.Replace(expression, ResourceNameEvaluator);
+			}
+			catch (Exception e)
+			{
+				Log($"Can't parse modifier expression {expression}", LogLevel.Error);
+				throw;
+			}
+		}
+
+		private static string ResourceNameEvaluator(Match match)
+		{
+			if (match.Groups.Count != 2)
+				throw new Exception($"Error parsing Resource call : {match.Value}");
+
+			if (!VesselResHandler.allKSPResourceIdsByName.TryGetValue(match.Groups[1].Value, out int resId))
+				throw new Exception($"Error parsing Resource call : {match.Value}, resource {match.Groups[1].Value} not found !");
+
+			return nameof(VesselDataBase.ResHandler) + "." + nameof(VesselResHandler.GetKSPResource) + "(" + resId + ")";
+		}
+
 		/// <summary>
 		/// Given a gamedatabase PART{} node, return the game valid name of the part, by doing Replace('_', '.')
 		/// </summary>
@@ -3656,11 +3802,6 @@ namespace KERBALISM
 		#endregion
 
 		#region UI
-		/// <summary>Trigger a planner update</summary>
-		public static void RefreshPlanner()
-		{
-			Planner.Planner.RefreshPlanner();
-		}
 
 		///<summary>return true if last GUILayout element was clicked</summary>
 		public static bool IsClicked( int button = 0 )
@@ -3973,7 +4114,30 @@ namespace KERBALISM
 		}
 	}
 
-#endregion
+	public class ObjectPool<T> where T : IDisposable, new()
+	{
+		private readonly Queue<T> pool = new Queue<T>();
+
+		public T Get()
+		{
+			if (pool.Count == 0)
+			{
+				return new T();
+			}
+			else
+			{
+				return pool.Dequeue();
+			}
+		}
+
+		public void Return(T value)
+		{
+			value.Dispose();
+			pool.Enqueue(value);
+		}
+	}
+
+	#endregion
 
 
 } // KERBALISM

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace KERBALISM
 {
@@ -33,6 +29,46 @@ namespace KERBALISM
 			return false;
 		}
 
+		public bool TryGetResourceWrapper(int resId, out PartResourceWrapper resWrapper)
+		{
+			foreach (PartResourceWrapper wrapper in this)
+			{
+				if (wrapper.resId == resId)
+				{
+					resWrapper = wrapper;
+					return true;
+				}
+			}
+			resWrapper = null;
+			return false;
+		}
+
+		public PartResourceWrapper GetResourceWrapper(string resName)
+		{
+			foreach (PartResourceWrapper wrapper in this)
+			{
+				if (wrapper.ResName == resName)
+				{
+					return wrapper;
+				}
+			}
+
+			return null;
+		}
+
+		public PartResourceWrapper GetResourceWrapper(int resId)
+		{
+			foreach (PartResourceWrapper wrapper in this)
+			{
+				if (wrapper.resId == resId)
+				{
+					return wrapper;
+				}
+			}
+
+			return null;
+		}
+
 		/// <summary>
 		/// Add a resource to the part. Note : check first if the resource exists already !
 		/// Could do a "merge" here but this is usually something you want to check in the calling code.
@@ -49,7 +85,7 @@ namespace KERBALISM
 
 			if (partData.IsLoaded)
 			{
-				wrapper = new PartResourceWrapper(Lib.AddResource(partData.LoadedPart, resName, amount, capacity));
+				wrapper = new PartResourceWrapper(partData, Lib.AddResource(partData.LoadedPart, resName, amount, capacity));
 				Add(wrapper);
 			}
 			else
@@ -64,7 +100,7 @@ namespace KERBALISM
 					resNode.AddValue("flowState", true);
 					ProtoPartResourceSnapshot protoResource = new ProtoPartResourceSnapshot(resNode);
 					partData.ProtoPart.resources.Add(protoResource);
-					wrapper = new PartResourceWrapper(protoResource);
+					wrapper = new PartResourceWrapper(partData, protoResource);
 					Add(wrapper);
 				}
 				else
@@ -103,30 +139,32 @@ namespace KERBALISM
 			RemoveAll(p => p.ResName == resName);
 		}
 
-
 		public void Synchronize()
 		{
 			if (partData.IsLoaded)
 			{
-				int stockCount = partData.LoadedPart.Resources.Count;
+				PartResourceList stockResources = partData.LoadedPart.Resources;
+				int stockCount = stockResources.Count;
 
 				if (stockCount < Count)
 				{
 					for (int i = Count - 1; i > stockCount - 1; i--)
 					{
-						this[i].OnResourceRemoved?.Invoke(this[i].ResName);
-						this[i].OnResourceRemoved = null;
+						this[i].RemoveFromResHandler(partData);
+						//this[i].OnResourceRemoved?.Invoke(this[i].ResName);
+						//this[i].OnResourceRemoved = null;
 						RemoveAt(i);
 					}
 				}
 
 				for (int i = 0; i < Count; i++)
 				{
-					if (this[i].ResId != partData.LoadedPart.Resources[i].info.id)
+					if (this[i].resId != stockResources[i].info.id)
 					{
-						this[i].OnResourceRemoved?.Invoke(this[i].ResName);
-						this[i].OnResourceRemoved = null;
-						this[i] = new PartResourceWrapper(partData.LoadedPart.Resources[i]);
+						this[i].RemoveFromResHandler(partData);
+						//this[i].OnResourceRemoved?.Invoke(this[i].ResName);
+						//this[i].OnResourceRemoved = null;
+						this[i] = new PartResourceWrapper(partData, stockResources[i]);
 					}
 				}
 
@@ -134,7 +172,7 @@ namespace KERBALISM
 				{
 					for (int i = Count; i < stockCount; i++)
 					{
-						PartResourceWrapper wrapper = new PartResourceWrapper(partData.LoadedPart.Resources[i]);
+						PartResourceWrapper wrapper = new PartResourceWrapper(partData, stockResources[i]);
 						Add(wrapper);
 					}
 				}
@@ -145,31 +183,34 @@ namespace KERBALISM
 					PartResourceCollection list = this;
 					for (int i = 0; i < Count; i++)
 					{
-						this[i].Mutate(partData.LoadedPart.Resources[i]);
+						this[i].Mutate(stockResources[i]);
 					}
 				}
 			}
 			else
 			{
-				int stockCount = partData.ProtoPart.resources.Count;
+				List<ProtoPartResourceSnapshot> stockResources = partData.ProtoPart.resources;
+				int stockCount = stockResources.Count;
 
 				if (stockCount < Count)
 				{
 					for (int i = Count - 1; i > stockCount - 1; i--)
 					{
-						this[i].OnResourceRemoved?.Invoke(this[i].ResName);
-						this[i].OnResourceRemoved = null;
+						this[i].RemoveFromResHandler(partData);
+						//this[i].OnResourceRemoved?.Invoke(this[i].ResName);
+						//this[i].OnResourceRemoved = null;
 						RemoveAt(i);
 					}
 				}
 
 				for (int i = 0; i < Count; i++)
 				{
-					if (this[i].ResId != partData.ProtoPart.resources[i].definition.id)
+					if (this[i].resId != stockResources[i].definition.id)
 					{
-						this[i].OnResourceRemoved?.Invoke(this[i].ResName);
-						this[i].OnResourceRemoved = null;
-						this[i] = new PartResourceWrapper(partData.ProtoPart.resources[i]);
+						this[i].RemoveFromResHandler(partData);
+						//this[i].OnResourceRemoved?.Invoke(this[i].ResName);
+						//this[i].OnResourceRemoved = null;
+						this[i] = new PartResourceWrapper(partData, stockResources[i]);
 					}
 				}
 
@@ -177,7 +218,7 @@ namespace KERBALISM
 				{
 					for (int i = Count; i < stockCount; i++)
 					{
-						PartResourceWrapper wrapper = new PartResourceWrapper(partData.ProtoPart.resources[i]);
+						PartResourceWrapper wrapper = new PartResourceWrapper(partData, stockResources[i]);
 						Add(wrapper);
 					}
 				}
@@ -188,7 +229,7 @@ namespace KERBALISM
 					PartResourceCollection list = this;
 					for (int i = 0; i < Count; i++)
 					{
-						this[i].Mutate(partData.ProtoPart.resources[i]);
+						this[i].Mutate(stockResources[i]);
 					}
 				}
 			}

@@ -316,13 +316,13 @@ namespace KERBALISM
 			public VesselType[] types;
 			private VesselsManager manager;
 
-			public VesselTypeFilter(KsmGuiBase parent, VesselsManager manager, int position, Texture2D texture, string name, params VesselType[] types) : base(parent, texture, 20, 20, true)
+			public VesselTypeFilter(KsmGuiBase parent, VesselsManager manager, int position, Texture2D texture, string name, params VesselType[] types)
+				: base(parent, texture, Kolor.Yellow, Kolor.Orange, true, null, 20, 20)
 			{
 				this.types = types;
 				this.manager = manager;
 				SetTooltip(name);
 				SetValueChangedAction(ValueChanged);
-				SetStateColors(Kolor.Green, Kolor.Orange);
 				StaticLayout(25, 20, filterButtonWidth + (position * 25));
 			}
 
@@ -361,15 +361,15 @@ namespace KERBALISM
 			private KsmGuiTextButton vesselName;
 			private KsmGuiBase bodyInfo;
 			private KsmGuiText bodyName;
-			private KsmGuiIcon situationIcon;
+			private KsmGuiImage situationIcon;
 			//private KsmGuiIcon situationIconOverlay;
-			private KsmGuiIcon infoIcon;
-			private KsmGuiIcon ecIcon;
-			private KsmGuiIcon suppliesIcon;
-			private KsmGuiIcon rulesIcon;
-			private KsmGuiIcon signalMainIcon;
-			private KsmGuiIcon signalLinkIcon;
-			private KsmGuiIcon signalDataIcon;
+			private KsmGuiImage infoIcon;
+			private KsmGuiImage ecIcon;
+			private KsmGuiImage suppliesIcon;
+			private KsmGuiImage rulesIcon;
+			private KsmGuiImage signalMainIcon;
+			private KsmGuiImage signalLinkIcon;
+			private KsmGuiImage signalDataIcon;
 
 			private bool infoEnabled;
 			private bool ecEnabled;
@@ -456,7 +456,7 @@ namespace KERBALISM
 				hPos += (65 + 5);
 				bodyInfo.SetTooltip(SituationTooltip, TextAlignmentOptions.TopLeft, 250);
 
-				situationIcon = new KsmGuiIcon(bodyInfo, Textures.empty, 20, 20);
+				situationIcon = new KsmGuiImage(bodyInfo, null, 20, 20);
 				situationIcon.StaticLayout(20, 22);
 
 				// map view visibility toggle, not implemented
@@ -467,37 +467,39 @@ namespace KERBALISM
 				bodyName = new KsmGuiText(bodyInfo);
 				bodyName.StaticLayout(40, 22, 25);
 				bodyName.TextComponent.alignment = TextAlignmentOptions.Left;
+				bodyName.TextComponent.enableWordWrapping = false;
+				bodyName.TextComponent.overflowMode = TextOverflowModes.Truncate;
 				//bodyName.UseEllipsisWithTooltip();
 
-				infoIcon = new KsmGuiIcon(this, Textures.ttSun, 20, 20);
+				infoIcon = new KsmGuiImage(this, Textures.ttSun, 20, 20);
 				infoIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
 				infoIcon.SetTooltip(InfoTooltip);
 
-				ecIcon = new KsmGuiIcon(this, Textures.ttBattery, 20, 20);
+				ecIcon = new KsmGuiImage(this, Textures.ttBattery, 20, 20);
 				ecIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
 				ecIcon.SetTooltip(EcTooltip);
 
-				suppliesIcon = new KsmGuiIcon(this, Textures.ttBox, 20, 20);
+				suppliesIcon = new KsmGuiImage(this, Textures.ttBox, 20, 20);
 				suppliesIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
 				suppliesIcon.SetTooltip(SuppliesTooltip);
 
-				rulesIcon = new KsmGuiIcon(this, Textures.ttHeart, 20, 20);
+				rulesIcon = new KsmGuiImage(this, Textures.ttHeart, 20, 20);
 				rulesIcon.StaticLayout(20, 22, hPos);
 				hPos += (20 + 5);
 				rulesIcon.SetTooltip(() => new RulesTooltip(Vd));
 
-				signalMainIcon = new KsmGuiIcon(this, Textures.ttSignalFull, 20, 20);
+				signalMainIcon = new KsmGuiImage(this, Textures.ttSignalFull, 20, 20);
 				signalMainIcon.StaticLayout(20, 22, hPos);
 				signalMainIcon.SetTooltip(CommsTooltip, TextAlignmentOptions.TopLeft);
 
-				signalLinkIcon = new KsmGuiIcon(signalMainIcon, Textures.ttSignalDirect);
+				signalLinkIcon = new KsmGuiImage(signalMainIcon, Textures.ttSignalDirect);
 				signalLinkIcon.Image.raycastTarget = false;
 				signalLinkIcon.StaticLayout(20, 20, 0, 1);
 
-				signalDataIcon = new KsmGuiIcon(signalMainIcon, Textures.ttSignalData);
+				signalDataIcon = new KsmGuiImage(signalMainIcon, Textures.ttSignalData);
 				signalDataIcon.Image.raycastTarget = false;
 				signalDataIcon.StaticLayout(20, 20, 0, 1);
 
@@ -923,7 +925,7 @@ namespace KERBALISM
 
 				foreach (VesselResource handlerResource in Vd.ResHandler.Resources)
 				{
-					if (handlerResource is VesselKSPResource resource && resource.Capacity > 0.0 && resource.Visible)
+					if (handlerResource is VesselResourceKSP resource && resource.Capacity > 0.0 && resource.Visible)
 					{
 						resCount++;
 						if (resCount > 10)
@@ -934,19 +936,19 @@ namespace KERBALISM
 						ks.Add(resource.Title.Length > 15 ? resource.Abbreviation : resource.Title);
 						ks.Format(resource.Level.ToString("P1"), KF.Position(100));
 
-						if (resource.AvailabilityFactor > 0.0 && resource.AvailabilityFactor < 1.0)
-						{
-							ks.Format(KF.Concat(resource.AvailabilityFactor.ToString("P0"), KF.WhiteSpace, "availability"),
-								KF.Color(resource.CriticalConsumptionSatisfied, Kolor.Yellow, Kolor.Orange), KF.Position(225));
-						}
-						else if (resource.AvailabilityFactor == 0.0)
-						{
-							ks.Format(resource.DepletionInfo, KF.KolorRed, KF.Position(175));
-						}
-						else
-						{
+						//if (resource.AvailabilityFactor > 0.0 && resource.AvailabilityFactor < 1.0)
+						//{
+						//	ks.Format(KF.Concat(resource.AvailabilityFactor.ToString("P0"), KF.WhiteSpace, "availability"),
+						//		KF.Color(resource.CriticalConsumptionSatisfied, Kolor.Yellow, Kolor.Orange), KF.Position(225));
+						//}
+						//else if (resource.AvailabilityFactor == 0.0)
+						//{
+						//	ks.Format(resource.DepletionInfo, KF.KolorRed, KF.Position(175));
+						//}
+						//else
+						//{
 							ks.Format(resource.DepletionInfo, KF.Position(175));
-						}
+						//}
 						
 						ks.Break();
 					}
@@ -975,11 +977,11 @@ namespace KERBALISM
 					SetUpdateAction(Update);
 
 					KsmGuiBase header = new KsmGuiBase(this);
-					header.SetLayoutElement(false, false, nameColumnWidth + (Profile.rules.Count * ruleColumnWidth), 18);
+					header.SetLayoutElement(false, false, nameColumnWidth + (KerbalRuleDefinition.definitions.Count * ruleColumnWidth), 18);
 
-					for (int i = 0; i < Profile.rules.Count; i++)
+					for (int i = 0; i < KerbalRuleDefinition.definitions.Count; i++)
 					{
-						KsmGuiIcon icon = new KsmGuiIcon(header, Profile.rules[i].icon, 18, 18);
+						KsmGuiImage icon = new KsmGuiImage(header, KerbalRuleDefinition.definitions[i].icon, 18, 18);
 						icon.StaticLayout(ruleColumnWidth, 18, nameColumnWidth + (i * ruleColumnWidth));
 					}
 

@@ -81,7 +81,7 @@ namespace KERBALISM
 						evaFuel.Amount = fuelAmount;
 					}
 
-					foreach (SupplyDefinition supply in Profile.supplies)
+					foreach (SupplyDefinition supply in SupplyDefinition.definitions)
 					{
 						if (supply.grantedOnRescue == 0.0)
 							continue;

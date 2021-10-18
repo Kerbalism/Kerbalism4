@@ -94,9 +94,6 @@ namespace KERBALISM
 		/// </summary>
 		public CommHandler CommHandler { get; private set; }
 
-
-		public DriveHandler TransmitBuffer { get; private set; }
-
 		/// <summary>
 		/// List/Dictionary of all the vessel PartData, and their ModuleData
 		/// </summary>
@@ -109,11 +106,6 @@ namespace KERBALISM
 		public PartDataCollectionVessel VesselParts { get; private set; }
 
 		/// <summary>
-		/// all part modules that have a ResourceUpdate method
-		/// </summary>
-		public List<ResourceUpdateDelegate> resourceUpdateDelegates = null;
-
-        /// <summary>
         /// List of files being transmitted, or empty if nothing is being transmitted <br/>
         /// Note that the transmit rates stored in the File objects can be unreliable, do not use it apart from UI purposes
         /// </summary>
@@ -136,7 +128,6 @@ namespace KERBALISM
         public bool cfg_showlink;     // show/hide link line
         public bool cfg_show;         // show/hide vessel in monitor
 		public bool cfg_orbit;       // show/hide vessel orbit lines in map view
-		public Computer computer;     // store scripts
 
 		// other persisted fields
 		public bool IsUIPinned { get; set; }
@@ -279,10 +270,7 @@ namespace KERBALISM
         public bool Hibernating { get; private set; }
         public bool hasNonHibernatingCommandModules = false;
 
-        /// <summary>true if vessel is powered</summary>
-        public bool Powered => powered; bool powered;
-
-		/// <summary>
+        /// <summary>
 		/// Evaluated on loaded vessels based on the data pushed by SolarPanelFixer.<br/>
 		/// This doesn't change for unloaded vessel, so the value is persisted<br/>
 		/// Negative if there is no solar panel on the vessel
@@ -296,19 +284,6 @@ namespace KERBALISM
 
 		/// <summary>true if at least a component had a critical failure</summary>
 		public bool Critical => critical; bool critical;
-
-		private List<ReliabilityInfo> reliabilityStatus;
-        public List<ReliabilityInfo> ReliabilityStatus()
-        {
-            if (reliabilityStatus != null) return reliabilityStatus;
-            reliabilityStatus = ReliabilityInfo.BuildList(Vessel);
-            return reliabilityStatus;
-        }
-
-        public void ResetReliabilityStatus()
-        {
-            reliabilityStatus = null;
-        }
 
 		#endregion
 
@@ -375,7 +350,8 @@ namespace KERBALISM
 			Vessel = vessel;
 			VesselId = Vessel.id;
 
-			IsSimulated = partDatas != null || ShouldBeSimulated(out _);
+			bool partsAreTransferred = partDatas != null;
+			IsSimulated = partsAreTransferred || ShouldBeSimulated(out _);
 
 			if (!IsSimulated)
 				return;
@@ -385,7 +361,7 @@ namespace KERBALISM
 
 			if (Vessel.loaded)
 			{
-				if (partDatas == null)
+				if (!partsAreTransferred)
 				{
 					// will instantiate new PartDatas/ModuleHandlers, for which we will need a FirstSetup()/Start()
 					VesselParts = new PartDataCollectionVessel(this, Vessel); 
@@ -398,7 +374,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				if (partDatas != null)
+				if (partsAreTransferred)
 				{
 					Lib.LogStack($"Transfering parts to an unloaded vessel is unsupported ! (Vessel : {vessel.protoVessel.vesselName})", Lib.LogLevel.Error);
 				}
@@ -411,7 +387,7 @@ namespace KERBALISM
 			SetPersistedDefaults(vessel.protoVessel);
 			SetInstantiateDefaults(vessel.protoVessel);
 
-			Start();
+			Start(partsAreTransferred);
 
 			Lib.LogDebug($"New vessel {this} created. Loaded={Vessel.loaded}, Simulated={IsSimulated} {(partDatas != null ? $" (From undocking/decoupling, part count={Parts.Count})" : "")}");
 		}
@@ -534,7 +510,6 @@ namespace KERBALISM
 			// note : we check that at vessel creation and persist it, as the vesselType can be changed by the player
 			isSerenityGroundController = pv.vesselType == VesselType.DeployedScienceController;
 			stormData = new StormData(null);
-			computer = new Computer(null);
 		}
 
 		private void SetInstantiateDefaults(ProtoVessel protoVessel)
@@ -544,8 +519,6 @@ namespace KERBALISM
 			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
 			CommHandler = CommHandler.GetHandler(this, isSerenityGroundController);
-			TransmitBuffer = new DriveHandler();
-			TransmitBuffer.OnStart();
 		}
 
 		public void SetOrbitVisible(bool visible)
@@ -595,7 +568,6 @@ namespace KERBALISM
 			scienceTransmitted = Lib.ConfigValue(node, "scienceTransmitted", 0.0);
 
 			stormData = new StormData(node.GetNode("StormData"));
-			computer = new Computer(node.GetNode("computer"));
 		}
 
 		protected override void OnSave(ConfigNode node)
@@ -621,7 +593,6 @@ namespace KERBALISM
 			node.AddValue("scienceTransmitted", scienceTransmitted);
 
 			stormData.Save(node.AddNode("StormData"));
-			computer.Save(node.AddNode("computer"));
 
 			if (Vessel != null)
 				Lib.LogDebug("VesselData saved for vessel " + Vessel.vesselName);
@@ -643,51 +614,51 @@ namespace KERBALISM
 		/// - Calling OnStart() for every part and module handler
 		/// - Initializing any other VesselData component
 		/// </summary>
-		public void Start()
+		public void Start(bool partsAreTransferred = false)
 		{
 			Lib.LogDebug($"Starting vessel {this} (loaded={LoadedOrEditor})");
+
+			vesselComms.Init(this);
 
 			// update the vessel environment
 			EnvironmentUpdate(0.0);
 			// update crew state
 			CrewUpdate();
 
-			// call every module FirstSetup(), if needed.
-			// SetupDone will be false :
-			// - for all non-persisted handlers
-			// - for persisted handlers that are created in flight (rescue, asteroids...)
-			// Typically, this should be used to :
-			// - parse the configuration and initialize persisted values (on persistent handlers) or long lived instance values (on non-persistent handlers)
-			// - add or remove resources to the part.
-			// - for non-persistent handlers : check if the handler is valid (should we delete invalid handlers here ?)
-			// When this called :
-			// - VesselData environment and crew are evaluated and in an useable state
-			// - All parts, part resources and modules related objects will be instantiated and correctly cross-referenced
-			// - Part resources state will be in a an useable state
-			// - Everything else will be in an undetermined state, notably : resource sim, comms, radiation, science...
-			foreach (PartData part in Parts)
+			if (!partsAreTransferred)
 			{
-				foreach (ModuleHandler handler in part.modules)
+				// call every module FirstSetup(), if needed.
+				// SetupDone will be false :
+				// - for all non-persisted handlers
+				// - for persisted handlers that are created in flight (rescue, asteroids...)
+				// Typically, this should be used to :
+				// - parse the configuration and initialize persisted values (on persistent handlers) or long lived instance values (on non-persistent handlers)
+				// - add or remove resources to the part.
+				// - for non-persistent handlers : check if the handler is valid (should we delete invalid handlers here ?)
+				// When this called :
+				// - VesselData environment and crew are evaluated and in an useable state
+				// - All parts, part resources and modules related objects will be instantiated and correctly cross-referenced
+				// - Part resources state will be in a an useable state
+				// - Everything else will be in an undetermined state, notably : resource sim, comms, radiation, science...
+				foreach (PartData part in Parts)
 				{
-					handler.FirstSetup();
+					foreach (ModuleHandler handler in part.modules)
+					{
+						handler.FirstSetup();
+					}
+				}
+
+				// From now on, we assume that nobody will be altering part resources. Synchronize the resource sim state.
+				resHandler.ForceHandlerSync();
+
+				// Call OnStart() on every PartData, and every enabled ModuleHandler/KsmPartModule
+				foreach (PartData part in Parts)
+				{
+					part.Start();
 				}
 			}
 
-			// From now on, we assume that nobody will be altering part resources. Synchronize the resource sim state.
-			resHandler.ForceHandlerSync();
-
-			// Call OnStart() on every PartData, and every enabled ModuleHandler/KsmPartModule
-			foreach (PartData part in Parts)
-			{
-				part.Start();
-			}
-
 			StateUpdate();
-
-			if (LoadedOrEditor && Parts[0].LoadedPart == null)
-				Lib.LogDebug($"Skipping loaded vessel ModuleDataUpdate (part references not set yet) on {VesselName}");
-			else
-				ModuleDataUpdate();
 
 			// Set orbit visibility based on the saved user setup
 			SetOrbitVisible(cfg_orbit);
@@ -773,20 +744,21 @@ namespace KERBALISM
 				EnvironmentUpdate(secSinceLastEval);
 				StateUpdate();
 
-				if (LoadedOrEditor && Parts.Count > 0 && Parts[0].LoadedPart == null)
-					Lib.LogDebug($"Skipping loaded vessel ModuleDataUpdate (part references not set yet) on {VesselName}");
-				else
-					ModuleDataUpdate();
-
 				secSinceLastEval = 0.0;
 			}
 
-			FixedUpdate(elapsedSeconds);
+			Update(elapsedSeconds);
 		}
 
-		private void FixedUpdate(double elapsedSec)
+		private void Update(double elapsedSec)
 		{
+			vesselComms.Update(elapsedSec);
+
+			Habitat.ResetBeforeModulesUpdate(this);
+
 			vesselRadiation.FixedUpdate(Parts, LoadedOrEditor, elapsedSec);
+
+			VesselProcesses.ResetBeforeModulesUpdate();
 
 			foreach (PartData pd in Parts)
 			{
@@ -795,10 +767,26 @@ namespace KERBALISM
 					if (!module.handlerIsEnabled)
 						continue;
 
-					module.OnFixedUpdate(elapsedSec);
+					try
+					{
+						module.OnUpdate(elapsedSec);
+					}
+					catch (Exception e)
+					{
+						Lib.Log($"Module {module.GetType()} thrown a {e.GetType()} on vessel \"{VesselName}\", part \"{pd.Name}\":\n{e.Message}", Lib.LogLevel.Error);
+					}
 				}
 			}
 
+			Habitat.EvaluateAfterModuleUpdate(this);
+
+			VesselProcesses.Execute(this);
+
+
+		}
+
+		public void KerbalRulesUpdate(double elapsedSec)
+		{
 			foreach (KerbalData kerbal in Crew)
 			{
 				kerbal.OnFixedUpdate(this, elapsedSec);
@@ -832,18 +820,12 @@ namespace KERBALISM
 		private void StateUpdate()
         {
             UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselData.StateUpdate");
-            // determine if there is enough EC for a powered state
-            powered = Lib.IsPowered(Vessel, ResHandler.ElectricCharge);
-
-            // malfunction stuff
-            malfunction = Reliability.HasMalfunction(Vessel);
-            critical = Reliability.HasCriticalFailure(Vessel);
 
             // communications info
             CommHandler.UpdateConnection(connection);
 
             // check ModuleCommand hibernation
-            if (isSerenityGroundController)
+			if (isSerenityGroundController)
                 hasNonHibernatingCommandModules = true;
 
             if (Hibernating != !hasNonHibernatingCommandModules)
@@ -860,11 +842,11 @@ namespace KERBALISM
                 DeviceTransmit = false;
 
             // solar panels data
-            if (Vessel.loaded)
-            {
-                solarPanelsAverageExposure = SolarPanelFixer.GetSolarPanelsAverageExposure(solarPanelsExposure);
-                solarPanelsExposure.Clear();
-            }
+            //if (Vessel.loaded)
+            //{
+            //    solarPanelsAverageExposure = SolarPanelFixer.GetSolarPanelsAverageExposure(solarPanelsExposure);
+            //    solarPanelsExposure.Clear();
+            //}
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
@@ -1022,7 +1004,7 @@ namespace KERBALISM
                 innerBelt = new_innerBelt;
                 outerBelt = new_outerBelt;
                 magnetosphere = new_magnetosphere;
-                if (IsSimulated) API.OnRadiationFieldChanged.Notify(Vessel, innerBelt, outerBelt, magnetosphere);
+                //if (IsSimulated) API.OnRadiationFieldChanged.Notify(Vessel, innerBelt, outerBelt, magnetosphere);
             }
 
             thermosphere = Sim.InsideThermosphere(Vessel);
@@ -1083,6 +1065,12 @@ namespace KERBALISM
 			oldVD.OnVesselWasModified();
 
 			newVD = new VesselData(newVessel, transferredParts);
+
+			foreach (PartData partData in transferredParts)
+			{
+				partData.OnPartWasTransferred(oldVD);
+			}
+
 			transferredParts.Clear();
 
 			DB.AddNewVesselData(newVD);
@@ -1153,7 +1141,6 @@ namespace KERBALISM
 			if (!IsPersisted)
 				return;
 
-			resourceUpdateDelegates = null;
 			VesselParts.OnAllPartsWillDie();
 			CommHandler.ResetPartTransmitters();
 		}
@@ -1163,10 +1150,8 @@ namespace KERBALISM
 			if (!IsSimulated)
 				return;
 
-			resourceUpdateDelegates = null;
 			Synchronizer.Synchronize();
 			CommHandler.ResetPartTransmitters();
-			ResetReliabilityStatus();
 			StateUpdate();
 
 			Lib.LogDebug("VesselData updated on vessel modified event ({0})", Lib.LogLevel.Message, Vessel.vesselName);

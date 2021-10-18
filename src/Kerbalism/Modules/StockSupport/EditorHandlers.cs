@@ -4,6 +4,8 @@ using ModuleWheels;
 // TODO : Refactor the old planner handlers for stock / modded modules
 // They need to be converted to TypedModuleHandler / ForeignModuleHandler classes
 
+/*
+
 namespace KERBALISM
 {
 	static class EditorHandlers
@@ -24,13 +26,13 @@ namespace KERBALISM
 				if (command.hibernation)
 					ecRate *= Settings.HibernatingEcFactor;
 
-				handler.ElectricCharge.Consume(ecRate, ResourceBroker.Command, true);
+				handler.ElectricCharge.Consume(ecRate, RecipeCategory.Command, true);
 			}
 		}
 
 		private static void ProcessGenerator(ModuleGenerator generator, Part p)
 		{
-			Recipe recipe = new Recipe(ResourceBroker.GetOrCreate(p.partInfo.title));
+			Recipe recipe = new Recipe(RecipeCategory.GetOrCreate(p.partInfo.title));
 			foreach (ModuleResource res in generator.resHandler.inputResources)
 			{
 				recipe.AddInput(res.name, res.rate);
@@ -54,7 +56,7 @@ namespace KERBALISM
 			string recipe_name = Lib.BuildString(converter.part.partInfo.title, " (efficiency: ", Lib.HumanReadablePerc(exp_bonus), ")");
 
 			// generate recipe
-			Recipe recipe = new Recipe(ResourceBroker.GetOrCreate(recipe_name));
+			Recipe recipe = new Recipe(RecipeCategory.GetOrCreate(recipe_name));
 			foreach (ResourceRatio res in converter.inputList)
 			{
 				recipe.AddInput(res.ResourceName, res.Ratio * exp_bonus);
@@ -78,7 +80,7 @@ namespace KERBALISM
 			string recipe_name = Lib.BuildString(harvester.part.partInfo.title, " (efficiency: ", Lib.HumanReadablePerc(exp_bonus), ")");
 
 			// generate recipe
-			Recipe recipe = new Recipe(ResourceBroker.StockDrill);
+			Recipe recipe = new Recipe(RecipeCategory.StockDrill);
 			foreach (ResourceRatio res in harvester.inputList)
 			{
 				recipe.AddInput(res.ResourceName, res.Ratio);
@@ -89,7 +91,7 @@ namespace KERBALISM
 
 		private static void ProcessStocklab(ModuleScienceConverter lab)
 		{
-			handler.ElectricCharge.Consume(lab.powerRequirement, ResourceBroker.ScienceLab);
+			handler.ElectricCharge.Consume(lab.powerRequirement, RecipeCategory.ScienceLab);
 		}
 
 		private static void ProcessRadiator(ModuleActiveRadiator radiator)
@@ -99,7 +101,7 @@ namespace KERBALISM
 			// we use PlannerController instead
 			foreach (ModuleResource res in radiator.resHandler.inputResources)
 			{
-				handler.GetResource(res.name).Consume(res.rate, ResourceBroker.Radiator);
+				handler.GetResource(res.name).Consume(res.rate, RecipeCategory.Radiator);
 			}
 		}
 
@@ -107,7 +109,7 @@ namespace KERBALISM
 		{
 			foreach (ModuleResource res in motor.resHandler.inputResources)
 			{
-				handler.GetResource(res.name).Consume(res.rate, ResourceBroker.Wheel);
+				handler.GetResource(res.name).Consume(res.rate, RecipeCategory.Wheel);
 			}
 		}
 
@@ -115,7 +117,7 @@ namespace KERBALISM
 		{
 			foreach (ModuleResource res in steering.resHandler.inputResources)
 			{
-				handler.GetResource(res.name).Consume(res.rate, ResourceBroker.Wheel);
+				handler.GetResource(res.name).Consume(res.rate, RecipeCategory.Wheel);
 			}
 		}
 
@@ -124,7 +126,7 @@ namespace KERBALISM
 		{
 			if (light.useResources && light.isOn)
 			{
-				handler.ElectricCharge.Consume(light.resourceAmount, ResourceBroker.Light);
+				handler.ElectricCharge.Consume(light.resourceAmount, RecipeCategory.Light);
 			}
 		}
 
@@ -138,7 +140,7 @@ namespace KERBALISM
 		{
 			double max_rate = Lib.ReflectionValue<float>(m, "BasePower");
 
-			handler.ElectricCharge.Produce(max_rate, ResourceBroker.RTG);
+			handler.ElectricCharge.Produce(max_rate, RecipeCategory.RTG);
 		}
 
 		private static void ProcessCryotank(Part p, PartModule m)
@@ -186,13 +188,13 @@ namespace KERBALISM
 						boiloff_rate = Lib.ReflectionValue<float>(fuel, "boiloffRate") / 360000.0f;
 
 						// let it boil off
-						handler.GetResource(fuel_name).Consume(amount * boiloff_rate, ResourceBroker.Cryotank);
+						handler.GetResource(fuel_name).Consume(amount * boiloff_rate, RecipeCategory.Cryotank);
 					}
 				}
 			}
 
 			// apply EC consumption
-			handler.ElectricCharge.Consume(total_cost, ResourceBroker.Cryotank);
+			handler.ElectricCharge.Consume(total_cost, RecipeCategory.Cryotank);
 		}
 
 		private static void ProcessEngines(ModuleEngines me)
@@ -206,10 +208,10 @@ namespace KERBALISM
 				switch (fuel.name)
 				{
 					case "ElectricCharge":  // mainly used for Ion Engines
-						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, ResourceBroker.Engine);
+						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, RecipeCategory.Engine);
 						break;
 					case "LqdHydrogen":     // added for cryotanks and any other supported mod that uses Liquid Hydrogen
-						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, ResourceBroker.Engine);
+						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, RecipeCategory.Engine);
 						break;
 				}
 			}
@@ -226,10 +228,10 @@ namespace KERBALISM
 				switch (fuel.name)
 				{
 					case "ElectricCharge":  // mainly used for Ion Engines
-						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, ResourceBroker.Engine);
+						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, RecipeCategory.Engine);
 						break;
 					case "LqdHydrogen":     // added for cryotanks and any other supported mod that uses Liquid Hydrogen
-						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, ResourceBroker.Engine);
+						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, RecipeCategory.Engine);
 						break;
 				}
 			}
@@ -246,10 +248,10 @@ namespace KERBALISM
 				switch (fuel.name)
 				{
 					case "ElectricCharge":  // mainly used for Ion RCS
-						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, ResourceBroker.GetOrCreate("rcs", ResourceBroker.BrokerCategory.VesselSystem, "rcs"));
+						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, RecipeCategory.GetOrCreate("rcs", RecipeCategory.BrokerCategory.VesselSystem, "rcs"));
 						break;
 					case "LqdHydrogen":     // added for cryotanks and any other supported mod that uses Liquid Hydrogen
-						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, ResourceBroker.GetOrCreate("rcs", ResourceBroker.BrokerCategory.VesselSystem, "rcs"));
+						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, RecipeCategory.GetOrCreate("rcs", RecipeCategory.BrokerCategory.VesselSystem, "rcs"));
 						break;
 				}
 			}
@@ -266,13 +268,15 @@ namespace KERBALISM
 				switch (fuel.name)
 				{
 					case "ElectricCharge":  // mainly used for Ion RCS
-						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, ResourceBroker.GetOrCreate("rcs", ResourceBroker.BrokerCategory.VesselSystem, "rcs"));
+						handler.ElectricCharge.Consume(thrust_flow * fuel.ratio, RecipeCategory.GetOrCreate("rcs", RecipeCategory.BrokerCategory.VesselSystem, "rcs"));
 						break;
 					case "LqdHydrogen":     // added for cryotanks and any other supported mod that uses Liquid Hydrogen
-						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, ResourceBroker.GetOrCreate("rcs", ResourceBroker.BrokerCategory.VesselSystem, "rcs"));
+						handler.GetResource("LqdHydrogen").Consume(thrust_flow * fuel.ratio, RecipeCategory.GetOrCreate("rcs", RecipeCategory.BrokerCategory.VesselSystem, "rcs"));
 						break;
 				}
 			}
 		}
 	}
 }
+
+*/

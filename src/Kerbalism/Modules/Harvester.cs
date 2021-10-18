@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KSP.Localization;
-using KERBALISM.Planner;
 
 namespace KERBALISM
 {
-
+	/*
 
 	public class Harvester : PartModule, IAnimatedModule, IModuleInfo, ISpecifics, IContractObjectiveModule, IPlannerModule
 	{
@@ -289,5 +288,5 @@ namespace KERBALISM
 		private static CrewSpecs engineer_cs = new CrewSpecs("Engineer@0");
 	}
 
-
+	*/
 } // KERBALISM

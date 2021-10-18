@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Steamworks;
 
 namespace KERBALISM
 {
@@ -61,114 +62,190 @@ namespace KERBALISM
 
 	public class VesselResHandler
 	{
-		private static Dictionary<string, int> allResourceIdsByName = new Dictionary<string, int>();
-		private static Dictionary<int, ResourceType> allResourceTypesById = new Dictionary<int, ResourceType>();
-		private static HashSet<string> allKSPResources = new HashSet<string>();
-		
-		private static bool isSetupDone = false;
-		private const string ECResName = "ElectricCharge";
-		private static int ECResId;
+		public static Dictionary<int, PartResourceDefinition> allKSPResourcesById = new Dictionary<int, PartResourceDefinition>();
+		public static Dictionary<string, PartResourceDefinition> allKSPResourcesByName = new Dictionary<string, PartResourceDefinition>();
+		public static Dictionary<string, int> allKSPResourceIdsByName = new Dictionary<string, int>();
+		private static HashSet<int> allKSPResourcesIds = new HashSet<int>();
+		private static HashSet<int> allResourceIds = new HashSet<int>();
+
+		public static PartResourceDefinition ElectricChargeDefinition { get; private set; }
+		public static int ElectricChargeId { get; private set; }
 
 		public enum EditorStep { None, Init, Next, Finalize }
 		public enum SimulationType { Planner, Vessel }
-		public enum ResourceType { KSP, PartVirtual, VesselVirtual }
 
-		public static void SetupDefinitions()
+		public static void ParseDefinitions()
 		{
 			// note : KSP resources ids are garanteed to be unique because the are stored in a dictionary in
 			// PartResourceDefinitionList, but that id is obtained by calling GetHashCode() on the resource name,
 			// and there is no check for the actual uniqueness of it. If that happen, the Dictionary.Add() call
 			// will just throw an exception, there isn't any handling of it.
 
-			ECResId = PartResourceLibrary.Instance.GetDefinition(ECResName).id;
+			ElectricChargeDefinition = PartResourceLibrary.Instance.GetDefinition(PartResourceLibrary.ElectricityHashcode);
+			ElectricChargeId = ElectricChargeDefinition.id;
 
 			foreach (PartResourceDefinition resDefinition in PartResourceLibrary.Instance.resourceDefinitions)
 			{
-				if (!allResourceIdsByName.ContainsKey(resDefinition.name))
-				{
-					allResourceIdsByName.Add(resDefinition.name, resDefinition.id);
-					allResourceTypesById.Add(resDefinition.id, ResourceType.KSP);
-					allKSPResources.Add(resDefinition.name);
-				}
+				allKSPResourceIdsByName.Add(resDefinition.name, resDefinition.id);
+				allKSPResourcesById.Add(resDefinition.id, resDefinition);
+				allKSPResourcesByName.Add(resDefinition.name, resDefinition);
+				allKSPResourcesIds.Add(resDefinition.id);
 			}
-
-			foreach (VirtualResourceDefinition vResDefinition in VirtualResourceDefinition.definitions.Values)
-			{
-				do vResDefinition.id = Lib.RandomInt();
-				while (allResourceTypesById.ContainsKey(vResDefinition.id));
-
-				allResourceIdsByName.Add(vResDefinition.name, vResDefinition.id);
-				allResourceTypesById.Add(vResDefinition.id, vResDefinition.resType);
-			}
-
-			isSetupDone = true;
 		}
 
-		public static int GetVirtualResourceId(string resName, ResourceType resType)
+		// call this from Kerbalism.OnLoad()
+		public static void PopulateResourceIdsOnLoad()
 		{
-			// make sure we don't affect an id before we have populated the KSP resources ids
-			if (!isSetupDone)
-				return 0;
-
-			int id;
-			do id = Lib.RandomInt();
-			while (allResourceTypesById.ContainsKey(id));
-
-			allResourceIdsByName.Add(resName, id);
-			allResourceTypesById.Add(id, resType);
-
-			return id;
+			allResourceIds = new HashSet<int>(allKSPResourcesIds);
 		}
-
 
 		private SimulationType simulationType;
 
-		public VesselKSPResource ElectricCharge { get; protected set; }
+		public VesselResourceKSP ElectricCharge { get; protected set; }
 
-		private List<Recipe> recipes = new List<Recipe>(4);
-		private Dictionary<string, VesselResource> resources = new Dictionary<string, VesselResource>();
-		private Dictionary<int, PartResourceWrapperCollection> resourceWrappers = new Dictionary<int, PartResourceWrapperCollection>();
 		private VesselDataBase vesselData;
+		private Dictionary<int, VesselResource> resources = new Dictionary<int, VesselResource>();
+		private List<Recipe> requestedRecipes = new List<Recipe>();
+		private List<Recipe> executedRecipes = new List<Recipe>();
+		public bool ExecutedRecipesAreParsed { get; private set; }
+
+		public string VesselName => vesselData.VesselName;
 
 		public VesselResHandler(VesselDataBase vesselData, SimulationType simulationType)
 		{
 			this.vesselData = vesselData;
 			this.simulationType = simulationType;
-			AddResourceToHandler(ECResName, ECResId);
-			ElectricCharge = (VesselKSPResource)resources[ECResName];
+			ElectricCharge = AddKSPResourceToHandler(ElectricChargeDefinition);
 		}
 
 		public IEnumerable<VesselResource> Resources => resources.Values;
 
-		/// <summary>return the VesselResource for this resource or create a VesselVirtualResource if the resource doesn't exists</summary>
-		public VesselResource GetResource(string resourceName)
+
+		/// <summary>Get the VesselResource for this resource, returns false if that resource doesn't exist or isn't of the asked type</summary>
+		public bool TryGetResource(string resourceName, out VesselResource resource)
 		{
-			// try to get the resource
-			if (resources.TryGetValue(resourceName, out VesselResource resource))
+			if (!allKSPResourceIdsByName.TryGetValue(resourceName, out int id))
+			{
+				resource = null;
+				return false;
+			}
+
+			return resources.TryGetValue(id, out resource);
+		}
+
+		/// <summary>Get the VesselResource for this resource, returns false if that resource doesn't exist or isn't of the asked type</summary>
+		public bool TryGetResource(int resourceId, out VesselResource resource)
+		{
+			return resources.TryGetValue(resourceId, out resource);
+		}
+
+		/// <summary>Get the VesselResource for this resource, returns false if that resource doesn't exist or isn't of the asked type</summary>
+		public bool TryGetResource<T>(string resourceName, out T resource) where T : VesselResource
+		{
+			if (!allKSPResourceIdsByName.TryGetValue(resourceName, out int id))
+			{
+				resource = null;
+				return false;
+			}
+
+			if (resources.TryGetValue(id, out VesselResource baseResource))
+			{
+				resource = baseResource as T;
+				return resource != null;
+			}
+
+			resource = null;
+			return false;
+		}
+
+		/// <summary>Get the VesselResource for this resource, returns false if that resource doesn't exist or isn't of the asked type</summary>
+		public bool TryGetResource<T>(int resourceId, out T resource) where T : VesselResource
+		{
+			if (resources.TryGetValue(resourceId, out VesselResource baseResource))
+			{
+				resource = baseResource as T;
+				return resource != null;
+			}
+
+			resource = null;
+			return false;
+		}
+
+		public VesselResourceKSP GetKSPResource(int resourceId)
+		{
+			if (resources.TryGetValue(resourceId, out VesselResource resource) && resource is VesselResourceKSP)
+			{
+				return (VesselResourceKSP)resource;
+			}
+
+			if (allKSPResourcesById.TryGetValue(resourceId, out PartResourceDefinition definition))
+			{
+				return AddKSPResourceToHandler(definition);
+			}
+
+			throw new Exception($"No KSP resource found with id {resourceId}");
+		}
+
+		internal VesselResource GetResource(int resourceId)
+		{
+			if (resources.TryGetValue(resourceId, out VesselResource resource))
 			{
 				return resource;
 			}
-			// if not found, and it's a KSP resource, create it
-			if (allKSPResources.Contains(resourceName))
+
+			if (allKSPResourcesById.TryGetValue(resourceId, out PartResourceDefinition definition))
 			{
-				AddResourceToHandler(resourceName, allResourceIdsByName[resourceName]);
-				resource = resources[resourceName];
+				return AddKSPResourceToHandler(definition);
 			}
-			// otherwise create a virtual resource
-			else
+
+			return null;
+		}
+
+		public VesselResourceAbstract AddNewAbstractResourceToHandler(int resourceId = 0)
+		{
+			while (resourceId == 0 || allResourceIds.Contains(resourceId))
 			{
-				resource = AutoCreateVirtualResource(resourceName);
+				resourceId = Lib.RandomInt();
 			}
+
+			VesselResourceAbstract resource = new VesselResourceAbstract(resourceId);
+
+			resources.Add(resourceId, resource);
+			allResourceIds.Add(resourceId);
 
 			return resource;
 		}
 
-		private PartResourceWrapperCollection AddResourceToHandler(string resourceName, int resourceId)
+		/// <summary>
+		/// Copy an abstract resource to this handler, alongside the resource amount and capacity.
+		/// </summary>
+		public void CopyAbstractResourceToHandler(VesselResourceAbstract abstractResource, VesselResHandler fromHandler)
 		{
-			PartResourceWrapperCollection wrapper = CreateWrapper();
-			resourceWrappers.Add(resourceId, wrapper);
-			resources.Add(resourceName, new VesselKSPResource(resourceName, resourceId, wrapper));
-			return wrapper;
+			if (resources.TryGetValue(abstractResource.id, out VesselResource existingResource))
+			{
+				((VesselResourceAbstract)existingResource).SetAmountAndCapacity(abstractResource.Amount, abstractResource.Capacity);
+			}
+			else
+			{
+				resources.Add(abstractResource.id, abstractResource);
+			}
+
+			fromHandler.resources.Remove(abstractResource.id);
+		}
+
+		public void RemoveAbstractResource(int resourceId)
+		{
+			if (resources.TryGetValue(resourceId, out VesselResource resource) && resource is VesselResourceAbstract)
+			{
+				resources.Remove(resourceId);
+			}
+		}
+
+		private VesselResourceKSP AddKSPResourceToHandler(PartResourceDefinition stockDefinition)
+		{
+			VesselResourceKSP resource = new VesselResourceKSP(stockDefinition, CreateWrapper());
+			resources.Add(resource.id, resource);
+			return resource;
 		}
 
 		private PartResourceWrapperCollection CreateWrapper()
@@ -181,129 +258,18 @@ namespace KERBALISM
 			}
 		}
 
-		private VesselResource AutoCreateVirtualResource(string name)
+		/// <summary> record deferred execution of a recipe </summary>
+		public void RequestRecipeExecution(Recipe recipe)
 		{
-			if (!VirtualResourceDefinition.definitions.TryGetValue(name, out VirtualResourceDefinition definition))
-			{
-				definition = VirtualResourceDefinition.GetOrCreateDefinition(name, false, ResourceType.VesselVirtual);
-			}
-
-			switch (definition.resType)
-			{
-				case ResourceType.PartVirtual:
-					return GetOrCreateVirtualResource<VesselVirtualPartResource>(name);
-				case ResourceType.VesselVirtual:
-					return GetOrCreateVirtualResource<VesselVirtualResource>(name);
-			}
-			return null;
-		}
-
-		/// <summary>Get the VesselResource for this resource, returns false if that resource doesn't exist or isn't of the asked type</summary>
-		public bool TryGetResource<T>(string resourceName, out T resource) where T : VesselResource
-		{
-			if (resources.TryGetValue(resourceName, out VesselResource baseResource))
-			{
-				resource = baseResource as T;
-				return resource != null;
-			}
-			resource = null;
-			return false;
-		}
-
-		/// <summary> Get-or-create a VesselVirtualPartResource or VesselVirtualResource with a random unique name </summary>
-		public T GetOrCreateVirtualResource<T>() where T : VesselResource
-		{
-			string id;
-			do id = Guid.NewGuid().ToString();
-			while (allResourceIdsByName.ContainsKey(id));
-
-			return GetOrCreateVirtualResource<T>(id);
-		}
-
-		/// <summary> Get-or-create a VesselVirtualPartResource or VesselVirtualResource with the specified name </summary>
-		public T GetOrCreateVirtualResource<T>(string name) where T : VesselResource
-		{
-			if (resources.TryGetValue(name, out VesselResource baseExistingResource))
-			{
-				if (!(baseExistingResource is T existingResource))
-				{
-					Lib.Log($"Can't create the {typeof(T).Name} `{name}`, a VesselResource of type {baseExistingResource.GetType().Name} with that name exists already", Lib.LogLevel.Error);
-					return null;
-				}
-				else
-				{
-					return existingResource;
-				}
-			}
-			else
-			{
-				if (typeof(T) == typeof(VesselVirtualResource))
-				{
-					VesselResource resource = new VesselVirtualResource(name);
-					resources.Add(name, resource);
-					return (T)resource;
-				}
-				else
-				{
-
-					PartResourceWrapperCollection wrapper = CreateWrapper();
-					VesselVirtualPartResource partResource = new VesselVirtualPartResource(wrapper, name);
-					resourceWrappers.Add(partResource.Definition.id, wrapper);
-					resources.Add(name, partResource);
-					return (T)(VesselResource)partResource;
-				}
-			}
-		}
-
-		public VirtualResourceDefinition AddVirtualPartResourceToHandler(string resName)
-		{
-			if (resources.TryGetValue(resName, out VesselResource resourceHandler))
-			{
-				if (resourceHandler is VesselVirtualPartResource virtualResourceHandler)
-				{
-					return virtualResourceHandler.Definition;
-				}
-				else
-				{
-					Lib.Log($"Error trying to add the VirtualPartResource {resName} to {vesselData}, a {resourceHandler.GetType()} with that name exists already", Lib.LogLevel.Error);
-					return null;
-				}
-			}
-
-			VirtualResourceDefinition definition = VirtualResourceDefinition.GetOrCreateDefinition(resName, false, ResourceType.PartVirtual);
-			PartResourceWrapperCollection wrapper = CreateWrapper();
-			resourceHandler = new VesselVirtualPartResource(wrapper, definition);
-			resourceWrappers.Add(definition.id, wrapper);
-			resources.Add(resName, resourceHandler);
-			return definition;
-		}
-
-		/// <summary> record deferred production of a resource (shortcut) </summary>
-		/// <param name="broker">short ui-friendly name for the producer</param>
-		public void Produce(string resource_name, double quantity, ResourceBroker broker)
-		{
-			GetResource(resource_name).Produce(quantity, broker);
-		}
-
-		/// <summary> record deferred consumption of a resource (shortcut) </summary>
-		/// <param name="broker">short ui-friendly name for the consumer</param>
-		public void Consume(string resource_name, double quantity, ResourceBroker broker)
-		{
-			GetResource(resource_name).Consume(quantity, broker);
-		}
-
-		/// <summary> record deferred execution of a recipe (shortcut) </summary>
-		public void AddRecipe(Recipe recipe)
-		{
-			recipes.Add(recipe);
+			requestedRecipes.Add(recipe);
 		}
 
 		public void ResourceUpdate(double elapsedSec, EditorStep editorStep = EditorStep.None)
 		{
-			foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
-			{
-				resourceWrapper.ClearPartResources(editorStep != EditorStep.Next);
-			}
+			//foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
+			//{
+			//	resourceWrapper.ClearPartResources(editorStep != EditorStep.Next);
+			//}
 
 			// note : editor handling here is quite a mess :
 			// - we reset resource on finalize step because we want the craft amounts to be displayed, instead of the amounts resulting from the simulation
@@ -311,41 +277,67 @@ namespace KERBALISM
 			// To solve this, we should work on a copy of the part resources, some sort of "simulation snapshot".
 			// That would allow to remove all the special handling, and ensure that the editor sim is accurate.
 
-			switch (editorStep)
+			//switch (editorStep)
+			//{
+			//	case EditorStep.None:
+			//	case EditorStep.Init:
+			//		SyncPartResources();
+			//		break;
+			//	case EditorStep.Finalize:
+			//		SyncPartResources();
+			//		foreach (VesselResource resource in resources.Values)
+			//			resource.EditorFinalize();
+			//		return;
+			//}
+
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.ResHandler.SyncFromPartResources");
+			foreach (VesselResource resource in resources.Values)
 			{
-				case EditorStep.None:
-				case EditorStep.Init:
-					SyncPartResources();
-					break;
-				case EditorStep.Finalize:
-					SyncPartResources();
-					foreach (VesselResource resource in resources.Values)
-						resource.EditorFinalize();
-					return;
+				if (resource.ResourceWrapper != null)
+				{
+					resource.ResourceWrapper.SyncFromPartResources(true, true);
+				}
 			}
+			UnityEngine.Profiling.Profiler.EndSample();
+
+			
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.ResHandler.ExecuteRecipes");
 
 			// execute all recorded recipes
-			Recipe.ExecuteRecipes(this, recipes);
+			Recipe.ExecuteRecipes(this, requestedRecipes, elapsedSec);
 
-			// forget the recipes
-			recipes.Clear();
+			// swap the lists
+			List<Recipe> justExecutedRecipes = requestedRecipes;
+			executedRecipes.Clear();
+			requestedRecipes = executedRecipes;
+			executedRecipes = justExecutedRecipes;
+
+			UnityEngine.Profiling.Profiler.EndSample();
+
+			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.ResHandler.ExecuteAndSyncToParts");
+
+			bool checkCoherency = Settings.EnforceResourceCoherency && TimeWarp.CurrentRate > 1000.0;
 
 			// apply all deferred requests and synchronize to vessel
 			foreach (VesselResource resource in resources.Values)
 			{
-				// note : we try to exclude resources that aren't relevant here to save some
-				// performance, but this might have minor side effects, like brokers not being reset
-				// after a vessel part count change for example. 
-				if (!resource.NeedUpdate)
-					continue;
-
-				if (resource.ExecuteAndSyncToParts(vesselData, elapsedSec) && vesselData.LoadedOrEditor)
-					CoherencyWarning(resource.Title);
+				resource.ExecuteAndSyncToParts(this, elapsedSec, checkCoherency);
 
 				if (resource.IsSupply)
 					resource.Supply.Evaluate(vesselData, resource);
 			}
 
+			foreach (Recipe executedRecipe in executedRecipes)
+			{
+				if (executedRecipe.hasCallback)
+				{
+					executedRecipe.onRecipeExecutedCallback(elapsedSec);
+				}
+			}
+
+			ExecutedRecipesAreParsed = false;
+
+			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		/// <summary>
@@ -355,12 +347,20 @@ namespace KERBALISM
 		/// </summary>
 		public void ForceHandlerSync()
 		{
-			foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
-			{
-				resourceWrapper.ClearPartResources(true, false);
-			}
+			//foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
+			//{
+			//	resourceWrapper.ClearPartResources(true, false);
+			//}
 
-			SyncPartResources();
+			//SyncPartResources();
+
+			foreach (VesselResource resource in resources.Values)
+			{
+				if (resource.ResourceWrapper != null)
+				{
+					resource.ResourceWrapper.SyncFromPartResources(true, false);
+				}
+			}
 		}
 
 		public void ConvertShipHandlerToVesselHandler(VesselData vd)
@@ -368,57 +368,34 @@ namespace KERBALISM
 			vesselData = vd;
 			simulationType = SimulationType.Vessel;
 
-			foreach (string kspResourceName in allKSPResources)
+			foreach (int kspResourceId in allKSPResourcesIds)
 			{
-				if (resources.TryGetValue(kspResourceName, out VesselResource resource) && resource is VesselKSPResource kspResource)
+				if (resources.TryGetValue(kspResourceId, out VesselResource resource) && resource is VesselResourceKSP kspResource)
 				{
 					PartResourceWrapperCollection newWrapper = CreateWrapper();
 					newWrapper.SyncWithOtherWrapper(kspResource.ResourceWrapper);
 					kspResource.SetWrapper(newWrapper);
-					resourceWrappers[allResourceIdsByName[kspResourceName]] = newWrapper;
+					//resourceWrappers[allResourceIdsByName[kspResourceName]] = newWrapper;
 				}
 			}
 		}
 
-		private void SyncPartResources()
+		internal void ParseExecutedRecipes()
 		{
-			foreach (PartData part in vesselData.Parts)
+			foreach (Recipe recipe in executedRecipes)
 			{
-				foreach (PartResourceWrapper partResourceWrapper in part.resources)
+				foreach (RecipeInputBase input in recipe.inputs)
 				{
-					if (!partResourceWrapper.FlowState)
-						continue;
-
-					if (!resourceWrappers.TryGetValue(partResourceWrapper.ResId, out PartResourceWrapperCollection wrapper))
-						wrapper = AddResourceToHandler(partResourceWrapper.ResName, partResourceWrapper.ResId);
-
-					wrapper.AddPartResourceWrapper(partResourceWrapper);
+					input.vesselResource.AddExecutedIO(input);
 				}
 
-				foreach (VirtualPartResource virtualPartResource in part.virtualResources)
+				foreach (RecipeOutputBase output in recipe.outputs)
 				{
-					if (!virtualPartResource.FlowState)
-						continue;
-
-					if (!resourceWrappers.TryGetValue(virtualPartResource.ResId, out PartResourceWrapperCollection wrapper))
-						wrapper = AddResourceToHandler(virtualPartResource.ResName, virtualPartResource.ResId);
-
-					wrapper.AddPartResourceWrapper(virtualPartResource);
+					output.vesselResource.AddExecutedIO(output);
 				}
 			}
-		}
 
-		private void CoherencyWarning(string resourceName)
-		{
-			Message.Post
-			(
-				Severity.warning,
-				Lib.BuildString("On <b>", vesselData.VesselName, "</b>\n",
-				"a producer of <b>", resourceName, "</b> has\n",
-				"incoherent behavior at high warp speeds.\n",
-				"<i>Please unload the vessel before warping</i>")
-			);
-			Lib.StopWarp(5);
+			ExecutedRecipesAreParsed = true;
 		}
 	}
 }

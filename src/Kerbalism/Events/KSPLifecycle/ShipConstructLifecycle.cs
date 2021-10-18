@@ -12,7 +12,7 @@ namespace KERBALISM.Events
 		public void OnEditorShipModified(ShipConstruct data)
 		{
 			ModuleKsmExperiment.CheckEditorExperimentMultipleRun();
-			Planner.Planner.EditorShipModifiedEvent(data);
+			//Planner.Planner.EditorShipModifiedEvent(data);
 		}
 
 		// fix for B9PS disabled modules being re-enabled when the part is placed in the editor

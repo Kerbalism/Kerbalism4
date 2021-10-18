@@ -60,25 +60,26 @@ namespace KERBALISM
             // stock ModuleAsteroid.performSampleExperiment code : create subject
             ScienceSubject subject = ResearchAndDevelopment.GetExperimentSubject(___experiment, experimentSituation, __instance.part.partInfo.name + __instance.part.flightID, __instance.part.partInfo.title, __instance.vessel.mainBody, string.Empty, string.Empty);
 
+			// TODO : Fix EVA samples once the sample handling refactor is done
 			// put the data on the EVA kerbal drive.
-			if (FlightGlobals.ActiveVessel == null) return false;
-			double size = ___experiment.baseValue * ___experiment.dataScale;
-			FlightGlobals.ActiveVessel.TryGetVesselDataTemp(out VesselData vd);
-			DriveHandler drive = DriveHandler.SampleDrive(vd, size);
-			if (drive != null)
-			{
-				double mass = size * Settings.AsteroidSampleMassPerMB;
-				SubjectData subjectData = ScienceDB.GetSubjectDataFromStockId(subject.id, null, __instance.part.partInfo.title);
-				drive.RecordSample(subjectData, size, mass, true);
-				Message.Post(Lib.BuildString("<b><color=ffffff>", subject.title, "</color></b>\n", (mass * 1000.0).ToString("F1"), "<b><i> Kg of sample stored</i></b>"));
-			}
-			else
-			{
-				Message.Post("Not enough sample storage available");
-			}
+			//if (FlightGlobals.ActiveVessel == null) return false;
+			//double size = ___experiment.baseValue * ___experiment.dataScale;
+			//FlightGlobals.ActiveVessel.TryGetVesselDataTemp(out VesselData vd);
+			//DriveHandler drive = DriveHandler.SampleDrive(vd, size);
+			//if (drive != null)
+			//{
+			//	double mass = size * Settings.AsteroidSampleMassPerMB;
+			//	SubjectData subjectData = ScienceDB.GetSubjectDataFromStockId(subject.id, null, __instance.part.partInfo.title);
+			//	drive.RecordSample(subjectData, size, mass, true);
+			//	Message.Post(Lib.BuildString("<b><color=ffffff>", subject.title, "</color></b>\n", (mass * 1000.0).ToString("F1"), "<b><i> Kg of sample stored</i></b>"));
+			//}
+			//else
+			//{
+			//	Message.Post("Not enough sample storage available");
+			//}
 
-            // don't call ModuleAsteroid.TakeSampleEVAEvent (this will also prevent the call to ModuleAsteroid.performSampleExperiment)
-            return false;
+			// don't call ModuleAsteroid.TakeSampleEVAEvent (this will also prevent the call to ModuleAsteroid.performSampleExperiment)
+			return false;
 		}
 	}
 
@@ -110,21 +111,22 @@ namespace KERBALISM
 			ScienceSubject subject = ResearchAndDevelopment.GetExperimentSubject(___experiment, experimentSituation, __instance.part.partInfo.name + __instance.part.flightID, __instance.part.partInfo.title, __instance.vessel.mainBody, string.Empty, string.Empty);
 
 			// put the data on the EVA kerbal drive.
-			if (FlightGlobals.ActiveVessel == null) return false;
-			double size = ___experiment.baseValue * ___experiment.dataScale;
-			FlightGlobals.ActiveVessel.TryGetVesselDataTemp(out VesselData vd);
-			DriveHandler drive = DriveHandler.SampleDrive(vd, size);
-			if (drive != null)
-			{
-				double mass = size * Settings.AsteroidSampleMassPerMB;
-				SubjectData subjectData = ScienceDB.GetSubjectDataFromStockId(subject.id, null, __instance.part.partInfo.title);
-				drive.RecordSample(subjectData, size, mass, true);
-				Message.Post(Lib.BuildString("<b><color=ffffff>", subject.title, "</color></b>\n", (mass * 1000.0).ToString("F1"), "<b><i> Kg of sample stored</i></b>"));
-			}
-			else
-			{
-				Message.Post("Not enough sample storage available");
-			}
+			// TODO : Fix EVA samples once the sample handling refactor is done
+			//if (FlightGlobals.ActiveVessel == null) return false;
+			//double size = ___experiment.baseValue * ___experiment.dataScale;
+			//FlightGlobals.ActiveVessel.TryGetVesselDataTemp(out VesselData vd);
+			//DriveHandler drive = DriveHandler.SampleDrive(vd, size);
+			//if (drive != null)
+			//{
+			//	double mass = size * Settings.AsteroidSampleMassPerMB;
+			//	SubjectData subjectData = ScienceDB.GetSubjectDataFromStockId(subject.id, null, __instance.part.partInfo.title);
+			//	drive.RecordSample(subjectData, size, mass, true);
+			//	Message.Post(Lib.BuildString("<b><color=ffffff>", subject.title, "</color></b>\n", (mass * 1000.0).ToString("F1"), "<b><i> Kg of sample stored</i></b>"));
+			//}
+			//else
+			//{
+			//	Message.Post("Not enough sample storage available");
+			//}
 
 			// don't call TakeSampleEVAEvent() (this will also prevent the call to ModuleAsteroid.performSampleExperiment)
 			return false;

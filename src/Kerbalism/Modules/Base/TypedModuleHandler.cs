@@ -21,5 +21,11 @@
 				this.loadedModule = (T)loadedModule;
 			}
 		}
+
+		public override void ClearLoadedAndProtoModuleReferences()
+		{
+			protoModule = null;
+			loadedModule = null;
+		}
 	}
 }

@@ -14,6 +14,7 @@ namespace KERBALISM
 
 	// TODO : FULLY UNTESTED, VERY LIKELY HAS BUGS !!!
 
+	/*
 	public class ModuleCryoTankHandler : ForeignModuleHandler
     {
 		public override string[] ModuleTypeNames => moduleTypeNames;
@@ -91,7 +92,7 @@ namespace KERBALISM
 			electricCharge = VesselData.ResHandler.ElectricCharge;
 		}
 
-        public override void OnFixedUpdate(double elapsedSec)
+        public override void OnUpdate(double elapsedSec)
         {
 			double ecConsumed = 0.0;
 
@@ -118,11 +119,12 @@ namespace KERBALISM
 
             if (ecConsumed > 0.0)
             {
-				electricCharge.Consume(ecConsumed * elapsedSec, ResourceBroker.Cryotank);
+				electricCharge.Consume(ecConsumed * elapsedSec, RecipeCategory.Cryotank);
 			}
 
 			// prevent the module post-facto catchup from doing its thing on next load by resetting the last loaded UT every update.
 			Lib.Proto.Set(protoModule, "LastUpdateTime", Planetarium.GetUniversalTime());
 		}
 	}
+	*/
 }

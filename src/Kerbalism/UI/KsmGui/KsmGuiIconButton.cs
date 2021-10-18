@@ -6,15 +6,12 @@ using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-	/// <summary>
-	/// a 16x16 icon that can be clicked
-	/// </summary>
-	public class KsmGuiIconButton : KsmGuiIcon, IKsmGuiInteractable, IKsmGuiButton
+	public class KsmGuiIconButton : KsmGuiImage, IKsmGuiInteractable, IKsmGuiButton
 	{
 		public Button ButtonComponent { get; private set; }
 		private UnityAction onClick;
 
-		public KsmGuiIconButton(KsmGuiBase parent, Texture2D texture, UnityAction onClick = null, int width = 16, int height = 16)
+		public KsmGuiIconButton(KsmGuiBase parent, Texture2D texture, UnityAction onClick = null, int width = -1, int height = -1)
 			: base(parent, texture, iconWidth: width, iconHeight: height)
 		{
 			ButtonComponent = TopObject.AddComponent<Button>();

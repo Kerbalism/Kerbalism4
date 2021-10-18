@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using HarmonyLib;
+using KSP.Localization;
 
 namespace KERBALISM
 {
@@ -33,14 +34,7 @@ namespace KERBALISM
 
 			UI_Toggle toggle = new UI_Toggle();
 			BaseField field = new BaseField(toggle, transmitterEnabledInfo, this);
-
-			switch (loadedModule.antennaType)
-			{
-				case AntennaType.INTERNAL: field.guiName = "Internal antenna"; break;
-				case AntennaType.DIRECT: field.guiName = "Direct antenna"; break;
-				case AntennaType.RELAY: field.guiName = "Relay antenna"; break;
-			}
-
+			field.guiName = "Antenna";
 			field.guiActiveEditor = true;
 			field.uiControlEditor = toggle;
 			field.uiControlFlight = toggle;
@@ -62,6 +56,39 @@ namespace KERBALISM
 
 			if (handler != null)
 				__result = handler.transmitterEnabled;
+		}
+	}
+
+	[HarmonyPatch(typeof(ModuleDataTransmitter))]
+	[HarmonyPatch(nameof(ModuleDataTransmitter.OnStart))]
+	class ModuleDataTransmitter_OnStart
+	{
+		static void Postfix(ModuleDataTransmitter __instance)
+		{
+			__instance.Actions[nameof(ModuleDataTransmitter.StartTransmissionAction)].active = false;
+			__instance.Events[nameof(ModuleDataTransmitter.StartTransmission)].active = false;
+			__instance.Events[nameof(ModuleDataTransmitter.StopTransmission)].active = false;
+			__instance.Events[nameof(ModuleDataTransmitter.TransmitIncompleteToggle)].active = false;
+			__instance.Fields[nameof(ModuleDataTransmitter.statusText)].guiActive = false;
+			__instance.Fields[nameof(ModuleDataTransmitter.statusText)].guiActiveEditor = false;
+			__instance.Fields[nameof(ModuleDataTransmitter.powerText)].guiName = Localizer.Format("#autoLOC_234196"); // "Antenna"
+		}
+	}
+
+	[HarmonyPatch(typeof(ModuleDataTransmitter))]
+	[HarmonyPatch(nameof(ModuleDataTransmitter.UpdatePowerText))]
+	class ModuleDataTransmitter_UpdatePowerText
+	{
+		static bool Prefix(ModuleDataTransmitter __instance)
+		{
+			switch (__instance.antennaType)
+			{
+				case AntennaType.INTERNAL: __instance.powerText = $"Internal ({KSPUtil.PrintSI(__instance.CommPower, string.Empty)})"; break;
+				case AntennaType.DIRECT: __instance.powerText = $"Direct ({KSPUtil.PrintSI(__instance.CommPower, string.Empty)}, {Lib.HumanReadableDataRate(__instance.DataRate)})"; break;
+				case AntennaType.RELAY: __instance.powerText = $"Relay ({KSPUtil.PrintSI(__instance.CommPower, string.Empty)}, {Lib.HumanReadableDataRate(__instance.DataRate)})"; break;
+			}
+
+			return false;
 		}
 	}
 }

@@ -113,7 +113,6 @@ namespace KERBALISM
 			{
 				try
 				{
-					PartModuleAPI.Init();
 					Sim.Init();         // find suns (Kopernicus support)
 					Radiation.Init();   // create the radiation fields
 					ScienceDB.Init();   // build the science database (needs Sim.Init() and Radiation.Init() first)
@@ -143,8 +142,10 @@ namespace KERBALISM
 				catch (Exception e)
 				{
 					ErrorManager.AddError(true, "CORE INITIALIZATION FAILED", e.ToString());
+					enabled = false;
 				}
 				IsCoreGameInitDone = true;
+
 			}
 
 			// everything in there will be called every time a savegame (or a new game) is loaded from the main menu
@@ -168,9 +169,11 @@ namespace KERBALISM
 				catch (Exception e)
 				{
 					ErrorManager.AddError(true, "SAVEGAME LOAD FAILED", e.ToString());
+					enabled = false;
 				}
 
 				IsSaveGameInitDone = true;
+
 			}
 
 			// eveything else will be called on every OnLoad() call :
@@ -195,6 +198,7 @@ namespace KERBALISM
 			{
 				ErrorManager.AddError(true, "SAVEGAME LOAD FAILED", e.ToString());
 				ErrorManager.CheckErrors(true);
+				enabled = false;
 				return;
 			}
 
@@ -203,6 +207,7 @@ namespace KERBALISM
 				string error = "Cannot load save games from Kerbalism versions before " + DB.LAST_SUPPORTED_VERSION;
 				error += "\n\nQuit the game using this popup to avoid corrupting your save and downgrade your Kerbalism version, or start a new game.";
 				ErrorManager.AddError(true, "OLD SAVE GAME: this save is from Kerbalism " + DB.version, error);
+				enabled = false;
 			}
 
 			ErrorManager.CheckErrors(true);
@@ -212,9 +217,6 @@ namespace KERBALISM
 			{
 				// clear caches
 				Message.all_logs.Clear();
-
-				// sync main window pos from db
-				UI.Sync();
 
 				// remember savegame id
 				savegameGuid = DB.Guid;
@@ -378,28 +380,15 @@ namespace KERBALISM
 					CommsMessages.Update(v, vd, elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
 
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Science");
-					// transmit science data
-					Science.Update(v, vd, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Profile");
-					// execute rules and processes
-					Profile.Execute(v, vd, resources, elapsed_s);
-					UnityEngine.Profiling.Profiler.EndSample();
-
-					//UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.ResourceAPI");
-					//// part module resource updates
-					//ResourceAPI.ResourceUpdate(v, vd, resources, elapsed_s);
-					//UnityEngine.Profiling.Profiler.EndSample();
-
 					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Loaded.Resource");
 					// apply deferred requests
 					resources.ResourceUpdate(elapsed_s);
 					UnityEngine.Profiling.Profiler.EndSample();
 
+					vd.KerbalRulesUpdate(elapsed_s);
+
 					// call automation scripts
-					vd.computer.Automate(v, vd);
+					// vd.computer.Automate(v, vd);
 
 					// remove from unloaded data container
 					unloaded.Remove(vd.VesselId);
@@ -455,23 +444,15 @@ namespace KERBALISM
 				CommsMessages.Update(last_v, last_vd, last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
 
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Profile");
-				// execute rules and processes
-				Profile.Execute(last_v, last_vd, resources, last_time);
-				UnityEngine.Profiling.Profiler.EndSample();
-
-				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Science");
-				// transmit science	data
-				Science.Update(last_v, last_vd, last_time);
-				UnityEngine.Profiling.Profiler.EndSample();
-
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.FixedUpdate.Unloaded.Resource");
 				// apply deferred requests
 				resources.ResourceUpdate(last_time);
 				UnityEngine.Profiling.Profiler.EndSample();
 
+				last_vd.KerbalRulesUpdate(last_time);
+
 				// call automation scripts
-				last_vd.computer.Automate(last_v, last_vd);
+				// last_vd.computer.Automate(last_v, last_vd);
 
 				// remove from unloaded data container
 				unloaded.Remove(last_vd.VesselId);
@@ -505,11 +486,6 @@ namespace KERBALISM
 
 			// set part highlight colors
 			Highlighter.Update();
-
-			// prepare gui content
-			UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.UI.Update");
-			UI.Update(UIVisible);
-			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		void OnGUI()
@@ -568,7 +544,7 @@ namespace KERBALISM
 			// toggle body info window with keyboard
 			if (MapView.MapIsEnabled && Input.GetKeyDown(KeyCode.B))
 			{
-				UI.Open(BodyInfo.Body_info);
+				//UI.Open(BodyInfo.Body_info);
 			}
 
 			// call action scripts
@@ -579,16 +555,16 @@ namespace KERBALISM
 			if (!vd.IsSimulated) return;
 
 			// call scripts with 1-5 key
-			if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
-			{ vd.computer.Execute(v, ScriptType.action1); }
-			if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
-			{ vd.computer.Execute(v, ScriptType.action2); }
-			if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
-			{ vd.computer.Execute(v, ScriptType.action3); }
-			if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
-			{ vd.computer.Execute(v, ScriptType.action4); }
-			if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
-			{ vd.computer.Execute(v, ScriptType.action5); }
+			//if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+			//{ vd.computer.Execute(v, ScriptType.action1); }
+			//if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+			//{ vd.computer.Execute(v, ScriptType.action2); }
+			//if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+			//{ vd.computer.Execute(v, ScriptType.action3); }
+			//if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+			//{ vd.computer.Execute(v, ScriptType.action4); }
+			//if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
+			//{ vd.computer.Execute(v, ScriptType.action5); }
 		}
 	}
 

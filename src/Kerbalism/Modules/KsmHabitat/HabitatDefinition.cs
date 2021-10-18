@@ -16,6 +16,7 @@ namespace KERBALISM
 		[CFGValue] public double reclaimStorageFactor = 0.0;      // Amount of nitrogen storage, in % of the amount needed to pressurize the part
 		[CFGValue] public bool canRetract = true;                 // if false, can't be retracted once deployed
 		[CFGValue] public bool deployWithPressure = false;        // if true, deploying is done by pressurizing
+		[CFGValue] public string depressurizeDuration = "5m";     // Time required to depressurize
 		[CFGValue] public double depressurizeECRate = 0.5;        // EC/s consumed while depressurizing and reclaiming the reclaim resource
 		[CFGValue] public double deployECRate = 1.0;              // EC/s consumed while deploying / inflating
 		[CFGValue] public double accelerateECRate = 5.0;          // EC/s consumed while accelerating a centrifuge (note : decelerating is free)
@@ -60,12 +61,12 @@ namespace KERBALISM
 		public bool isDeployable = false;
 		public bool isCentrifuge = false;
 		public bool hasShielding;
-		public double depressurizationSpeed = -1.0;
+		public double depressurizationDurationD;
+		public double depressurizationRate;
 
 		public override void OnLoad(ConfigNode node)
 		{
 			// Parse comforts
-
 			foreach (ConfigNode comfort in node.GetNodes("COMFORT"))
 			{
 				ComfortValue instance = ComfortValue.Load(comfort);
@@ -76,13 +77,8 @@ namespace KERBALISM
 				comforts.Add(instance);
 			}
 
-			if (node.HasValue("depressurizationDuration"))
-			{
-				// parse config defined depressurization duration
-				if (!Lib.ConfigDuration(node, "depressurizationDuration", false, out depressurizationSpeed))
-					depressurizationSpeed = -1.0;
-			}
-
+			if (!Lib.TryParseDuration(depressurizeDuration, false, out depressurizationDurationD))
+				depressurizationDurationD = 60.0 * 60.0 * 5.0;
 
 			// should we add the shielding resource to the part ?
 			hasShielding = Features.Radiation && maxShieldingFactor > 0.0;

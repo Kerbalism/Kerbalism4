@@ -13,8 +13,6 @@ namespace KERBALISM.Events
 	{
 		static void Postfix(PartModule __instance, ConfigNode node)
 		{
-			// Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
-
 			if (Lib.IsEditor)
 			{
 				// only save known module types
@@ -26,7 +24,18 @@ namespace KERBALISM.Events
 				if (!handlerType.isPersistent || (handlerType.activation & ModuleHandler.ActivationContext.Editor) == 0)
 					return;
 
+				Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
+
 				int instanceId = __instance.GetInstanceID();
+
+				if (__instance.part == StoredPartData.heldPart)
+				{
+					if (!ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(instanceId, out int moduleShipId))
+						return;
+
+					AssignHeldPartShipId(StoredPartData.heldPartData, node, instanceId, moduleShipId);
+					return;
+				}
 
 				if (!ModuleHandler.loadedHandlersByModuleInstanceId.TryGetValue(instanceId, out ModuleHandler handler))
 				{
@@ -51,11 +60,24 @@ namespace KERBALISM.Events
 			}
 			else
 			{
+				if (__instance.part == StoredPartData.heldPart)
+				{
+					Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
+
+					if (ModuleHandler.handlerFlightIdsByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out int moduleFlightId))
+						node.AddValue(ModuleHandler.VALUENAME_FLIGHTID, moduleFlightId);
+					else if (ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out int moduleShipId))
+						AssignHeldPartShipId(StoredPartData.heldPartData, node, __instance.GetInstanceID(), moduleShipId);
+					return;
+				}
+
 				if (!ModuleHandler.loadedHandlersByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out ModuleHandler handler))
 					return;
 
 				if (!(handler is IPersistentModuleHandler persistentHandler))
 					return;
+
+				Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
 
 				// TODO : this check might not be failproof to mods (KCT/Scrapyard...) doing flight vessel to ShipConstruct conversions. Need some testing.
 				if (persistentHandler.FlightId != 0)
@@ -81,6 +103,36 @@ namespace KERBALISM.Events
 				}
 			}
 		}
+
+		static void AssignHeldPartShipId(StoredPartData storedPart, ConfigNode moduleNode, int moduleInstanceId, int moduleShipId)
+		{
+			if (storedPart.activeHandlers != null)
+			{
+				foreach (ModuleHandler activeHandler in storedPart.activeHandlers)
+				{
+					if (activeHandler is IPersistentModuleHandler persistentHandler && persistentHandler.ShipId == moduleShipId)
+					{
+						moduleNode.AddValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
+						persistentHandler.ShipId = moduleInstanceId;
+						return;
+					}
+				}
+			}
+
+			if (storedPart.persistentHandlersData != null)
+			{
+				foreach (ConfigNode persistentHandlerNode in storedPart.persistentHandlersData)
+				{
+					int shipId = Lib.ConfigValue(persistentHandlerNode, ModuleHandler.VALUENAME_SHIPID, 0);
+					if (shipId == moduleShipId)
+					{
+						moduleNode.AddValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
+						persistentHandlerNode.SetValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
+						return;
+					}
+				}
+			}
+		}
 	}
 
 	[HarmonyPatch(typeof(PartModule))]
@@ -89,7 +141,7 @@ namespace KERBALISM.Events
 	{
 		static void Postfix(PartModule __instance, ConfigNode node)
 		{
-			// Lib.LogDebug($"Loading {__instance.moduleName} on {__instance.part.name}");
+			Lib.LogDebug($"Loading {__instance.moduleName} on {__instance.part.name}");
 
 			if (!ModuleHandler.persistentHandlersByModuleName.Contains(__instance.moduleName))
 				return;

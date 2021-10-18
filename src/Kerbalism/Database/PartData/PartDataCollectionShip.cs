@@ -23,7 +23,7 @@ namespace KERBALISM
 		private int lastLoadedPartsCount = 0;
 
 		/// <summary> list of all parts attached to the current ship</summary>
-		protected override List<PartData> Parts
+		public override List<PartData> Parts
 		{
 			get
 			{
@@ -101,7 +101,6 @@ namespace KERBALISM
 				bool isPersistent = false;
 				ConfigNode partNode = new ConfigNode(partData.LoadedPart.craftID.ToString());
 
-				isPersistent |= VirtualPartResource.SavePartResources(partData, partNode);
 				isPersistent |= PartRadiationData.Save(partData, partNode);
 
 				if (isPersistent)
@@ -130,7 +129,6 @@ namespace KERBALISM
 				if (!nodesByCraftID.TryGetValue(partData.LoadedPart.craftID, out ConfigNode partNode))
 					continue;
 
-				VirtualPartResource.LoadPartResources(partData, partNode);
 				PartRadiationData.Load(partData, partNode);
 			}
 		}

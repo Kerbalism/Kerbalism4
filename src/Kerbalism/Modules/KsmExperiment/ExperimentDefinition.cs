@@ -43,7 +43,7 @@ namespace KERBALISM
 		public ExperimentRequirements Requirements { get; private set; }
 
 		/// <summary> Resource requirements </summary>
-		public List<ObjectPair<string, double>> Resources { get; private set; }
+		public List<ObjectPair<int, double>> Resources { get; private set; }
 
 		private string description;
 
@@ -57,18 +57,16 @@ namespace KERBALISM
 			Duration = Lib.ConfigDuration(definitionNode, "Duration", true, "60s");
 			CrewOperate = new CrewSpecs(Lib.ConfigValue(definitionNode, "CrewOperate", string.Empty));
 
-			Resources = new List<ObjectPair<string, double>>();
+			Resources = new List<ObjectPair<int, double>>();
 			string resources = Lib.ConfigValue(definitionNode, "Resources", string.Empty);
 			foreach (string s in Lib.Tokenize(resources, ','))
 			{
 				// definitions are Resource@rate
 				var p = Lib.Tokenize(s, '@');
 				if (p.Count != 2) continue;             // malformed definition
-				string res = p[0];
-				if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(res)) continue;    // unknown resource
-				double rate = double.Parse(p[1]);
-				if (res.Length < 1 || rate < double.Epsilon) continue;  // rate <= 0
-				Resources.Add(new ObjectPair<string, double>(res, rate));
+				if (!VesselResHandler.allKSPResourceIdsByName.TryGetValue(p[0], out int resId)) continue;    // unknown resource
+				if (!double.TryParse(p[1], out double rate) || rate < double.Epsilon) continue;  // rate <= 0
+				Resources.Add(new ObjectPair<int, double>(resId, rate));
 			}
 		}
 

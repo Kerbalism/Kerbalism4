@@ -25,7 +25,7 @@ namespace KERBALISM.KsmGui
 		private bool isDirty = true;
 		private bool rebuildRequested = false;
 		private bool isRebuilding = false;
-		
+
 		public void RebuildLayout()
 		{
 			rebuildRequested = true;
@@ -80,8 +80,10 @@ namespace KERBALISM.KsmGui
 		{
 			// Unity needs components to be enabled at the beginning of the frame
 			// This mean the layout will rebuild only in the next frame, then we can disable
-			// the layout components in the following frame. So wait 2 frames :
-			yield return StartCoroutine(WaitForFrames(2));
+			// the layout components in the following frame.
+			// To be on the safe side, wait one more frame.
+			// So wait 3 frames :
+			yield return StartCoroutine(WaitForFrames(3));
 
 			foreach (UIBehaviour layoutController in layoutControllers)
 			{

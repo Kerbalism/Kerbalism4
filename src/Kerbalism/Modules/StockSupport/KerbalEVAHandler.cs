@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace KERBALISM
@@ -8,23 +7,19 @@ namespace KERBALISM
 	{
 		public override ActivationContext Activation => ActivationContext.Loaded;
 
-		bool headLampUseEc;
-		VesselKSPResource electricCharge;
-		Light headLampLight;
-		List<Renderer> headLampFlareComponents;
-		KerbalData kerbal;
-		bool isDead;
+		private KerbalData kerbal;
+		private bool isDead;
+
+		private Recipe headLampRecipe;
+		private Light headLampLight;
+		private List<Renderer> headLampFlareComponents;
 
 		public override void OnStart()
 		{
-			electricCharge = VesselData.ResHandler.ElectricCharge;
-
 			// determine if headlamps need ec
 			// - not required if there is no EC capacity in eva kerbal (no ec supply in profile)
 			// - not required if no EC cost for headlamps is specified (set by the user)
-			headLampUseEc = electricCharge.Capacity > 0.0 && Settings.HeadLampsCost > 0.0;
-
-			if (headLampUseEc)
+			if (VesselData.ResHandler.ElectricCharge.Capacity > 0.0 && Settings.HeadLampsECCost > 0.0)
 			{
 				headLampLight = loadedModule.headLamp.GetComponent<Light>();
 
@@ -36,27 +31,20 @@ namespace KERBALISM
 						headLampFlareComponents.Add(renderer);
 					}
 				}
+
+				headLampRecipe = new Recipe("Head lamp", RecipeCategory.Light, OnRecipeExecuted);
+				headLampRecipe.AddInput(VesselResHandler.ElectricChargeId, Settings.HeadLampsECCost);
 			}
 
 			kerbal = DB.GetOrCreateKerbalData(partData.LoadedPart.protoModuleCrew[0]);
 			isDead = false; // will be synchronized in the first FU in case kerbal.evaDead is true
 		}
 
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
-			if (headLampUseEc)
+			if (headLampRecipe != null && loadedModule.lampOn)
 			{
-				if (loadedModule.lampOn)
-				{
-					electricCharge.Consume(Settings.HeadLampsCost * elapsedSec, ResourceBroker.Light);
-				}
-
-				headLampLight.intensity = (float)electricCharge.AvailabilityFactor;
-
-				foreach (Renderer renderer in headLampFlareComponents)
-				{
-					renderer.enabled = electricCharge.AvailabilityFactor > 0.5;
-				}
+				headLampRecipe.RequestExecution(VesselData.ResHandler);
 			}
 
 			if (isDead && loadedModule.vessel.isActiveVessel)
@@ -71,6 +59,15 @@ namespace KERBALISM
 				isDead = true;
 			}
 
+		}
+
+		public void OnRecipeExecuted(double elapsedSec)
+		{
+			headLampLight.intensity = (float)headLampRecipe.ExecutedFactor;
+			bool enableFlare = headLampRecipe.ExecutedFactor > 0.5;
+
+			foreach (Renderer renderer in headLampFlareComponents)
+				renderer.enabled = enableFlare;
 		}
 
 		private void SetDeadState(KerbalEVA kerbal)

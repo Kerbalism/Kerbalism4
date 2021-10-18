@@ -1,158 +1,274 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace KERBALISM
 {
-	/// <summary>
-	/// ResourceRecipe is a mean of converting inputs to outputs.
-	/// It does so in relation with the rest of the resource simulation to detect available amounts for inputs and available capacity for outputs.
-	/// Outputs can be defined a "dumpeable" to avoid this last limitation.
-	/// </summary>
-
-	// TODO : (GOTMACHINE) At some point, we want to use "virtual" resources in recipes.
-	// Their purpose would be to give the ability to scale the non-resource output of a pure consumer.
-	// Example : to scale antenna data rate by EC availability, define an "antennaOutput" virtual resource and a recipe that convert EC to antennaOutput
-	// then check "antennaOutput" availability to scale the amount of data sent
-
-	// TODO : (yup another one) : in 95% of cases, the same recipes are recreated every update, with only a modification of the Entry.quantity field.
-	// It would make a lot of sense to move Entry from a struct to a class and to make Recipe users keep the Recipe/Entry references, then just adjust the Entry.quantity.
-	// That would notably allow to call only once GetResource() at the entry ctor (instead of again and again for each recipe execution step)
-	// and change Recipe from okayish to lightning fast from a performance standpoint, as well as eliminate all heap memory allocations.
-
-	// TODO : currently, "pure input recipes can just underflow", which is an issue for AvailabilityFactor calculations.
-	// Since Recipes are assumed to auto-scale with availability, they register their consumptions in consumeCriticalRequests
-	// and aren't scaled by AvailabilityFactor. The fix is probably to just remove the "if (outputs.Count > 0)" condition, but
-	// I need to check that in detail before messing with this
-
 	public sealed class Recipe
 	{
-		public struct Entry
+		public class UnknownBroker
 		{
-			public Entry(string name, double quantity, bool dump = true)
-			{
-				this.name = name;
-				this.quantity = quantity;
-				this.inv_quantity = 1.0 / quantity;
-				this.dump = dump;
-			}
-			public string name;
-			public double quantity;
-			public double inv_quantity;
-			public bool dump;
+			public static readonly UnknownBroker Instance = new UnknownBroker();
+			public string BrokerTitle => RecipeCategory.Unknown.title;
 		}
 
-		private List<Entry> inputs;   // set of input resources
-		private List<Entry> outputs;  // set of output resources
-		private double left;     // what proportion of the recipe is left to execute
+		public static readonly Recipe UnknownBrokerRecipe = new Recipe("Unknown", RecipeCategory.Unknown);
 
-		public double UtilizationFactor => 1.0 - left;
+		// data
+		public string title;
+		public RecipeCategory category;
 
-		private ResourceBroker broker;
+		internal readonly Action<double> onRecipeExecutedCallback;
+		internal readonly bool hasCallback;
+		internal readonly List<RecipeInputBase> inputs = new List<RecipeInputBase>(); // set of input resources
+		internal readonly List<RecipeOutputBase> outputs = new List<RecipeOutputBase>(); // set of output resources
 
-		public Recipe(ResourceBroker broker)
+
+		/// <summary>
+		/// Only effective/applicable on pure output recipes that have more than one output.<br/>
+		/// If true, the recipe execution isn't constrained by the resources storage capacity.<br/>
+		/// Said otherwise, the nominal rate of all outputs is always applied.<br/>
+		/// This has the same effect as if all outputs have "dump" set to true.
+		/// </summary>
+		private bool overflow = false;
+
+		/// <summary>
+		/// Only effective/applicable on pure input recipes that have more than one input.<br/>
+		/// If true, the recipe execution isn't constrained by the resources availability.<br/>
+		/// Said otherwise, the nominal rate of all inputs is always applied.
+		/// </summary>
+		private bool underflow = false;
+
+
+		private double ioScale; // optional global factor to apply on the nominal input/output rates
+		private double ioMax; // optional constraint 
+		public int priority;
+
+		// performance optimization
+		private int inputsCount;
+		private int outputsCount;
+
+		// % of the recipe is left to execute, internal variable
+		private double left = 1.0;
+
+		public double ExecutedFactor
 		{
-			this.inputs = new List<Entry>();
-			this.outputs = new List<Entry>();
-			this.left = 1.0;
-			this.broker = broker;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => 1.0 - left;
+		}
+
+		public Recipe(string title, RecipeCategory category, Action<double> onRecipeExecuted = null, bool overflow = false, bool underflow = false)
+		{
+			this.title = title;
+			this.category = category;
+			this.overflow = overflow;
+			this.underflow = underflow;
+
+			if (onRecipeExecuted != null)
+			{
+				hasCallback = true;
+				onRecipeExecutedCallback = onRecipeExecuted;
+			}
+		}
+
+		public override string ToString()
+		{
+			return $"{title}, category={category.name}, ioScale={ioScale}";
 		}
 
 		/// <summary>add an input to the recipe</summary>
-		public void AddInput(string resource_name, double quantity)
+		public RecipeConstraint AddConstraint(int resourceId, double nominalRate)
 		{
-			if (quantity > double.Epsilon) //< avoid division by zero
-			{
-				inputs.Add(new Entry(resource_name, quantity));
-			}
+			overflow = false; // recipes with inputs can't overflow
+			RecipeConstraint constraint = new RecipeConstraint(this, resourceId, nominalRate);
+			inputs.Add(constraint);
+			return constraint;
 		}
 
-		/// <summary>add an output to the recipe</summary>
-		public void AddOutput(string resource_name, double quantity, bool dump)
+		/// <summary>add an input to the recipe</summary>
+		public RecipeInput AddInput(int resourceId, double nominalRate)
 		{
-			if (quantity > double.Epsilon) //< avoid division by zero
-			{
-				outputs.Add(new Entry(resource_name, quantity, dump));
-			}
+			overflow = false; // recipes with inputs can't overflow
+			RecipeInput input = new RecipeInput(this, resourceId, nominalRate);
+			inputs.Add(input);
+			return input;
 		}
 
-		/// <summary>Execute all recipes and record deferred consumption/production for inputs/ouputs</summary>
-		public static void ExecuteRecipes(VesselResHandler resources, List<Recipe> recipes)
+		/// <summary>A bi-input is a "main" input that is substitued by an "alt" input if the main input can't satisfy the demand </summary>
+		public void AddBiInput(int mainResourceId, double mainNominalRate, int altResourceId, double altNominalRate, out RecipeBiInputMain mainInput, out RecipeBiInputAlt altInput)
 		{
+			overflow = false; // recipes with inputs can't overflow
+			altInput = new RecipeBiInputAlt(this, altResourceId, altNominalRate);
+			mainInput = new RecipeBiInputMain(this, altInput, mainResourceId, mainNominalRate);
+			inputs.Add(mainInput);
+			inputs.Add(altInput);
+		}
+
+		/// <summary>add an input to the recipe</summary>
+		public RecipeOutput AddOutput(int resourceId, double rate, bool dump, bool dumpIsTweakable)
+		{
+			underflow = false; // recipes with outputs can't underflow
+			RecipeOutput output = new RecipeOutput(this, resourceId, rate, dump, dumpIsTweakable);
+			outputs.Add(output);
+			return output;
+		}
+
+		/// <summary>add an input to the recipe, using the KSP resource name (slower).</summary>
+		public RecipeInput AddInput(string resourceName, double nominalRate)
+		{
+			if (!VesselResHandler.allKSPResourceIdsByName.TryGetValue(resourceName, out int resourceId))
+				return null;
+
+			overflow = false; // recipes with inputs can't overflow
+			RecipeInput input = new RecipeInput(this, resourceId, nominalRate);
+			inputs.Add(input);
+			return input;
+		}
+
+		/// <summary>add an input to the recipe, using the KSP resource name (slower)</summary>
+		public RecipeOutput AddOutput(string resourceName, double rate, bool dump, bool dumpIsTweakable)
+		{
+			if (!VesselResHandler.allKSPResourceIdsByName.TryGetValue(resourceName, out int resourceId))
+				return null;
+
+			underflow = false; // recipes with outputs can't underflow
+			RecipeOutput output = new RecipeOutput(this, resourceId, rate, dump, dumpIsTweakable);
+			outputs.Add(output);
+			return output;
+		}
+
+		/// <summary>add an input to the recipe</summary>
+		public RecipeLocalInput AddLocalInput(PartResourceWrapper localResource, double nominalRate)
+		{
+			overflow = false; // recipes with inputs can't overflow
+			RecipeLocalInput input = new RecipeLocalInput(this, localResource, nominalRate);
+			inputs.Add(input);
+			return input;
+		}
+
+		/// <summary>add an input to the recipe</summary>
+		public RecipeLocalOutput AddLocalOutput(PartResourceWrapper localResource, double nominalRate, bool dump, bool dumpIsTweakable)
+		{
+			underflow = false; // recipes with outputs can't underflow
+			RecipeLocalOutput output = new RecipeLocalOutput(this, localResource, nominalRate, dump, dumpIsTweakable);
+			outputs.Add(output);
+			return output;
+		}
+
+		/// <summary>
+		/// Mark this recipe for deferred execution by the provided VesselResHandler.<br/>
+		/// This must to be called repeteadly on every vessel update.
+		/// Once the recipe is executed, the IRecipeBroker owner of the recipe will have its OnRecipeExecuted() method called.
+		/// </summary>
+		/// <param name="ioScale">Global scale to apply to all inputs/outputs nominal rates</param>
+		/// <param name="ioMax">[0;1] factor : maximum execution level. This allow setting a custom IO constraint without having to define an input/output for it</param>
+		/// <returns>true if the recipe will be executed, false otherwise</returns>
+		public bool RequestExecution(VesselResHandler resHandler, double ioScale = 1.0, double ioMax = 1.0)
+		{
+			if (ioScale <= 0.0 || ioMax <= 0.0)
+				return false;
+
+			this.ioScale = ioScale;
+			this.ioMax = Math.Min(ioMax, 1.0);
+
+			resHandler.RequestRecipeExecution(this);
+
+			return true;
+		}
+
+		public static void ExecuteRecipes(VesselResHandler resHandler, List<Recipe> recipes, double elapsedSec)
+		{
+			for (int i = recipes.Count - 1; i >= 0; i--)
+			{
+				Recipe recipe = recipes[i];
+
+				recipe.left = recipe.ioMax;
+				recipe.inputsCount = recipe.inputs.Count;
+				recipe.outputsCount = recipe.outputs.Count;
+
+				for (int j = 0; j < recipe.inputsCount; j++)
+					recipe.inputs[j].Prepare(resHandler, elapsedSec, recipe.ioScale);
+
+				for (int k = 0; k < recipe.outputsCount; k++)
+					recipe.outputs[k].Prepare(resHandler, elapsedSec, recipe.ioScale);
+			}
+
+			// sort all recipes by their priority
+			// Note : strangely, the delegate form is consistently 20-40% faster than implementing IComparable<Recipe>
+			recipes.Sort((x, y) => y.priority.CompareTo(x.priority));
+
+			// Call all recipes repeteadly until all of them report that they can't perform any
+			// production/consumption, either because they have completed their request (left == 0)
+			// or because the resources they request are empty, or the ones they produce are full.
 			bool executing = true;
+			int recipesCount = recipes.Count;
 			while (executing)
 			{
 				executing = false;
-				for (int i = 0; i < recipes.Count; ++i)
+				for (int i = 0; i < recipesCount; i++)
 				{
 					Recipe recipe = recipes[i];
-					if (recipe.left > double.Epsilon)
+					if (recipe.left > 0.0)
 					{
-						executing |= recipe.ExecuteRecipeStep(resources);
+						executing |= recipe.ExecuteRecipeStep(resHandler);
 					}
 				}
 			}
+
+			//for (int i = 0; i < recipesCount; i++)
+			//{
+			//	Recipe recipe = recipes[i];
+
+			//	if (recipe.hasCallback)
+			//		recipe.onRecipeExecutedCallback(elapsedSec);
+			//}
 		}
 
 		/// <summary>
 		/// Execute the recipe and record deferred consumption/production for inputs/ouputs.
-		/// This need to be called multiple times until left <= 0.0 for complete execution of the recipe.
-		/// return true if recipe execution is completed, false otherwise
+		/// This need to be called multiple times for complete execution of the recipe.
+		/// return true if something was produced or consumed, false otherwise
 		/// </summary>
-		private bool ExecuteRecipeStep(VesselResHandler resources)
+		private bool ExecuteRecipeStep(VesselResHandler resHandler)
 		{
 			// determine worst input ratio
-			// - pure input recipes can just underflow
-			double worst_input = left;
-			if (outputs.Count > 0)
+			double worstInput = left;
+			if (!underflow)
 			{
-				for (int i = 0; i < inputs.Count; ++i)
-				{
-					Entry e = inputs[i];
-					VesselResource res = resources.GetResource(e.name);
-					worst_input = Lib.Clamp((res.Amount + res.Deferred) * e.inv_quantity, 0.0, worst_input);
-				}
+				for (int i = 0; i < inputsCount; ++i)
+					worstInput = inputs[i].GetWorstIO(worstInput);
 			}
 
 			// determine worst output ratio
-			// - pure output recipes can just overflow
-			double worst_output = left;
-			//if (inputs.Count > 0)
-			//{
-				for (int i = 0; i < outputs.Count; ++i)
-				{
-					Entry e = outputs[i];
-					if (!e.dump) // ignore outputs that can dump overboard
-					{
-						VesselResource res = resources.GetResource(e.name);
-						worst_output = Lib.Clamp((res.Capacity - (res.Amount + res.Deferred)) * e.inv_quantity, 0.0, worst_output);
-					}
-				}
-			//}
-
-			// determine worst-io
-			double worst_io = Math.Min(worst_input, worst_output);
-
-			// consume inputs
-			for (int i = 0; i < inputs.Count; ++i)
+			double worstOutput = left;
+			if (!overflow)
 			{
-				Entry e = inputs[i];
-				VesselResource res = resources.GetResource(e.name);
-				res.RecipeConsume(e.quantity * worst_io, broker);
+				for (int i = 0; i < outputsCount; ++i)
+					worstOutput = outputs[i].GetWorstIO(worstOutput);
 			}
 
-			// produce outputs
-			for (int i = 0; i < outputs.Count; ++i)
+			// determine worst io
+			double worstIO = Math.Min(worstInput, worstOutput);
+
+			if (worstIO > 0.0)
 			{
-				Entry e = outputs[i];
-				VesselResource res = resources.GetResource(e.name);
-				res.Produce(e.quantity * worst_io, broker);
+				// consume inputs
+				for (int i = 0; i < inputsCount; ++i)
+					inputs[i].ApplyToResource(worstIO);
+
+				// produce outputs
+				for (int i = 0; i < outputsCount; ++i)
+					outputs[i].ApplyToResource(worstIO);
+
+				// update % left to execute, avoid a negative value due to FP errors
+				left = Math.Max(0.0, left - worstIO);
+
+				// the recipe was executed, at least partially
+				return true;
 			}
 
-			// update amount left to execute
-			left -= worst_io;
-
-			// the recipe was executed, at least partially
-			return worst_io > double.Epsilon;
+			// nothing was produced or consumed
+			return false;
 		}
 	}
 }

@@ -1,19 +1,14 @@
 ﻿using KERBALISM.KsmGui;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
-using KSP.Localization;
 
 namespace KERBALISM
 {
 	public class ProcessPopup
 	{
 		VesselDataBase vd;
-		VesselProcess vesselProcess;
+		Process process;
 
 		// UI references
 		KsmGuiWindow window;
@@ -21,34 +16,33 @@ namespace KERBALISM
 		KsmGuiSlider capacitySlider;
 		KsmGuiButton enableButton;
 
-		List<ResourceEntry> resources = new List<ResourceEntry>();
-		List<PartEntry> parts = new List<PartEntry>();
+		List<ResourceInputEntry> resources = new List<ResourceInputEntry>();
+		List<ProcessControllerEntry> parts = new List<ProcessControllerEntry>();
 
 		private static List<string> activePopups = new List<string>();
 		private string popupId;
 
-		public ProcessPopup(VesselProcess vesselProcess, VesselDataBase vd)
+		public ProcessPopup(Process process, VesselDataBase vd)
 		{
-			popupId = vesselProcess.ProcessName;
+			popupId = process.definition.name;
 
 			if (activePopups.Contains(popupId))
 				return;
 
 			activePopups.Add(popupId);
 
-			this.vesselProcess = vesselProcess;
+			this.process = process;
 			this.vd = vd;
 
 			// create the window
-			window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, KsmGuiStyle.defaultWindowOpacity, true, 0, TextAnchor.UpperLeft, 5f);
+			window = new KsmGuiWindow(KsmGuiLib.Orientation.Vertical, true, KsmGuiStyle.defaultWindowOpacity, true, 0, TextAnchor.UpperLeft, 5f);
 			window.OnClose = () => activePopups.Remove(popupId);
 			window.SetLayoutElement(false, false, 300);
-			//window.SetUpdateAction(GetData);
 
 			// top header
-			KsmGuiHeader topHeader = new KsmGuiHeader(window, vesselProcess.process.title, default, 120);
-			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltip(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(vd.VesselName)));
-			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => window.Close());//"close"
+			KsmGuiHeader topHeader = new KsmGuiHeader(window, process.definition.title, null, default, 120);
+			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltip(KsmString.Get.Add(Local.SCIENCEARCHIVE_onvessel, " : ").Format(vd.VesselName, KF.Bold).End);
+			topHeader.AddButton(Textures.KsmGuiTexHeaderClose, () => window.Close(), Local.SCIENCEARCHIVE_closebutton);
 
 			// content panel
 			KsmGuiVerticalLayout content = new KsmGuiVerticalLayout(window, 5);
@@ -58,10 +52,19 @@ namespace KERBALISM
 			statusBox.TextObject.TextComponent.enableWordWrapping = false;
 			statusBox.TextObject.TextComponent.overflowMode = TextOverflowModes.Ellipsis;
 
-			KsmGuiHorizontalLayout buttons = new KsmGuiHorizontalLayout(content, 5);
-			capacitySlider = new KsmGuiSlider(buttons, 0f, 1f, false, OnCapacityTweak, null, 200);
-			capacitySlider.Value = (float)vesselProcess.enabledFactor;
-			enableButton = new KsmGuiButton(buttons, Local.Generic_ENABLED, OnToggle);
+				if (process.definition.canAdjust || process.definition.canToggle)
+			{
+				KsmGuiHorizontalLayout buttons = new KsmGuiHorizontalLayout(content, 5);
+
+				if (process.definition.canAdjust)
+				{
+					capacitySlider = new KsmGuiSlider(buttons, 0f, 1f, false, OnCapacityTweak, null, 200);
+					capacitySlider.Value = (float)process.adjusterFactor;
+				}
+
+				if (process.definition.canToggle)
+					enableButton = new KsmGuiButton(buttons, Local.Generic_ENABLED, OnToggle);
+			}
 
 			new KsmGuiHeader(content, Local.ProcessPopup_TITLE);
 
@@ -95,56 +98,57 @@ namespace KERBALISM
 			KsmGuiText dumpHeaderText = new KsmGuiText(resListHeader,
 				Local.ProcessPopup_DumpTitle,
 				TextAlignmentOptions.Center);
-			dumpHeaderText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
+			dumpHeaderText.TextComponent.color = Kolor.Yellow;
 			dumpHeaderText.TextComponent.fontStyle = FontStyles.Bold;
 			dumpHeaderText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 250, 0);
 			dumpHeaderText.TopTransform.SetSizeDelta(40, 16);
 
-			foreach (Process.Output output in vesselProcess.process.outputs)
+			for (int i = 0; i < process.recipe.outputs.Count; i++)
 			{
 				//VesselResource resource = vd.ResHandler.GetResource(output.Key);
 				//if (!resource.Visible) // don't display invisible resources
 				//	continue;
-				resources.Add(new ResourceEntry(resourceList, this, output));
+				resources.Add(new ResourceOutputEntry(resourceList, this, process.recipe.outputs[i], process.definition.outputs[i]));
 			}
 
-			foreach (Process.Input input in vesselProcess.process.inputs)
+			for (int i = 0; i < process.recipe.inputs.Count; i++)
 			{
-				//VesselResource resource = vd.ResHandler.GetResource(input.Key);
+				//VesselResource resource = vd.ResHandler.GetResource(output.Key);
 				//if (!resource.Visible) // don't display invisible resources
 				//	continue;
-				resources.Add(new ResourceEntry(resourceList, this, input));
+				resources.Add(new ResourceInputEntry(resourceList, this, process.recipe.inputs[i]));
 			}
 
-			new KsmGuiHeader(content, Local.ProcessPopup_PARTS); // "PARTS"
-
-			KsmGuiVerticalLayout partList = new KsmGuiVerticalLayout(content);
-
-			KsmGuiBase partListHeader = new KsmGuiBase(partList);
-			partListHeader.SetLayoutElement(true, false, -1, 16);
-			partListHeader.AddImageComponentWithColor(KsmGuiStyle.boxColor);
-
-			KsmGuiText partListPartName = new KsmGuiText(partListHeader, Local.ProcessPopup_NameTitle, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
-			partListPartName.TextComponent.fontStyle = FontStyles.Bold;
-			partListPartName.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
-			partListPartName.TopTransform.SetSizeDelta(150, 16);
-
-			KsmGuiText partListCapacity = new KsmGuiText(partListHeader, Local.ProcessPopup_Capacity, TextAlignmentOptions.Center);
-			partListCapacity.TextComponent.fontStyle = FontStyles.Bold;
-			partListCapacity.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
-			partListCapacity.TopTransform.SetSizeDelta(55, 16);
-
-			KsmGuiText partListEnabled = new KsmGuiText(partListHeader, Lib.UppercaseFirst(Local.Generic_ENABLED), TextAlignmentOptions.Center);
-			partListEnabled.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
-			partListEnabled.TextComponent.fontStyle = FontStyles.Bold;
-			partListEnabled.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 230, 0);
-			partListEnabled.TopTransform.SetSizeDelta(60, 16);
-
-			foreach (ProcessControllerHandler pcd in vd.Parts.AllModulesOfType<ProcessControllerHandler>())
+			if (process.definition.isControlled)
 			{
-				if (pcd.definition.processName == vesselProcess.ProcessName)
+				new KsmGuiHeader(content, Local.ProcessPopup_PARTS); // "PARTS"
+
+				KsmGuiVerticalLayout partList = new KsmGuiVerticalLayout(content);
+
+				KsmGuiBase partListHeader = new KsmGuiBase(partList);
+				partListHeader.SetLayoutElement(true, false, -1, 16);
+				partListHeader.AddImageComponentWithColor(KsmGuiStyle.boxColor);
+
+				KsmGuiText partListPartName = new KsmGuiText(partListHeader, Local.ProcessPopup_NameTitle, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				partListPartName.TextComponent.fontStyle = FontStyles.Bold;
+				partListPartName.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
+				partListPartName.TopTransform.SetSizeDelta(150, 16);
+
+				KsmGuiText partListCapacity = new KsmGuiText(partListHeader, Local.ProcessPopup_Capacity, TextAlignmentOptions.Center);
+				partListCapacity.TextComponent.fontStyle = FontStyles.Bold;
+				partListCapacity.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
+				partListCapacity.TopTransform.SetSizeDelta(55, 16);
+
+				KsmGuiText partListEnabled = new KsmGuiText(partListHeader, Lib.UppercaseFirst(Local.Generic_ENABLED), TextAlignmentOptions.Center);
+				partListEnabled.TextComponent.color = Kolor.Yellow;
+				partListEnabled.TextComponent.fontStyle = FontStyles.Bold;
+				partListEnabled.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 230, 0);
+				partListEnabled.TopTransform.SetSizeDelta(60, 16);
+
+				// TODO : check controllers list changes on update
+				foreach (ProcessControllerHandler pcd in process.controllers)
 				{
-					parts.Add(new PartEntry(partList, pcd.partData.Title, pcd, vd));
+					parts.Add(new ProcessControllerEntry(partList, pcd));
 				}
 			}
 
@@ -154,57 +158,104 @@ namespace KERBALISM
 
 		private void Update()
 		{
-			StringBuilder sb = new StringBuilder();
-			sb.Append(Local.ProcessPopup_VesselCapacity); // "Vessel capacity"
-			sb.Append(" : ");
-			sb.Append(vesselProcess.MaxCapacity.ToString("F1"));
-			sb.Append("\n");
-			sb.Append(Local.ProcessPopup_EnabledCapacity); // "Enabled capacity"
-			sb.Append(" : ");
-			sb.Append((vesselProcess.AvailableCapacity).ToString("F1"));
-			sb.Append("\n");
-			sb.Append(Local.ProcessPopup_CapacityUsed); // "Capacity used"
-			sb.Append(" : ");
-			sb.Append(resources[0].usage.ToString("P1"));
-			statusBox.Text = sb.ToString();
+			KsmString ks = KsmString.Get;
 
-			enableButton.Text = vesselProcess.enabled ? Local.Generic_ENABLED : Local.Generic_DISABLED;
+			if (process.definition.isControlled)
+			{
+				ks.Info("Total capacity", process.controllersCapacity.ToString("F1"));
+				ks.Info("Enabled capacity", process.controllersEnabledCapacity.ToString("F1"));
+			}
+
+			if (process.definition.hasModifier)
+			{
+				ks.Info("Capacity modifier", process.modifierFactor.ToString("P1"));
+			}
+
+			if (process.definition.isControlled || process.definition.canAdjust || !process.enabled)
+			{
+				ks.Info("Requested capacity", process.modifierFactor.ToString("F1"));
+			}
+
+			ks.Info("Execution level", process.recipe.ExecutedFactor.ToString("P1"));
+
+			statusBox.Text = ks.End();
+
+			if (enableButton != null)
+				enableButton.Text = process.enabled ? Local.Generic_ENABLED : Local.Generic_DISABLED;
+
 		}
 
 		private void OnToggle()
 		{
-			vesselProcess.enabled = !vesselProcess.enabled;
+			process.enabled = !process.enabled;
 		}
 
 		private void OnCapacityTweak(float capacity)
 		{
-			vesselProcess.enabledFactor = capacity;
+			process.adjusterFactor = Lib.Clamp(capacity, 0f, 1f);
 		}
 
-		public class ResourceEntry : KsmGuiBase
+		public class ResourceOutputEntry : ResourceInputEntry
 		{
-			ProcessPopup window;
-			VesselResource resource;
+			KsmGuiTextButton resDumpText;
+
+			private RecipeOutputBase output;
+
+			protected override double NominalRate => -base.NominalRate;
+
+			public ResourceOutputEntry(KsmGuiBase parent, ProcessPopup window, RecipeOutputBase output, RecipeOutputDefinition outputDefinition)
+				: base(parent, window, output, true)
+			{
+				output = this.output;
+
+				resDumpText = new KsmGuiTextButton(this, "", null, null, TextAlignmentOptions.Center);
+				resDumpText.TextComponent.color = Kolor.Yellow;
+				resDumpText.TextComponent.fontStyle = FontStyles.Bold;
+				resDumpText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 250, 0);
+				resDumpText.TopTransform.SetSizeDelta(40, 16);
+				resDumpText.SetButtonOnClick(OnToggleDump);
+				resDumpText.Interactable = outputDefinition.dumpedIsTweakable;
+			}
+
+			protected override void Update()
+			{
+				base.Update();
+				resDumpText.Text = output.dump ? Local.Generic_YES : Local.Generic_NO;
+			}
+
+			private void OnToggleDump()
+			{
+				output.dump = !output.dump;
+			}
+		}
+
+		public class ResourceInputEntry : KsmGuiBase
+		{
+			protected ProcessPopup window;
+			protected VesselResource resource;
 			KsmGuiText resNameText;
 			KsmGuiText resRateText;
 			KsmGuiText resStatusText;
-			KsmGuiTextButton resDumpText;
-			string resName;
-			double baseResRate;
-			bool isInput;
-			bool dump;
-			bool canDump;
-			public double usage;
+			
+			protected RecipeIO io;
 
-			public ResourceEntry(KsmGuiBase parent, ProcessPopup window, Process.Resource inputOrOutput) : base(parent)
+			protected virtual double NominalRate
+			{
+				get
+				{
+					if (window.process.definition.isControlled)
+						return window.process.controllersCapacity * -io.NominalRate;
+
+					return -io.NominalRate;
+				}
+			}
+
+			public ResourceInputEntry(KsmGuiBase parent, ProcessPopup window, RecipeIO io, bool isOutput = false) : base(parent)
 			{
 				this.window = window;
-				isInput = inputOrOutput is Process.Input;
-				resName = inputOrOutput.name;
-				baseResRate = isInput ? -inputOrOutput.rate : inputOrOutput.rate;
-				resource = window.vd.ResHandler.GetResource(resName);
-				dump = window.vesselProcess.dumpedOutputs.Contains(resName);
-				canDump = !isInput && ((Process.Output)inputOrOutput).canDump;
+				this.io = io;
+
+				resource = window.vd.ResHandler.GetResource(io.resourceId);
 
 				SetLayoutElement(true, false, -1, 16);
 				this.AddImageComponentWithColor(KsmGuiStyle.boxColor);
@@ -213,125 +264,63 @@ namespace KERBALISM
 				resNameText = new KsmGuiText(this, resource.Title, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				resNameText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 				resNameText.TopTransform.SetSizeDelta(95, 16);
+				resNameText.SetTooltip(resource.BrokerListTooltip());
 
 				resRateText = new KsmGuiText(this, "", TextAlignmentOptions.Left);
-				resRateText.TextComponent.color = Lib.KolorToColor(isInput ? Lib.Kolor.NegRate : Lib.Kolor.PosRate);
+				resRateText.TextComponent.color = isOutput ? Kolor.PosRate : Kolor.NegRate;
 				resRateText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 105, 0);
 				resRateText.TopTransform.SetSizeDelta(65, 16);
 
 				resStatusText = new KsmGuiText(this, "", TextAlignmentOptions.Left);
 				resStatusText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 175, 0);
 				resStatusText.TopTransform.SetSizeDelta(80, 16);
-
-				if (canDump)
-				{
-					resDumpText = new KsmGuiTextButton(this, "", null, null, TextAlignmentOptions.Center);
-					resDumpText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
-					resDumpText.TextComponent.fontStyle = FontStyles.Bold;
-					resDumpText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 250, 0);
-					resDumpText.TopTransform.SetSizeDelta(40, 16);
-					resDumpText.SetButtonOnClick(OnToggleDump);
-				}
 			}
 
-			private void Update()
+			protected virtual void Update()
 			{
-				resNameText.SetTooltip(resource.BrokerListTooltipTMP());
-				usage = baseResRate * window.vesselProcess.AvailableCapacity;
-				resRateText.Text = Lib.HumanReadableRate(usage, "F3", "", true);
+				resRateText.Text = KsmString.Get.Format(KF.ReadableRate(NominalRate), KF.Color(NominalRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).End();
+				resStatusText.Text = KsmString.Get.Format(KF.ReadableRate(io.SignedExecutedRate), KF.Color(io.SignedExecutedRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).End();
 
-				if (isInput && resource.AvailabilityFactor == 0.0)
-				{
-					resStatusText.Text = Local.Generic_notAvailable; //  "n/a";
-					resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Red);
-					usage = 0.0;
-				}
-				else if (!isInput && !dump && resource.ProduceRequests == 0.0 && (resource.Capacity == 0.0 || resource.Level == 1.0))
-				{
-					resStatusText.Text = Local.ProcessPopup_NoStorage; // "no storage";
-					if(canDump)
-						resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Red);
-					else
-						resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
-					usage = 0.0;
-				}
-				else
-				{
-					bool found = false;
-					foreach (ResourceBrokerRate brokerRate in resource.ResourceBrokers)
-					{
-						if (brokerRate.broker == window.vesselProcess.process.broker)
-						{
-							resStatusText.Text = Lib.HumanReadableRate(brokerRate.rate, "F3", "", true);
-							usage = brokerRate.rate / usage;
-							found = true;
-							break;
-						}
-					}
-
-					if (!found)
-					{
-						resStatusText.Text = "0.0";
-						usage = 0.0;
-					}
-
-					if (isInput)
-						resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.NegRate);
-					else
-						resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.PosRate);
-				}
-
-				if (canDump)
-				{
-					dump = window.vesselProcess.dumpedOutputs.Contains(resName);
-					resDumpText.Text = dump ? Local.Generic_YES : Local.Generic_NO;
-				}
-
-			}
-
-			private void OnToggleDump()
-			{
-				bool removed = false;
-				for (int i = window.vesselProcess.dumpedOutputs.Count - 1; i >= 0; i--)
-				{
-					if (window.vesselProcess.dumpedOutputs[i] == resName)
-					{
-						removed = true;
-						window.vesselProcess.dumpedOutputs.RemoveAt(i);
-					}
-				}
-
-				if (!removed)
-					window.vesselProcess.dumpedOutputs.Add(resName);
+				//if (isInput && resource.AvailabilityFactor == 0.0)
+				//{
+				//	resStatusText.Text = Local.Generic_notAvailable; //  "n/a";
+				//	resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Red);
+				//}
+				//else if (!isInput && !dump && resource.ProduceRequests == 0.0 && (resource.Capacity == 0.0 || resource.Level == 1.0))
+				//{
+				//	resStatusText.Text = Local.ProcessPopup_NoStorage; // "no storage";
+				//	if(canDump)
+				//		resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Red);
+				//	else
+				//		resStatusText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
+				//}
 			}
 		}
 
-		public class PartEntry : KsmGuiBase
+		public class ProcessControllerEntry : KsmGuiBase
 		{
 			KsmGuiText resCapText;
 			KsmGuiTextButton resToggleText;
-			ProcessControllerHandler data;
-			VesselDataBase vd;
+			ProcessControllerHandler controller;
 
-			public PartEntry(KsmGuiBase parent, string partTitle, ProcessControllerHandler data, VesselDataBase vd) : base(parent)
+			public ProcessControllerEntry(KsmGuiBase parent, ProcessControllerHandler controller) : base(parent)
 			{
-				this.data = data;
-				this.vd = vd;
+				this.controller = controller;
 
 				SetLayoutElement(true, false, -1, 16);
 				this.AddImageComponentWithColor(KsmGuiStyle.boxColor);
 				SetUpdateAction(Update);
 
-				KsmGuiText resNameText = new KsmGuiText(this, partTitle, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
+				KsmGuiText resNameText = new KsmGuiText(this, controller.partData.Title, TextAlignmentOptions.Left, false, TextOverflowModes.Ellipsis);
 				resNameText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 5, 0);
 				resNameText.TopTransform.SetSizeDelta(150, 16);
 
-				resCapText = new KsmGuiText(this, data.definition.capacity.ToString("F1"), TextAlignmentOptions.Center);
+				resCapText = new KsmGuiText(this, controller.definition.capacity.ToString("F1"), TextAlignmentOptions.Center);
 				resCapText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 160, 0);
 				resCapText.TopTransform.SetSizeDelta(55, 16);
 
 				resToggleText = new KsmGuiTextButton(this, "", null, null, TextAlignmentOptions.Center);
-				resToggleText.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Yellow);
+				resToggleText.TextComponent.color = Kolor.Yellow;
 				resToggleText.TextComponent.fontStyle = FontStyles.Bold;
 				resToggleText.TopTransform.SetAnchorsAndPosition(TextAnchor.MiddleLeft, TextAnchor.MiddleLeft, 230, 0);
 				resToggleText.TopTransform.SetSizeDelta(60, 16);
@@ -340,15 +329,15 @@ namespace KERBALISM
 
 			private void Update()
 			{
-				resCapText.Text = data.definition.capacity.ToString("F1");
+				resCapText.Text = controller.definition.capacity.ToString("F1");
 				resCapText.TextComponent.color = Color.white;
 				resToggleText.Enabled = true;
-				resToggleText.Text = data.IsRunning ? Local.Generic_YES : Local.Generic_NO;
+				resToggleText.Text = controller.IsRunning ? Local.Generic_YES : Local.Generic_NO;
 			}
 
 			private void OnTogglePart()
 			{
-				data.IsRunning = !data.IsRunning;
+				controller.IsRunning = !controller.IsRunning;
 			}
 		}
 	}

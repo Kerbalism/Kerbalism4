@@ -25,5 +25,11 @@ namespace KERBALISM
 				this.loadedModule = loadedModule;
 			}
 		}
+
+		public override void ClearLoadedAndProtoModuleReferences()
+		{
+			protoModule = null;
+			loadedModule = null;
+		}
 	}
 }

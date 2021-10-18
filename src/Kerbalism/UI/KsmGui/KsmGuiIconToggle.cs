@@ -6,10 +6,7 @@ using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-	/// <summary>
-	/// a 16x16 icon that can be clicked
-	/// </summary>
-	public class KsmGuiIconToggle : KsmGuiIcon, IKsmGuiInteractable
+	public class KsmGuiIconToggle : KsmGuiImage, IKsmGuiInteractable
 	{
 		public Button ButtonComponent { get; private set; }
 		private Action<bool> onValueChanged;
@@ -38,8 +35,8 @@ namespace KERBALISM.KsmGui
 		private Texture2D whenFalseTexture;
 		
 
-		public KsmGuiIconToggle(KsmGuiBase parent, Texture2D texture, int iconWidth = 16, int iconHeight = 16, bool value = false)
-			: base(parent, texture, iconWidth, iconHeight)
+		public KsmGuiIconToggle(KsmGuiBase parent, bool initalValue = false, Action<bool> valueChangedAction = null, int iconWidth = -1, int iconHeight = -1)
+			: base(parent, Texture2D.whiteTexture, iconWidth, iconHeight)
 		{
 			ButtonComponent = TopObject.AddComponent<Button>();
 			ButtonComponent.targetGraphic = Image;
@@ -49,8 +46,30 @@ namespace KERBALISM.KsmGui
 			ButtonComponent.navigation = new Navigation() { mode = Navigation.Mode.None }; // fix the transitions getting stuck
 			ButtonComponent.onClick.AddListener(OnClick);
 
-			this.Value = value;
+			this.Value = initalValue;
+			SetValueChangedAction(valueChangedAction);
 		}
+
+		public KsmGuiIconToggle(KsmGuiBase parent, Texture2D whenTrueTexture, Texture2D whenFalseTexture, bool initalValue = false, Action<bool> valueChangedAction = null, int iconWidth = -1, int iconHeight = -1)
+			: this(parent, initalValue, valueChangedAction, iconWidth, iconHeight)
+		{
+			SetStateTexture(whenTrueTexture, whenFalseTexture);
+		}
+
+		public KsmGuiIconToggle(KsmGuiBase parent, Texture2D texture, Kolor whenTrue, Kolor whenFalse, bool initalValue = false, Action<bool> valueChangedAction = null, int iconWidth = -1, int iconHeight = -1)
+			: this(parent, initalValue, valueChangedAction, iconWidth, iconHeight)
+		{
+			Image.texture = texture;
+			SetStateColors(whenTrue, whenFalse);
+		}
+
+		public KsmGuiIconToggle(KsmGuiBase parent, Texture2D texture, Color whenTrue, Color whenFalse, bool initalValue = false, Action<bool> valueChangedAction = null, int iconWidth = -1, int iconHeight = -1)
+			: this(parent, initalValue, valueChangedAction, iconWidth, iconHeight)
+		{
+			Image.texture = texture;
+			SetStateColors(whenTrue, whenFalse);
+		}
+
 
 		private void OnClick()
 		{

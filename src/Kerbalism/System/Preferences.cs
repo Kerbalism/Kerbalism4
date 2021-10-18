@@ -19,9 +19,6 @@ namespace KERBALISM
 		[GameParameters.CustomFloatParameterUI("#KERBALISM_stormRadiation", minValue = 1, maxValue = 15, displayFormat = "F2", toolTip = "#KERBALISM_stormRadiation_desc")]//Average storm radiation rad/h--Radiation during a solar storm
 		public float stormRadiation = Settings.StormRadiation;
 
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_ShieldingEfficiency", asPercentage = true, minValue = 0.01f, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_ShieldingEfficiency_desc")]//Shielding Efficiency--Proportion of radiation blocked by shielding (at max amount)
-		public float shieldingEfficiency = Settings.ShieldingEfficiency;
-
 		public double AvgStormDuration { get { return stormDurationHours * 3600.0; } }
 
 		public double StormRadiation { get { return stormRadiation / 3600.0; } }
@@ -40,25 +37,21 @@ namespace KERBALISM
 					lifetime = false;
 					stormFrequency = Settings.StormFrequency * 0.9f;
 					stormRadiation = Settings.StormRadiation * 0.9f;
-					shieldingEfficiency = Lib.Clamp(Settings.ShieldingEfficiency * 1.1f, 0.0f, 0.99f);
 					break;
 				case GameParameters.Preset.Normal:
 					lifetime = false;
 					stormFrequency = Settings.StormFrequency;
 					stormRadiation = Settings.StormRadiation;
-					shieldingEfficiency = Lib.Clamp(Settings.ShieldingEfficiency, 0.0f, 0.99f);
 					break;
 				case GameParameters.Preset.Moderate:
 					lifetime = true;
 					stormFrequency = Settings.StormFrequency * 1.3f;
 					stormRadiation = Settings.StormRadiation * 1.2f;
-					shieldingEfficiency = Lib.Clamp(Settings.ShieldingEfficiency * 0.9f, 0.0f, 0.99f);
 					break;
 				case GameParameters.Preset.Hard:
 					lifetime = true;
 					stormFrequency = Settings.StormFrequency * 1.5f;
 					stormRadiation = Settings.StormRadiation * 1.5f;
-					shieldingEfficiency = Lib.Clamp(Settings.ShieldingEfficiency * 0.8f, 0.0f, 0.99f);
 					break;
 				default:
 					break;
@@ -276,27 +269,6 @@ namespace KERBALISM
 
 		[GameParameters.CustomFloatParameterUI("#KERBALISM_StressBreakdownProbability", asPercentage = true, minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_StressBreakdownProbability_desc")]//Stress Breakdown Probability--Probability of one stress induced mistake per year
 		public float stressBreakdownRate = 0.25f;
-
-		[GameParameters.CustomIntParameterUI("#KERBALISM_IdealLivingSpace", minValue = 5, maxValue = 200, toolTip = "#KERBALISM_IdealLivingSpace_desc")]//Ideal Living Space--Ideal living space per-capita in m^3
-		public int livingSpace = Settings.ComfortLivingSpace;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_FirmGroundFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_FirmGroundFactor_desc")]//Firm Ground Factor--Having something to walk on
-		public float firmGround = Settings.ComfortFirmGround;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_ExerciseFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_ExerciseFactor_desc")]//Exercise Factor--Having a treadmill
-		public float exercise = Settings.ComfortExercise;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_SocialFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_SocialFactor_desc")]//Social Factor--Having more than one crew on a vessel
-		public float notAlone = Settings.ComfortNotAlone;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_CallHomeFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_CallHomeFactor_desc")]//Call Home Factor---Having a way to communicate with Kerbin
-		public float callHome = Settings.ComfortCallHome;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_PanoramaFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_PanoramaFactor_desc")]//Panorama Factor--Comfort factor for having a panorama window
-		public float panorama = Settings.ComfortPanorama;
-
-		[GameParameters.CustomFloatParameterUI("#KERBALISM_PlantsFactor", minValue = 0, maxValue = 1, displayFormat = "F2", toolTip = "#KERBALISM_PlantsFactor_desc")]//Plants Factor--There is some comfort in tending to plants
-		public float plants = Settings.ComfortPlants;
 
 		public override GameParameters.GameMode GameMode { get { return GameParameters.GameMode.ANY; } }
 

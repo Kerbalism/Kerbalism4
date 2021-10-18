@@ -20,10 +20,10 @@ namespace KERBALISM
 
 		private static class PartWallOcclusion
 		{
-			private static double highHVLCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion * 2.0 / Radiation.aluminiumHVL_Gamma25MeV);
-			private static double lowHVLCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion * 2.0 / Radiation.aluminiumHVL_Gamma1MeV);
-			private static double highHVLNonCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion / Radiation.aluminiumHVL_Gamma25MeV);
-			private static double lowHVLNonCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion / Radiation.aluminiumHVL_Gamma1MeV);
+			private static double highHVLCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion * 2.0 / ResourceHVLDefinition.aluminiumHVL_Gamma25MeV);
+			private static double lowHVLCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion * 2.0 / ResourceHVLDefinition.aluminiumHVL_Gamma1MeV);
+			private static double highHVLNonCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion / ResourceHVLDefinition.aluminiumHVL_Gamma25MeV);
+			private static double lowHVLNonCrossingFactor = Math.Pow(0.5, Settings.WallThicknessForOcclusion / ResourceHVLDefinition.aluminiumHVL_Gamma1MeV);
 
 			public static double RadiationFactor(bool highPowerRad, bool crossing)
 			{
@@ -71,13 +71,13 @@ namespace KERBALISM
 					return 1.0;
 				}
 
-				return Math.Pow(0.5, occlusionFactor * penetration / (highPowerRad ? Radiation.aluminiumHVL_Gamma25MeV : Radiation.aluminiumHVL_Gamma1MeV));
+				return Math.Pow(0.5, occlusionFactor * penetration / (highPowerRad ? ResourceHVLDefinition.aluminiumHVL_Gamma25MeV : ResourceHVLDefinition.aluminiumHVL_Gamma1MeV));
 			}
 		}
 
 		private class ResourceOcclusion
 		{
-			private Radiation.ResourceOcclusion occlusionDefinition;
+			private ResourceHVLDefinition occlusionDefinition;
 			private double volumePerUnit;
 			private int resourceId;
 			public bool IsWallOccluder => occlusionDefinition.IsWallResource;
@@ -93,7 +93,7 @@ namespace KERBALISM
 
 			private void Setup(PartResourceDefinition partResourceDefinition)
 			{
-				occlusionDefinition = Radiation.GetResourceOcclusion(partResourceDefinition);
+				occlusionDefinition = ResourceHVLDefinition.GetResourceOcclusion(partResourceDefinition);
 				volumePerUnit = partResourceDefinition.volume;
 				resourceId = partResourceDefinition.id;
 			}

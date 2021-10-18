@@ -22,9 +22,9 @@ namespace KERBALISM
 
 		#region Append/Concatenate strings
 
-		protected static ObjectPool<KsmFormatString> factoryKsmFormatString = new ObjectPool<KsmFormatString>();
+		protected static KsmStringObjectPool<KsmFormatString> factoryKsmFormatString = new KsmStringObjectPool<KsmFormatString>();
 
-		protected static ObjectPool<KsmFormatConcatStrings> factoryKKsmFormatConcatStrings = new ObjectPool<KsmFormatConcatStrings>();
+		protected static KsmStringObjectPool<KsmFormatConcatStrings> factoryKKsmFormatConcatStrings = new KsmStringObjectPool<KsmFormatConcatStrings>();
 
 		/// <summary> Append a single string </summary>
 		public static KsmFormatString String(string str1)
@@ -122,6 +122,9 @@ namespace KERBALISM
 		/// <summary> Surround with <i>italics</i> tags</summary>
 		public static KsmFormatItalic Italic { get; private set; } = new KsmFormatItalic();
 
+		/// <summary> Surround with underline tags</summary>
+		public static KsmFormatUnderline Underline { get; private set; } = new KsmFormatUnderline();
+		
 		/// <summary> Surround with a left alignement tag</summary>
 		public static KsmFormatAlignLeft Left { get; private set; } = new KsmFormatAlignLeft();
 
@@ -167,9 +170,9 @@ namespace KERBALISM
 		/// <summary> Surround with an orange color tag </summary>
 		public static KsmFormatKolorOrange KolorNegRate => KolorOrange;
 
-		protected static ObjectPool<KsmFormatFontSize> factoryKsmFormatFontSize = new ObjectPool<KsmFormatFontSize>();
-		protected static ObjectPool<KsmFormatPosition> factoryKsmFormatPosition = new ObjectPool<KsmFormatPosition>();
-		protected static ObjectPool<KsmFormatColor> factoryKsmFormatColor = new ObjectPool<KsmFormatColor>();
+		protected static KsmStringObjectPool<KsmFormatFontSize> factoryKsmFormatFontSize = new KsmStringObjectPool<KsmFormatFontSize>();
+		protected static KsmStringObjectPool<KsmFormatPosition> factoryKsmFormatPosition = new KsmStringObjectPool<KsmFormatPosition>();
+		protected static KsmStringObjectPool<KsmFormatColor> factoryKsmFormatColor = new KsmStringObjectPool<KsmFormatColor>();
 
 		/// <summary> Surround with a font size (in pixels) tag </summary>
 		public static KsmFormatFontSize Size(int fontSize)
@@ -207,24 +210,24 @@ namespace KERBALISM
 
 		#region Human readable
 
-		protected static ObjectPool<KsmFormatReadableRate> factoryKsmFormatReadableRate = new ObjectPool<KsmFormatReadableRate>();
-		protected static ObjectPool<KsmFormatReadableDuration> factoryKsmFormatReadableDuration = new ObjectPool<KsmFormatReadableDuration>();
-		protected static ObjectPool<KsmFormatReadableCountdown> factoryKsmFormatReadableCountdown = new ObjectPool<KsmFormatReadableCountdown>();
-		protected static ObjectPool<KsmFormatReadableDistance> factoryKsmFormatReadableDistance = new ObjectPool<KsmFormatReadableDistance>();
-		protected static ObjectPool<KsmFormatReadableSpeed> factoryKsmFormatReadableSpeed = new ObjectPool<KsmFormatReadableSpeed>();
-		protected static ObjectPool<KsmFormatReadableTemperature> factoryKsmFormatReadableTemperature = new ObjectPool<KsmFormatReadableTemperature>();
-		protected static ObjectPool<KsmFormatReadableAngle> factoryKsmFormatReadableAngle = new ObjectPool<KsmFormatReadableAngle>();
-		protected static ObjectPool<KsmFormatReadableIrradiance> factoryKsmFormatReadableIrradiance = new ObjectPool<KsmFormatReadableIrradiance>();
-		protected static ObjectPool<KsmFormatReadableThermalFlux> factoryKsmFormatReadableThermalFlux = new ObjectPool<KsmFormatReadableThermalFlux>();
-		protected static ObjectPool<KsmFormatReadableField> factoryKsmFormatReadableField = new ObjectPool<KsmFormatReadableField>();
-		protected static ObjectPool<KsmFormatReadableRadiation> factoryKsmFormatReadableRadiation = new ObjectPool<KsmFormatReadableRadiation>();
+		protected static KsmStringObjectPool<KsmFormatReadableRate> factoryKsmFormatReadableRate = new KsmStringObjectPool<KsmFormatReadableRate>();
+		protected static KsmStringObjectPool<KsmFormatReadableDuration> factoryKsmFormatReadableDuration = new KsmStringObjectPool<KsmFormatReadableDuration>();
+		protected static KsmStringObjectPool<KsmFormatReadableCountdown> factoryKsmFormatReadableCountdown = new KsmStringObjectPool<KsmFormatReadableCountdown>();
+		protected static KsmStringObjectPool<KsmFormatReadableDistance> factoryKsmFormatReadableDistance = new KsmStringObjectPool<KsmFormatReadableDistance>();
+		protected static KsmStringObjectPool<KsmFormatReadableSpeed> factoryKsmFormatReadableSpeed = new KsmStringObjectPool<KsmFormatReadableSpeed>();
+		protected static KsmStringObjectPool<KsmFormatReadableTemperature> factoryKsmFormatReadableTemperature = new KsmStringObjectPool<KsmFormatReadableTemperature>();
+		protected static KsmStringObjectPool<KsmFormatReadableAngle> factoryKsmFormatReadableAngle = new KsmStringObjectPool<KsmFormatReadableAngle>();
+		protected static KsmStringObjectPool<KsmFormatReadableIrradiance> factoryKsmFormatReadableIrradiance = new KsmStringObjectPool<KsmFormatReadableIrradiance>();
+		protected static KsmStringObjectPool<KsmFormatReadableThermalFlux> factoryKsmFormatReadableThermalFlux = new KsmStringObjectPool<KsmFormatReadableThermalFlux>();
+		protected static KsmStringObjectPool<KsmFormatReadableField> factoryKsmFormatReadableField = new KsmStringObjectPool<KsmFormatReadableField>();
+		protected static KsmStringObjectPool<KsmFormatReadableRadiation> factoryKsmFormatReadableRadiation = new KsmStringObjectPool<KsmFormatReadableRadiation>();
 
-		protected static ObjectPool<KsmFormatReadablePressure> factoryKsmFormatReadablePressure = new ObjectPool<KsmFormatReadablePressure>();
-		protected static ObjectPool<KsmFormatReadableVolume> factoryKsmFormatReadableVolume = new ObjectPool<KsmFormatReadableVolume>();
-		protected static ObjectPool<KsmFormatReadableSurface> factoryKsmFormatReadableSurface = new ObjectPool<KsmFormatReadableSurface>();
-		protected static ObjectPool<KsmFormatReadableMass> factoryKsmFormatReadableMass = new ObjectPool<KsmFormatReadableMass>();
-		protected static ObjectPool<KsmFormatReadableStorage> factoryKsmFormatReadableStorage = new ObjectPool<KsmFormatReadableStorage>();
-		protected static ObjectPool<KsmFormatReadableAmountCompact> factoryKsmFormatReadableAmountCompact = new ObjectPool<KsmFormatReadableAmountCompact>();
+		protected static KsmStringObjectPool<KsmFormatReadablePressure> factoryKsmFormatReadablePressure = new KsmStringObjectPool<KsmFormatReadablePressure>();
+		protected static KsmStringObjectPool<KsmFormatReadableVolume> factoryKsmFormatReadableVolume = new KsmStringObjectPool<KsmFormatReadableVolume>();
+		protected static KsmStringObjectPool<KsmFormatReadableSurface> factoryKsmFormatReadableSurface = new KsmStringObjectPool<KsmFormatReadableSurface>();
+		protected static KsmStringObjectPool<KsmFormatReadableMass> factoryKsmFormatReadableMass = new KsmStringObjectPool<KsmFormatReadableMass>();
+		protected static KsmStringObjectPool<KsmFormatReadableStorage> factoryKsmFormatReadableStorage = new KsmStringObjectPool<KsmFormatReadableStorage>();
+		protected static KsmStringObjectPool<KsmFormatReadableAmountCompact> factoryKsmFormatReadableAmountCompact = new KsmStringObjectPool<KsmFormatReadableAmountCompact>();
 
 		/// <summary> Pretty-print a per second rate </summary>
 		public static KsmFormatReadableRate ReadableRate(double rate, bool showSign = true, string unit = "")
@@ -443,6 +446,15 @@ namespace KERBALISM
 	{
 		private const string openingTag = "<i>";
 		private const string closingTag = "</i>";
+
+		public override void OpeningTag(StringBuilder sb) => sb.Append(openingTag);
+		public override void ClosingTag(StringBuilder sb) => sb.Append(closingTag);
+	}
+
+	public class KsmFormatUnderline : KF
+	{
+		private const string openingTag = "<u>";
+		private const string closingTag = "</u>";
 
 		public override void OpeningTag(StringBuilder sb) => sb.Append(openingTag);
 		public override void ClosingTag(StringBuilder sb) => sb.Append(closingTag);
@@ -1416,7 +1428,7 @@ namespace KERBALISM
 
 	#endregion
 
-	public class ObjectPool<T> where T : new()
+	public class KsmStringObjectPool<T> where T : new()
 	{
 		private readonly Queue<T> pool = new Queue<T>();
 

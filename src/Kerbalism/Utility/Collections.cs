@@ -7,6 +7,316 @@ using System.Threading.Tasks;
 
 namespace KERBALISM.Collections
 {
+	/// <summary>
+	/// A collection of a single item, with zero heap allocation as long as you don't box it<br/>
+	/// Much faster than allocating/iterating a List, but slightly slower than an array.
+	/// </summary>
+	public struct EnumerableOf1<T> : IEnumerable<T>, IEnumerable
+	{
+		public struct Enumerator : IEnumerator<T>, IDisposable, IEnumerator
+		{
+			private EnumerableOf1<T> item;
+			private bool end;
+
+			public T Current => item.item;
+
+			object IEnumerator.Current => item.item;
+
+			internal Enumerator(EnumerableOf1<T> item)
+			{
+				this.item = item;
+				end = true;
+			}
+
+			public void Dispose() { }
+
+			public bool MoveNext()
+			{
+				bool val = end;
+				end = false;
+				return val;
+			}
+
+			void IEnumerator.Reset() => end = true;
+		}
+
+		private T item;
+
+		public EnumerableOf1(T item)
+		{
+			this.item = item;
+		}
+
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
+
+		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+
+		public Enumerator GetEnumerator() => new Enumerator(this);
+	}
+
+	/// <summary>
+	/// A zero heap allocation collection of two items <br/>
+	/// Much faster than allocating/iterating a List, but slightly slower than an array.
+	/// </summary>
+	public struct EnumerableOf2<T> : IEnumerable<T>, IEnumerable
+	{
+		public struct Enumerator : IEnumerator<T>, IDisposable, IEnumerator
+		{
+			private EnumerableOf2<T> items;
+			private byte index;
+
+			public T Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						default: return default(T);
+					}
+				}
+			}
+
+			object IEnumerator.Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						default: return default(T);
+					}
+				}
+			}
+
+			internal Enumerator(EnumerableOf2<T> items)
+			{
+				this.items = items;
+				index = 0;
+			}
+
+			public void Dispose() { }
+
+			public bool MoveNext()
+			{
+				switch (index)
+				{
+					case 0:
+						index = 1;
+						return true;
+					case 1:
+						index = 2;
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			void IEnumerator.Reset() => index = 0;
+		}
+
+		private T item1;
+		private T item2;
+
+		public EnumerableOf2(T item1, T item2)
+		{
+			this.item1 = item1;
+			this.item2 = item2;
+		}
+
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
+
+		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+
+		public Enumerator GetEnumerator() => new Enumerator(this);
+	}
+
+	/// <summary>
+	/// A zero heap allocation collection of three items <br/>
+	/// Much faster than allocating/iterating a List, but slightly slower than an array.
+	/// </summary>
+	public struct EnumerableOf3<T> : IEnumerable<T>, IEnumerable
+	{
+		public struct Enumerator : IEnumerator<T>, IDisposable, IEnumerator
+		{
+			private EnumerableOf3<T> items;
+			private byte index;
+
+			public T Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						case 3: return items.item3;
+						default: return default(T);
+					}
+				}
+			}
+
+			object IEnumerator.Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						case 3: return items.item3;
+						default: return default(T);
+					}
+				}
+			}
+
+			internal Enumerator(EnumerableOf3<T> items)
+			{
+				this.items = items;
+				index = 0;
+			}
+
+			public void Dispose() { }
+
+			public bool MoveNext()
+			{
+				switch (index)
+				{
+					case 0:
+						index = 1;
+						return true;
+					case 1:
+						index = 2;
+						return true;
+					case 2:
+						index = 3;
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			void IEnumerator.Reset()
+			{
+				index = 0;
+			}
+		}
+
+		private T item1;
+		private T item2;
+		private T item3;
+
+		public EnumerableOf3(T item1, T item2, T item3)
+		{
+			this.item1 = item1;
+			this.item2 = item2;
+			this.item3 = item3;
+		}
+
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
+
+		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+
+		public Enumerator GetEnumerator() => new Enumerator(this);
+	}
+
+	/// <summary>
+	/// A zero heap allocation collection of four items <br/>
+	/// Much faster than allocating/iterating a List, but slightly slower than an array.
+	/// </summary>
+	public struct EnumerableOf4<T> : IEnumerable<T>, IEnumerable
+	{
+		public struct Enumerator : IEnumerator<T>, IDisposable, IEnumerator
+		{
+			private EnumerableOf4<T> items;
+			private byte index;
+
+			public T Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						case 3: return items.item3;
+						case 4: return items.item4;
+						default: return default(T);
+					}
+				}
+			}
+
+			object IEnumerator.Current
+			{
+				get
+				{
+					switch (index)
+					{
+						case 1: return items.item1;
+						case 2: return items.item2;
+						case 3: return items.item3;
+						case 4: return items.item4;
+						default: return default(T);
+					}
+				}
+			}
+
+			internal Enumerator(EnumerableOf4<T> items)
+			{
+				this.items = items;
+				index = 0;
+			}
+
+			public void Dispose() { }
+
+			public bool MoveNext()
+			{
+				switch (index)
+				{
+					case 0:
+						index = 1;
+						return true;
+					case 1:
+						index = 2;
+						return true;
+					case 2:
+						index = 3;
+						return true;
+					case 3:
+						index = 4;
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			void IEnumerator.Reset()
+			{
+				index = 0;
+			}
+		}
+
+		private T item1;
+		private T item2;
+		private T item3;
+		private T item4;
+
+		public EnumerableOf4(T item1, T item2, T item3, T item4)
+		{
+			this.item1 = item1;
+			this.item2 = item2;
+			this.item3 = item3;
+			this.item4 = item4;
+		}
+
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
+
+		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+
+		public Enumerator GetEnumerator() => new Enumerator(this);
+	}
 
 	/// <summary>
 	/// Represents a queue with indexed access to the items

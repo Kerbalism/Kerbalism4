@@ -8,17 +8,32 @@ using UnityEngine.UI;
 
 namespace KERBALISM.KsmGui
 {
-	public class KsmGuiToggleList<T> : KsmGuiVerticalLayout
+
+	public class KsmGuiToggleList<T> : KsmGuiBase
 	{
 		public ToggleGroup ToggleGroupComponent { get; private set; }
-		public UnityAction<T> OnChildToggleActivated { get; set; }
+		public UnityAction<T, bool> OnToggleSelectedChange { get; set; }
 		public List<KsmGuiToggleListElement<T>> ChildToggles { get; private set; } = new List<KsmGuiToggleListElement<T>>();
+		public HorizontalOrVerticalLayoutGroup LayoutGroup { get; private set; }
 
-		public KsmGuiToggleList(KsmGuiBase parent, UnityAction<T> onChildToggleActivated)
-			: base(parent, 2, 0, 0, 0, 0, TextAnchor.UpperLeft)
+		public KsmGuiToggleList(KsmGuiBase parent, KsmGuiLib.Orientation orientation, UnityAction<T, bool> onToggleSelectedChange) : base(parent)
 		{
+			switch (orientation)
+			{
+				case KsmGuiLib.Orientation.Vertical: LayoutGroup = TopObject.AddComponent<VerticalLayoutGroup>(); break;
+				case KsmGuiLib.Orientation.Horizontal: LayoutGroup = TopObject.AddComponent<HorizontalLayoutGroup>(); break;
+			}
+
+			LayoutGroup.spacing = 2f;
+			LayoutGroup.padding = new RectOffset(0, 0, 0, 0);
+			LayoutGroup.childControlHeight = true;
+			LayoutGroup.childControlWidth = true;
+			LayoutGroup.childForceExpandHeight = false;
+			LayoutGroup.childForceExpandWidth = false;
+			LayoutGroup.childAlignment = TextAnchor.UpperLeft;
+
 			ToggleGroupComponent = TopObject.AddComponent<ToggleGroup>();
-			OnChildToggleActivated = onChildToggleActivated;
+			OnToggleSelectedChange = onToggleSelectedChange;
 		}
 	}
 
@@ -48,7 +63,7 @@ namespace KERBALISM.KsmGui
 
 			SetLayoutElement(false, false, -1, -1, -1, 14);
 
-			KsmGuiVerticalLayout highlightImage = new KsmGuiVerticalLayout(this);
+			KsmGuiHorizontalLayout highlightImage = new KsmGuiHorizontalLayout(this);
 			Image bgImage = highlightImage.TopObject.AddComponent<Image>();
 			bgImage.color = KsmGuiStyle.selectedBoxColor;
 			bgImage.raycastTarget = false;
@@ -58,11 +73,11 @@ namespace KERBALISM.KsmGui
 			TextObject.SetLayoutElement(true);
 		}
 
-		private void NotifyParent(bool enabled)
+		private void NotifyParent(bool selected)
 		{
-			if (enabled && parent.OnChildToggleActivated != null)
+			if (parent.OnToggleSelectedChange != null)
 			{
-				parent.OnChildToggleActivated(ToggleId);
+				parent.OnToggleSelectedChange(ToggleId, selected);
 			}
 		}
 

@@ -68,12 +68,11 @@ namespace KERBALISM
 		public double rate = 0.0;
 
 		/// <summary>
-		/// ec cost while transmitting at the above rate
-		/// <para/> Note: ec_idle is substracted from ec in Science.Update(), it's silly but don't change it as this is what is expected from the RealAntenna API handler
+		/// additional ec cost when transmitting at the above rate
 		/// </summary>
 		public double ec = 0.0;
 
-		/// <summary> ec cost while not transmitting </summary>
+		/// <summary> base ec cost while connected </summary>
 		public double ec_idle = 0.0;
 
 		/// <summary> link quality indicator for the UI, any value from 0-1.

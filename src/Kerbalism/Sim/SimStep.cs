@@ -238,22 +238,22 @@ namespace KERBALISM
 			double albedoFlux = 0.0;
 			if (bodyIsVisibleFromSun)
 			{
-				// with r = body radius,
-				// with a = altitude,
-				// - The total energy received by the exposed surface area (disc) of the body is :
-				// sunFluxAtBody * π * r²
-				// - Assuming re-emitted power is spread over one hemisphere, that is a solid angle of :
-				// 2 * π steradians
-				// - So the energy emitted in watts per steradian can be expressed as :
-				// sunFluxAtBody * π * r² / (2 * π * steradian)
-				// - The sphere enclosing the body at the given altitude has a surface area of
-				// 4 * π * (r + a)² 
-				// - This translate in a surface area / steradian of
-				// 4 * π * (r + a)² / (2 * π steradian) = (r + a)² / steradian
-				// - So the flux received at the current altitude is :
-				// sunFluxAtBody * π * r² / (2 * π * steradian) / ((r + a)² / steradian)
-				// - Which can be simplified to :
-				// (sunFluxAtBody * r²) / (2 * (r + a)²))
+// with r = body radius,
+// with a = altitude,
+// - The total energy received by the exposed surface area (disc) of the body is :
+// sunFluxAtBody * π * r²
+// - Assuming re-emitted power is spread over one hemisphere, that is a solid angle of :
+// 2 * π steradians
+// - So the energy emitted in watts per steradian can be expressed as :
+// sunFluxAtBody * π * r² / (2 * π * steradian)
+// - The sphere enclosing the body at the given altitude has a surface area of
+// 4 * π * (r + a)² 
+// - This translate in a surface area / steradian of
+// 4 * π * (r + a)² / (2 * π steradian) = (r + a)² / steradian
+// - So the flux received at the current altitude is :
+// sunFluxAtBody * π * r² / (2 * π * steradian) / ((r + a)² / steradian)
+// - Which can be simplified to :
+// (sunFluxAtBody * r²) / (2 * (r + a)²))
 				double hemisphericFluxAtAltitude = (sunFluxAtBody * body.radius * body.radius) / (2.0 * Math.Pow(body.radius + altitude, 2.0));
 				albedoFlux = hemisphericFluxAtAltitude * body.albedo;
 

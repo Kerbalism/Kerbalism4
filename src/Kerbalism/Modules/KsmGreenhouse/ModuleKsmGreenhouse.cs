@@ -2,7 +2,7 @@
 
 namespace KERBALISM
 {
-
+	/*
 	public class ModuleKsmGreenhouse :
 		KsmPartModule<ModuleKsmGreenhouse, GreenhouseHandler, GreenhouseDefinition>,
 		IModuleInfo
@@ -114,8 +114,6 @@ namespace KERBALISM
 		public string GetPrimaryField() => string.Empty;
 		public Callback<Rect> GetDrawModulePanelCallback() => null;
 
-		/*
-
 		// automation
 		public override AutomationAdapter[] CreateAutomationAdapter(KsmPartModule moduleOrPrefab, ModuleHandler moduleData)
 		{
@@ -178,7 +176,6 @@ namespace KERBALISM
 				ToggleSetup(data);
 			}
 		}
-
-		*/
 	}
+*/
 }

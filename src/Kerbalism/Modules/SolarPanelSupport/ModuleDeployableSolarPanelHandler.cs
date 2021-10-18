@@ -64,6 +64,8 @@ namespace KERBALISM
 
 		public override void OnStart()
 		{
+			base.OnStart();
+
 			if (IsLoaded)
 			{
 				loadedPanel = (ModuleDeployableSolarPanel)loadedModule;
@@ -82,8 +84,6 @@ namespace KERBALISM
 				PersistentTransform.Init(ref sunCatcherPivot, this);
 				PersistentTransform.Init(ref sunCatcherPosition, this);
 			}
-
-			base.OnStart();
 		}
 
 		public override void OnBecomingUnloaded()
@@ -94,7 +94,7 @@ namespace KERBALISM
 
 		private void GetModuleTransformsAndRate()
 		{
-			nominalRate = loadedPanel.resHandler.outputResources[0].rate;
+			SetNominalECRate(loadedPanel.resHandler.outputResources[0].rate);
 
 			PersistentTransform.Init(ref sunCatcherPosition, this, loadedPanel.part.FindModelTransform(loadedPanel.secondaryTransformName));
 
@@ -198,7 +198,7 @@ namespace KERBALISM
 		protected override PanelState GetState()
 		{
 			// Detect modified module (B9PS switching of the stock module or ROSolar built-in switching)
-			if (loadedPanel.resHandler.outputResources[0].rate != nominalRate)
+			if (loadedPanel.resHandler.outputResources[0].rate != NominalRate)
 			{
 				GetModuleTransformsAndRate();
 			}
@@ -230,13 +230,13 @@ namespace KERBALISM
 			loadedPanel.GetTrackingBodyTransforms();
 		}
 
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
-			base.OnFixedUpdate(elapsedSec);
+			base.OnUpdate(elapsedSec);
 
 			// set the stock rate field (functionally not needed, but some mods might be checking it)
 			if (IsLoaded)
-				loadedPanel.flowRate = (float)currentOutput;
+				loadedPanel.flowRate = (float)CurrentRate;
 		}
 	}
 

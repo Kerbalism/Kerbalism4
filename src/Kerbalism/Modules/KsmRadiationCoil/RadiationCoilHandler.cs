@@ -10,31 +10,47 @@ namespace KERBALISM
 	{
 		public class ArrayEffectData
 		{
-			public string chargeId;
-			public VesselVirtualPartResource charge;
+			public int chargeId;
+			public VesselResourceAbstract chargeResource;
 			public double chargeRate;
+			public double charge;
 			public double maxRadiation;
 			public bool charging;
 			public bool discharging;
 
-			public double RadiationRemoved => maxRadiation * charge.Level;
+			public Recipe passiveDischargeRecipe;
+			public Recipe dischargeRecipe;
+			public Recipe chargeRecipe;
+
+			public double RadiationRemoved => maxRadiation * chargeResource.Level;
 
 			public ArrayEffectData(ModuleKsmRadiationCoil masterModule, List<ModuleKsmRadiationCoil> coilModules)
 			{
-				charge = masterModule.moduleHandler.VesselData.ResHandler.GetOrCreateVirtualResource<VesselVirtualPartResource>();
-				chargeId = charge.Name;
-
-				foreach (ModuleKsmRadiationCoil coilModule in coilModules)
-				{
-					coilModule.moduleHandler.CreateChargeResource(chargeId);
-				}
+				chargeResource = masterModule.moduleHandler.VesselData.ResHandler.AddNewAbstractResourceToHandler();
+				chargeResource.SetCapacity(masterModule.ecChargeRequired);
+				chargeId = chargeResource.id;
 
 				chargeRate = coilModules.Count * masterModule.ecChargeRate;
+
+				// note : the discharging recipe must have a higher priority than charging
+				// so this works correctly when both charging and discharging is enabled
+
+				passiveDischargeRecipe = new Recipe("Charge losses", RecipeCategory.RadiationShield);
+				passiveDischargeRecipe.AddInput(VesselResHandler.ElectricChargeId, masterModule.chargeLossRate);
+
+				chargeRecipe = new Recipe("Charging", RecipeCategory.RadiationShield);
+				chargeRecipe.AddInput(VesselResHandler.ElectricChargeId, chargeRate);
+				chargeRecipe.AddOutput(chargeId, chargeRate, false, false);
+
+				dischargeRecipe = new Recipe("Discharging", RecipeCategory.RadiationShield);
+				dischargeRecipe.AddInput(chargeId, chargeRate);
+				dischargeRecipe.AddOutput(VesselResHandler.ElectricChargeId, chargeRate, false, false);
+
 			}
 
 			public ArrayEffectData(ConfigNode coilDataNode)
 			{
-				chargeId = Lib.ConfigValue(coilDataNode, "chargeId", string.Empty);
+				charge = Lib.ConfigValue(coilDataNode, "charge", 0.0);
 				chargeRate = Lib.ConfigValue(coilDataNode, "chargeRate", 0.0);
 				maxRadiation = Lib.ConfigValue(coilDataNode, "maxRadiation", 0.0);
 				charging = Lib.ConfigValue(coilDataNode, "charging", false);
@@ -43,7 +59,7 @@ namespace KERBALISM
 
 			public void Save(ConfigNode coilDataNode)
 			{
-				coilDataNode.AddValue("chargeId", chargeId);
+				coilDataNode.AddValue("charge", charge);
 				coilDataNode.AddValue("chargeRate", chargeRate);
 				coilDataNode.AddValue("maxRadiation", maxRadiation);
 				coilDataNode.AddValue("charging", charging);
@@ -52,34 +68,31 @@ namespace KERBALISM
 
 			public void ChargeUpdate(RadiationCoilHandler masterCoil, double elapsedSec)
 			{
-				if (charge.Level > 0.0)
-				{
-					masterCoil.VesselData.ResHandler.Consume(charge.Name, masterCoil.modulePrefab.chargeLossRate * charge.Level * elapsedSec, ResourceBroker.CoilArray);
-				}
+				//if (chargeResource.Level > 0.0)
+				//{
+				//	masterCoil.VesselData.ResHandler.Consume(charge.Name, masterCoil.modulePrefab.chargeLossRate * charge.Level * elapsedSec, ResourceBroker.CoilArray);
+				//}
 
-				// note : the discharging recipe has to be added first for discharging 
-				// to have priority over charging when both are enabled
-				if (discharging)
-				{
-					Recipe dischargingRecipe = new Recipe(ResourceBroker.CoilArray);
-					dischargingRecipe.AddInput(charge.Name, chargeRate * elapsedSec);
-					dischargingRecipe.AddOutput("ElectricCharge", chargeRate * elapsedSec, false);
-					masterCoil.VesselData.ResHandler.AddRecipe(dischargingRecipe);
-				}
+				//if (discharging)
+				//{
+				//	dischargeRecipe.Update(masterCoil.VesselData.ResHandler, 1.0);
+				//}
 
-				if (charging)
-				{
-					Recipe chargingRecipe = new Recipe(ResourceBroker.CoilArray);
-					chargingRecipe.AddInput("ElectricCharge", chargeRate * elapsedSec);
-					chargingRecipe.AddOutput(charge.Name, chargeRate * elapsedSec, false);
-					masterCoil.VesselData.ResHandler.AddRecipe(chargingRecipe);
-				}
+				//if (charging)
+				//{
+				//	chargeRecipe.Update(masterCoil.VesselData.ResHandler, 1.0);
+				//}
 			}
 
 		}
 
 		public ArrayEffectData effectData;
 		public bool isDeployed;
+
+		public void OnRecipeExecuted(Recipe recipe, double elapsedSec)
+		{
+
+		}
 
 		public void CreateEffectData(ModuleKsmRadiationCoil masterModule, List<ModuleKsmRadiationCoil> coilModules)
 		{
@@ -91,30 +104,12 @@ namespace KERBALISM
 			effectData.maxRadiation = maxRadiation;
 		}
 
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
 			if (effectData != null)
 			{
 				effectData.ChargeUpdate(this, elapsedSec);
 			}
-		}
-
-		public override void OnStart()
-		{
-			if (effectData != null)
-			{
-				VesselData.ResHandler.TryGetResource(effectData.chargeId, out effectData.charge);
-			}
-		}
-
-		public void CreateChargeResource(string chargeId)
-		{
-			partData.virtualResources.AddResource(chargeId, 0.0, loadedModule.ecChargeRequired);
-		}
-
-		public void RemoveChargeResource(string chargeId)
-		{
-			partData.virtualResources.RemoveResource(chargeId);
 		}
 
 		public override void OnSave(ConfigNode node)
@@ -136,5 +131,7 @@ namespace KERBALISM
 				effectData = new ArrayEffectData(node);
 			}
 		}
+
+
 	}
 }

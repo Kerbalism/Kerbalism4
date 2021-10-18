@@ -56,7 +56,7 @@ namespace KERBALISM.KsmGui
 			CanvasScaler = KsmGuiCanvas.AddComponent<CanvasScaler>();
 
 			// note : we don't use app scale, but it might become necessary with fixed-position windows that are "attached" to the app launcher (toolbar buttons)
-			CanvasScaler.scaleFactor = Settings.UIScale * GameSettings.UI_SCALE;
+			CanvasScaler.scaleFactor = GameSettings.UI_SCALE;
 
 			GraphicRaycaster = KsmGuiCanvas.AddComponent<GraphicRaycaster>();
 			CanvasGroup test = KsmGuiCanvas.AddComponent<CanvasGroup>();
@@ -75,7 +75,7 @@ namespace KERBALISM.KsmGui
 
 		private void OnScaleChange()
 		{
-			CanvasScaler.scaleFactor = Settings.UIScale * GameSettings.UI_SCALE;
+			CanvasScaler.scaleFactor = GameSettings.UI_SCALE;
 		}
 
 

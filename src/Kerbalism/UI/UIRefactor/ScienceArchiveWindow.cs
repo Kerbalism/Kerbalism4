@@ -68,7 +68,7 @@ namespace KERBALISM
 			Lib.Log("Science Archive init started");
 
 			window = new KsmGuiWindow(
-				KsmGuiWindow.LayoutGroupType.Vertical,
+				KsmGuiLib.Orientation.Vertical,
 				false,
 				1f,
 				true,
@@ -80,7 +80,7 @@ namespace KERBALISM
 				280, -100);
 
 			KsmGuiHeader mainHeader = new KsmGuiHeader(window, Local.SCIENCEARCHIVE_title);//"SCIENCE ARCHIVE"
-			new KsmGuiIconButton(mainHeader, Textures.KsmGuiTexHeaderClose, () => Close());
+			mainHeader.AddButton(Textures.KsmGuiTexHeaderClose, Close, Local.SCIENCEARCHIVE_closebutton);
 
 			KsmGuiHorizontalLayout columns = new KsmGuiHorizontalLayout(window, 5, 0, 0, 5, 0);
 
@@ -95,7 +95,7 @@ namespace KERBALISM
 
 			KsmGuiVerticalScrollView experimentsScrollView = new KsmGuiVerticalScrollView(experimentColumn, 0, 0, 0, 0, 0);
 			experimentsScrollView.SetLayoutElement(true, true, 160);
-			experimentsToggleList = new KsmGuiToggleList<ExpInfoAndSubjects>(experimentsScrollView, OnToggleExperiment);
+			experimentsToggleList = new KsmGuiToggleList<ExpInfoAndSubjects>(experimentsScrollView, KsmGuiLib.Orientation.Vertical, OnToggleExperiment);
 
 			foreach (ExperimentInfo expInfo in ScienceDB.ExperimentInfos.OrderBy(p => p.Title))
 			{
@@ -170,8 +170,11 @@ namespace KERBALISM
 			lastPartCount = vesselParts != null ? vesselParts.Count : 0;
 		}
 
-		private static void OnToggleExperiment(ExpInfoAndSubjects expInfoAndSubjects)
+		private static void OnToggleExperiment(ExpInfoAndSubjects expInfoAndSubjects, bool selected)
 		{
+			if (!selected)
+				return;
+
 			currentExperiment.experimentSubjectList.Enabled = false;
 			expInfoAndSubjects.experimentSubjectList.KnownSubjectsToggle.SetOnState(currentExperiment.experimentSubjectList.KnownSubjectsToggle.IsOn, true);
 			currentExperiment = expInfoAndSubjects;

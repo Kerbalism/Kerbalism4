@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KSP.Localization;
-using KERBALISM.Planner;
 
 // DISABLED FOR NOW - NEED TO BE REFACTORED AS A KSMPARTMODULE
 

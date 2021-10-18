@@ -11,11 +11,11 @@ using UnityEngine.UI;
 
 namespace KERBALISM
 {
-	public class KsmGuiColorPicker : KsmGuiIcon
+	public class KsmGuiColorPicker : KsmGuiImage
 	{
 
 		private DragPanel dragPanel;
-		private KsmGuiIcon selector;
+		private KsmGuiImage selector;
 		private Picker colorPicker;
 		private Color[] Data;
 
@@ -23,11 +23,9 @@ namespace KERBALISM
 
 		public static void PickerPopup(ref Color color, int colorViewerHeight = 30, Texture2D textureToTestColorOn = null, int textureWidth = -1, int textureHeight = -1)
 		{
-			KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8F, true, 0, TextAnchor.UpperLeft, 5f);
+			KsmGuiWindow window = new KsmGuiWindow(KsmGuiLib.Orientation.Vertical, true, 0.8F, true, 0, TextAnchor.UpperLeft, 5f);
 			KsmGuiHeader header = new KsmGuiHeader(window, "Color picker");
-			KsmGuiIconButton close = new KsmGuiIconButton(header, Textures.KsmGuiTexHeaderClose);
-			close.SetLayoutElement(false, false, 16, 16);
-			close.SetButtonOnClick(window.Close);
+			header.AddButton(Textures.KsmGuiTexHeaderClose, window.Close);
 			KsmGuiColorPicker picker = new KsmGuiColorPicker(window);
 			picker.SetLayoutElement(false, false, -1, -1, 125, 100);
 
@@ -37,7 +35,7 @@ namespace KERBALISM
 				textureHeight = colorViewerHeight;
 			}
 
-			KsmGuiIcon test = new KsmGuiIcon(window, textureToTestColorOn, textureWidth, textureHeight);
+			KsmGuiImage test = new KsmGuiImage(window, textureToTestColorOn, textureWidth, textureHeight);
 			test.SetLayoutElement(true, false, -1, colorViewerHeight);
 			test.SetUpdateAction(() => test.SetIconColor(picker.Color));
 		}
@@ -49,7 +47,7 @@ namespace KERBALISM
 
 			TopObject.AddComponent<RectMask2D>();
 
-			selector = new KsmGuiIcon(this, Textures.KsmGuiColorPickerSelector, 16, 16);
+			selector = new KsmGuiImage(this, Textures.KsmGuiColorPickerSelector, 16, 16);
 			selector.Enabled = false;
 
 			Data = Textures.KsmGuiColorPickerBackground.GetPixels();

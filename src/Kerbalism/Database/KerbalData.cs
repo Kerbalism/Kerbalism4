@@ -28,7 +28,7 @@ namespace KERBALISM
 			disableRules = false;
 			isEvaDead = false;
 
-			foreach (KerbalRuleDefinition ruleDefinition in Profile.rules)
+			foreach (KerbalRuleDefinition ruleDefinition in KerbalRuleDefinition.definitions)
 			{
 				rules.Add(new KerbalRule(this, ruleDefinition, initialize));
 			}

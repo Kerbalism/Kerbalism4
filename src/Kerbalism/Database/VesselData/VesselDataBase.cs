@@ -17,10 +17,10 @@ namespace KERBALISM
 
 		public ExpressionContext ModifierContext { get; private set; }
 
-		public VesselProcessCollection VesselProcesses => vesselProcesses; VesselProcessCollection vesselProcesses;
+		public VesselProcesses VesselProcesses => vesselProcesses; VesselProcesses vesselProcesses;
 
 		/// <summary>habitat info</summary>
-		public HabitatVesselData Habitat => habitatData; HabitatVesselData habitatData;
+		public VesselHabitat Habitat => habitatData; VesselHabitat habitatData;
 
 		public List<KerbalData> Crew { get; private set; } = new List<KerbalData>();
 
@@ -55,6 +55,8 @@ namespace KERBALISM
 		public virtual CelestialBody MainBody { get; }
 
 		public VesselSituations VesselSituations { get; protected set; }
+
+		public VesselComms vesselComms;
 
 		/// <summary>in meters</summary>
 		public virtual double Altitude { get; }
@@ -189,9 +191,10 @@ namespace KERBALISM
 			ModifierContext.Options.ParseCulture = System.Globalization.CultureInfo.InvariantCulture;
 			ModifierContext.Imports.AddType(typeof(Math));
 
-			vesselProcesses = new VesselProcessCollection();
-			habitatData = new HabitatVesselData();
+			vesselProcesses = new VesselProcesses();
+			habitatData = new VesselHabitat();
 			starsIrradiance = StarFlux.StarArrayFactory();
+			vesselComms = new VesselComms();
 		}
 
 		// put here the persistence that is common to VesselData and VesselDataShip to have
@@ -341,18 +344,7 @@ namespace KERBALISM
 
 		public void ModuleDataUpdate()
 		{
-			habitatData.ResetBeforeModulesUpdate(this);
 
-			foreach (PartData partData in Parts)
-			{
-				foreach (ModuleHandler moduleData in partData.modules)
-				{
-					moduleData.VesselDataUpdate();
-				}
-			}
-
-			habitatData.EvaluateAfterModuleUpdate(this);
-			vesselProcesses.EvaluateAfterModuleUpdate(this);
 		}
 
 		public void ProcessSimStep(SimStep step)

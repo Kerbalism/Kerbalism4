@@ -40,12 +40,15 @@ namespace KERBALISM
 
 			public virtual void Synchronize()
 			{
+				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselDataBase.SynchronizerBase.Synchronize");
 				radiationCoilDatas.Clear();
 				radiationEmitters.Clear();
 
 				foreach (PartData partData in vesselData.Parts)
 				{
+					UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselDataBase.SynchronizerBase.Synchronize.resources");
 					partData.resources.Synchronize();
+					UnityEngine.Profiling.Profiler.EndSample();
 
 					if (vesselData.LoadedOrEditor && partData.radiationData.IsEmitter)
 					{
@@ -60,6 +63,8 @@ namespace KERBALISM
 						}
 					}
 				}
+
+				UnityEngine.Profiling.Profiler.EndSample();
 			}
 		}
 

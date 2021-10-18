@@ -1,5 +1,4 @@
 ﻿using HarmonyLib;
-using KERBALISM.Planner;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -74,9 +73,6 @@ namespace KERBALISM
 		{
 			if (Definition.isDeployable)
 				deployAnimator.Still(1f);
-
-
-			
 		}
 
 		// IVolumeAndSurfaceModule
@@ -109,10 +105,7 @@ namespace KERBALISM
 			result.surface = Definition.surface;
 
 			// use config defined depressurization duration or fallback to the default setting
-			if (Definition.depressurizationSpeed > 0.0)
-				Definition.depressurizationSpeed = M3ToL(Definition.volume) / Definition.depressurizationSpeed;
-			else
-				Definition.depressurizationSpeed = M3ToL(Definition.volume) / (Settings.DepressuriationDefaultDuration * Definition.volume);
+			Definition.depressurizationRate = M3ToL(Definition.volume) / Definition.depressurizationDurationD;
 		}
 
 		// parsing configs at prefab compilation
@@ -324,26 +317,10 @@ namespace KERBALISM
 			if (vessel != null && vessel.isEVA)
 				return;
 
-			// TODO : Find a reliable way to have that f**** PAW correctly updated when we change guiActive...
-			switch (moduleHandler.animState)
+			if (Lib.IsEditor)
 			{
-				case AnimState.Accelerating:
-				case AnimState.Decelerating:
-				case AnimState.Rotating:
-				case AnimState.RotatingNotEnoughEC:
-					bool loosingSpeed = moduleHandler.animState == AnimState.RotatingNotEnoughEC;
-					if (!Lib.IsEditor && (Definition.rotateECRate > 0.0 || Definition.accelerateECRate > 0.0))
-					{
-						rotateAnimator.Update(rotationEnabled, loosingSpeed, (float)moduleHandler.EcResInfo.AvailabilityFactor);
-						counterweightAnimator.Update(rotationEnabled, loosingSpeed, (float)moduleHandler.EcResInfo.AvailabilityFactor);
-					}
-					else
-					{
-						rotateAnimator.Update(rotationEnabled, false, 1f);
-						counterweightAnimator.Update(rotationEnabled, false, 1f);
-					}
-
-					break;
+				rotateAnimator.Update(rotationEnabled, false, Time.deltaTime, 1f);
+				counterweightAnimator.Update(rotationEnabled, false, Time.deltaTime, 1f);
 			}
 
 			secInfoField.guiActive = secInfoField.guiActiveEditor = IsSecInfoVisible;
@@ -367,7 +344,7 @@ namespace KERBALISM
 					case PressureState.DepressurizingAboveThreshold:
 					case PressureState.DepressurizingBelowThreshold:
 						double reclaimedResAmount = Math.Max(moduleHandler.AtmoRes.Amount - (moduleHandler.AtmoRes.Capacity * (1.0 - Definition.reclaimFactor)), 0.0);
-						secInfoField.guiName = Lib.BuildString(Lib.HumanReadableCountdown(moduleHandler.AtmoRes.Amount / Definition.depressurizationSpeed, true), " ", "for depressurization");
+						secInfoField.guiName = Lib.BuildString(Lib.HumanReadableCountdown(moduleHandler.AtmoRes.Amount / Definition.depressurizationRate, true), " ", "for depressurization");
 						secPAWInfo = Lib.BuildString("+", Lib.HumanReadableAmountCompact(reclaimedResAmount), " ", reclaimResAbbr);
 						break;
 					case PressureState.Depressurized:
@@ -502,7 +479,7 @@ namespace KERBALISM
 			// TODO : temporary, waiting for an implementation of the ModuleData.OnFixedUpdate() in-editor automatic invocation
 			if (Lib.IsEditor)
 			{
-				moduleHandler.OnFixedUpdate(Kerbalism.elapsed_s);
+				moduleHandler.OnUpdate(Kerbalism.elapsed_s);
 			}
 		}
 
@@ -590,14 +567,6 @@ namespace KERBALISM
 			}
 
 			return true;
-		}
-
-		public override AutomationAdapter[] CreateAutomationAdapter(KsmPartModule moduleOrPrefab, ModuleHandler moduleData)
-		{
-			var habitat = moduleOrPrefab as ModuleKsmHabitat;
-			if(habitat.Definition.canPressurize)
-				return new AutomationAdapter[] { new HabitatAutomationAdapter(moduleOrPrefab, moduleData) };
-			return null;
 		}
 
 		#endregion
@@ -723,16 +692,16 @@ namespace KERBALISM
 
 		private void OnToggleRotation(object field) => ToggleRotate(this, moduleHandler, true);
 
-		public static void ToggleRotate(ModuleKsmHabitat module, HabitatHandler data, bool isLoaded)
+		public static void ToggleRotate(ModuleKsmHabitat module, HabitatHandler handler, bool isLoaded)
 		{
 			bool isEditor = Lib.IsEditor;
 
-			if (data.IsRotationEnabled)
+			if (handler.IsRotationEnabled)
 			{
-				data.animState = AnimState.Decelerating;
+				handler.animState = AnimState.Decelerating;
 				if (!isLoaded)
 				{
-					data.animTimer = module.rotateAnimator.TimeNeededToStartOrStop;
+					handler.animTimer = module.rotateAnimator.TimeNeededToStartOrStop;
 				}
 				else
 				{
@@ -743,13 +712,13 @@ namespace KERBALISM
 					}
 				}
 			}
-			else if (data.IsDeployed)
+			else if (handler.IsDeployed)
 			{
-				data.animState = AnimState.Accelerating;
+				handler.animState = AnimState.Accelerating;
 
 				if (!isLoaded)
 				{
-					data.animTimer = module.rotateAnimator.TimeNeededToStartOrStop;
+					handler.animTimer = module.rotateAnimator.TimeNeededToStartOrStop;
 				}
 				else
 				{
@@ -787,7 +756,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				specs.Add("Depressurization", Definition.depressurizationSpeed.ToString("0.0 L/s"));
+				specs.Add("Depressurization", Definition.depressurizationRate.ToString("0.0 L/s"));
 				if (Definition.canPressurize && Definition.reclaimFactor > 0.0)
 				{
 					double reclaimedAmount = Definition.reclaimFactor * M3ToL(Definition.volume);
@@ -821,7 +790,7 @@ namespace KERBALISM
 			{
 				specs.Add("");
 				specs.Add(Lib.Color("Gravity ring", Lib.Kolor.Cyan));
-				specs.Add("Comfort bonus", (Settings.ComfortFirmGround + Settings.ComfortExercise).ToString("P0"));
+				//specs.Add("Comfort bonus", (Settings.ComfortFirmGround + Settings.ComfortExercise).ToString("P0"));
 				specs.Add("Acceleration", Lib.Color(Lib.HumanReadableRate(Definition.accelerateECRate, "F3", ecAbbr), Lib.Kolor.NegRate));
 				specs.Add("Steady state", Lib.Color(Lib.HumanReadableRate(Definition.rotateECRate, "F3", ecAbbr), Lib.Kolor.NegRate));
 			}

@@ -25,6 +25,7 @@ namespace KERBALISM
 		private bool isEditor;
 		private VesselDataBase vd;
 		private VesselData vdFlight;
+		private KsmGuiBase parent;
 
 		private KsmGuiHorizontalLayout summmarySpace;
 
@@ -216,13 +217,13 @@ namespace KERBALISM
 		private class SupplyEntry : KsmGuiHorizontalLayout
 		{
 			private static StringBuilder sb = new StringBuilder();
-			public VesselKSPResource Resource { get; private set; }
+			public VesselResourceKSP Resource { get; private set; }
 			public bool IsSupply { get; private set; }
 			private int iconWidth = 0;
 			private readonly KsmGuiText textComponent;
-			private readonly KsmGuiIcon resourceIcon;
+			private readonly KsmGuiImage resourceIcon;
 
-			public SupplyEntry(KsmGuiBase parent, VesselKSPResource resource) : base(parent)
+			public SupplyEntry(KsmGuiBase parent, VesselResourceKSP resource) : base(parent)
 			{
 				this.Resource = resource;
 				SetLayoutElement(true, false, -1, -1, -1, 18);
@@ -233,14 +234,14 @@ namespace KERBALISM
 				if (resource.IsSupply && resource.Supply.Texture != null)
 				{
 					iconWidth = 20;
-					resourceIcon = new KsmGuiIcon(this, resource.Supply.Texture, 16, 16);
+					resourceIcon = new KsmGuiImage(this, resource.Supply.Texture, 16, 16);
 					resourceIcon.SetLayoutElement(false, false, iconWidth, 18);
 				}
 
 				textComponent = new KsmGuiText(this, "", TextAlignmentOptions.Left);
 				textComponent.SetLayoutElement(true, false, -1, -1, -1, 18);
 
-				SetTooltip(() => Resource.BrokerListTooltipTMP(false));
+				SetTooltip(() => Resource.BrokerListTooltip(false));
 
 			}
 
@@ -253,18 +254,18 @@ namespace KERBALISM
 				ks.Format(Resource.Level.ToString("P1"), KF.Position(160 - iconWidth));
 
 				ks.Format(KF.Position(220 - iconWidth));
-				bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
+				//bool showAvailabilityFactor = Resource.AvailabilityFactor > 0.0 && Resource.AvailabilityFactor < 1.0;
 
-				if (showAvailabilityFactor)
-				{
-					ks.Format(Resource.AvailabilityFactor.ToString("P1"), KF.KolorRed, KF.Bold);
-					ks.Add(KF.WhiteSpace, "availability");
-				}
-				else
-				{
+				//if (showAvailabilityFactor)
+				//{
+				//	ks.Format(Resource.AvailabilityFactor.ToString("P1"), KF.KolorRed, KF.Bold);
+				//	ks.Add(KF.WhiteSpace, "availability");
+				//}
+				//else
+				//{
 					if (Resource.Rate > -1e-09 && Resource.Rate < 1e-09)
 					{
-						if (Resource.ResourceBrokers.Count == 0)
+						if (Resource.GetExecutedIO().Count == 0)
 						{
 							ks.Add("none");
 						}
@@ -277,10 +278,10 @@ namespace KERBALISM
 					{
 						ks.Format(KF.ReadableRate(Resource.Rate));
 					}
-				}
+				//}
 
-				if (!showAvailabilityFactor)
-				{
+				//if (!showAvailabilityFactor)
+				//{
 					ks.Format(KF.Position(280 - iconWidth));
 					double depletion = Resource.Depletion;
 					if (depletion > Lib.SecondsInYearExact * 100.0) // more than 100 years = perpetual
@@ -302,7 +303,7 @@ namespace KERBALISM
 							ks.Format(KF.ReadableDuration(depletion), KF.KolorGreen);
 						}
 					}
-				}
+				//}
 
 				textComponent.Text = ks.End();
 			}
@@ -325,15 +326,12 @@ namespace KERBALISM
 
 		public VesselSummaryUI(KsmGuiBase parent, bool isPopup) : base(parent, 5, 0, 0, 0, 0, TextAnchor.UpperLeft)
 		{
-			
+			this.parent = parent;
 			this.isPopup = isPopup;
-
-
 
 			KsmGuiHeader topHeader = new KsmGuiHeader(this, string.Empty);
 			topHeader.SetUpdateAction(() => topHeader.Text = vd.VesselName);
-			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => ((KsmGuiWindow)parent).Close()); //"close"
-			topHeader.Enabled = isPopup;
+			topHeader.AddButton(Textures.KsmGuiTexHeaderClose, Close, Local.SCIENCEARCHIVE_closebutton);
 
 			summmarySpace = new KsmGuiHorizontalLayout(this, 10);
 			summmarySpace.SetLayoutElement(true, false, contentWidth);
@@ -382,11 +380,11 @@ namespace KERBALISM
 			KsmGuiHorizontalLayout crewHeader = new KsmGuiHorizontalLayout(crewSpaceContent);
 			KsmGuiBase titlespacer = new KsmGuiBase(crewHeader);
 			titlespacer.SetLayoutElement(false, false, crewNameColumnWidth);
-			foreach (KerbalRuleDefinition rule in Profile.rules)
+			foreach (KerbalRuleDefinition rule in KerbalRuleDefinition.definitions)
 			{
 				KsmGuiBase spacer = new KsmGuiBase(crewHeader);
 				spacer.SetLayoutElement(true, false, -1, 24);
-				KsmGuiIcon icon = new KsmGuiIcon(spacer, rule.icon, iconWidth: 24, iconHeight: 24);
+				KsmGuiImage icon = new KsmGuiImage(spacer, rule.icon, iconWidth: 24, iconHeight: 24);
 				icon.SetTooltip(rule.TooltipText(), TextAlignmentOptions.Left, 250);
 				icon.TopTransform.anchorMin = new Vector2(0.5f, 0.5f);
 				icon.TopTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -450,7 +448,7 @@ namespace KERBALISM
 			habGravity = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // gravity comfort % -> tooltip : planetary G, gravity rings G, gravity rings seats
 			habExercice = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // exercice comfort % -> tooltip : available seats
 			habComforts = new KsmGuiText(habCol2, null, TextAlignmentOptions.Left, false, TextOverflowModes.Truncate); // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
-			habComforts.SetTooltip(() => ComfortInfoBase.GetComfortsInfo(vd.Habitat.comforts.Values), TextAlignmentOptions.TopLeft);
+			habComforts.SetTooltip(() => ComfortInfoBase.GetComfortsInfo(vd.Habitat.comforts), TextAlignmentOptions.TopLeft);
 
 			KsmGuiHorizontalLayout shelterConfig = new KsmGuiHorizontalLayout(vesselSpace);
 			shelterConfig.SetLayoutElement(true, false, -1, -1, -1, 18);
@@ -495,6 +493,18 @@ namespace KERBALISM
 			suppliesScrollView.SetBackgroundColor(false);
 		}
 
+		private void Close()
+		{
+			if (isPopup)
+			{
+				((KsmGuiWindow)parent).Close();
+			}
+			else
+			{
+				MainUIFlight.Instance.SelectVessel(null);
+			}
+		}
+
 		private void UpdateVessel()
 		{
 			if (vd.SolarPanelsAverageExposure >= 0.0)
@@ -531,7 +541,10 @@ namespace KERBALISM
 
 				habLivingSpace.Text = Lib.BuildString("Living space", "<pos=50%>", Lib.HumanReadableVolume(vd.Habitat.volumePerCrew), " / kerbal"); // living space comfort % -> tooltip : pressurized volume, volume/crew, pressure
 				habGravity.Text = Lib.BuildString("Gravity", "<pos=50%>", Math.Max(vd.Habitat.gravity, vd.Habitat.artificialGravity).ToString("0.00 g"));
-				habExercice.Text = Lib.BuildString("Exercise", "<pos=50%>", vd.Habitat.comforts["exercise"].Level.ToString("P0")); // exercice comfort % -> tooltip : available seats
+
+				if (ComfortDefinition.exercise != null)
+					habExercice.Text = Lib.BuildString("Exercise", "<pos=50%>", vd.Habitat.comforts[ComfortDefinition.exercise.definitionIndex].Level.ToString("P0")); // exercice comfort % -> tooltip : available seats
+
 				habComforts.Text = Lib.BuildString("Comforts", "<pos=50%>", vd.Habitat.comfortsTotalBonus.ToString("P1"), " (", vd.Habitat.comfortsActiveCount.ToString(), ")"); // extra comforts % : firm ground, not alone, call home, panorama, mess room, plants, tv...
 			}
 		}
@@ -565,9 +578,10 @@ namespace KERBALISM
 			KsmString ks = KsmString.Get;
 
 			ks.Info("Pressurized volume", Lib.HumanReadableVolume(vd.Habitat.pressurizedVolume));
-			if (vd.ResHandler.TryGetResource(Settings.HabitatAtmoResource, out VesselKSPResource atmoResource))
+			if (vd.ResHandler.TryGetResource(Settings.HabitatAtmoResource, out VesselResourceKSP atmoResource))
 			{
-				ks.Format(atmoResource.BrokerListTooltipTMP(), KF.BreakBefore);
+				ks.Break();
+				atmoResource.BrokerListTooltip(ks);
 			}
 
 			return ks.End();
@@ -575,9 +589,9 @@ namespace KERBALISM
 
 		private string HabCO2Tooltip()
 		{
-			if (vd.ResHandler.TryGetResource(Settings.HabitatWasteResource, out VesselKSPResource wasteResource))
+			if (vd.ResHandler.TryGetResource(Settings.HabitatWasteResource, out VesselResourceKSP wasteResource))
 			{
-				return wasteResource.BrokerListTooltipTMP();
+				return wasteResource.BrokerListTooltip();
 			}
 
 			return string.Empty;
@@ -599,7 +613,7 @@ namespace KERBALISM
 			bool changed = false;
 			foreach (VesselResource handlerResource in vd.ResHandler.Resources)
 			{
-				if (handlerResource is VesselKSPResource resource && resource.Capacity > 0.0 && resource.Visible)
+				if (handlerResource is VesselResourceKSP resource && resource.Capacity > 0.0 && resource.Visible)
 				{
 					if (suppliesEntries.Count < resCount + 1)
 					{
@@ -747,7 +761,7 @@ namespace KERBALISM
 					}
 					else
 					{
-						ks.Add(vdFlight.filesTransmitted.Count.ToString(), KF.WhiteSpace, "files", " (", Lib.HumanReadableDataRate(vdFlight.filesTransmitted.Sum(i => i.transmitRate)), ")");
+						ks.Add(vdFlight.vesselComms.transmittedFiles.Count.ToString(), KF.WhiteSpace, "files", " (", Lib.HumanReadableDataRate(vdFlight.vesselComms.transmittedFiles.Sum(i => i.transmitRate)), ")");
 					}
 				}
 				else
@@ -758,55 +772,51 @@ namespace KERBALISM
 
 			transmit.Text = ks.End();
 
-			DriveHandler.GetDrivesInfo(vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
-				out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass);
-
 			ks = KsmString.Get;
 			ks.Add("Data");
 			ks.Format(KF.Position(commsLabelColumnWidth));
-			if (filesCapacity == 0.0)
+			if (vdFlight.vesselComms.drives.Count == 0)
 			{
 				ks.Format("no drive", KF.KolorOrange);
-
 			}
 			else
 			{
-				ks.Add(Lib.HumanReadableDataSize(filesSize), "/", filesCapacity < 0.0 ? "unlimited" : Lib.HumanReadableDataSize(filesCapacity));
+				ks.Add(Lib.HumanReadableDataSize(vdFlight.vesselComms.filesSize), "/", vdFlight.vesselComms.fileCapacity == double.MaxValue ? "unlimited" : Lib.HumanReadableDataSize(vdFlight.vesselComms.fileCapacity));
 
 			}
 
 			storedData.Text = ks.End();
 
-			if (filesCount > 0)
-				storedData.SetTooltip(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
-			else
-				storedData.SetTooltip(string.Empty);
+			//if (vdFlight.vesselComms.drives.Count > 0)
+			//	storedData.SetTooltip(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
+			//else
+			//	storedData.SetTooltip(string.Empty);
 
 
-			ks = KsmString.Get;
-			ks.Add("Samples");
-			ks.Format(KF.Position(commsLabelColumnWidth));
+			//ks = KsmString.Get;
+			//ks.Add("Samples");
+			//ks.Format(KF.Position(commsLabelColumnWidth));
 
-			if (slotsCapacity == 0.0)
-			{
-				ks.Format("no storage", KF.KolorOrange);
-			}
-			else
-			{
-				ks.Add(samplesSlots.ToString(), "/", slotsCapacity < 0.0 ? "unlimited" : slotsCapacity.ToString(), KF.WhiteSpace, "slots");
+			//if (slotsCapacity == 0.0)
+			//{
+			//	ks.Format("no storage", KF.KolorOrange);
+			//}
+			//else
+			//{
+			//	ks.Add(samplesSlots.ToString(), "/", slotsCapacity < 0.0 ? "unlimited" : slotsCapacity.ToString(), KF.WhiteSpace, "slots");
 
-				if (samplesMass > 0.0)
-				{
-					ks.Add(" (", Lib.HumanReadableMass(samplesMass), ")");
-				}
-			}
+			//	if (samplesMass > 0.0)
+			//	{
+			//		ks.Add(" (", Lib.HumanReadableMass(samplesMass), ")");
+			//	}
+			//}
 
-			samples.Text = ks.End();
+			//samples.Text = ks.End();
 
-			if (samplesCount > 0)
-				samples.SetTooltip(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
-			else
-				samples.SetTooltip(string.Empty);
+			//if (samplesCount > 0)
+			//	samples.SetTooltip(Lib.BuildString(samplesCount.ToString(), " ", "sample(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(samplesScience, true, true)));
+			//else
+			//	samples.SetTooltip(string.Empty);
 
 			int envLabelColumnWidth = 75;
 
@@ -875,14 +885,15 @@ namespace KERBALISM
 				ks.Info("Total science transmitted", Lib.HumanReadableScience(vdFlight.scienceTransmitted, true, true));
 			}
 
-			if (vdFlight.filesTransmitted.Count > 0)
+			if (vdFlight.vesselComms.transmittedFiles.Count > 0)
 			{
-				ks.Add("Transmitting", " :");
-				for (int i = 0; i < vdFlight.filesTransmitted.Count; i++)
+				ks.Add("Transmitting", " :").Break();
+
+				foreach (VesselComms.TransmittedFileInfo transmittedFile in vdFlight.vesselComms.transmittedFiles)
 				{
 					ks.Add("> ")
-						.Format(Lib.HumanReadableDataRate(vdFlight.filesTransmitted[i].transmitRate), KF.Position(80))
-						.Format(Lib.Ellipsis(vdFlight.filesTransmitted[i].subjectData.FullTitle, 30), KF.Position(120)).Break();
+						.Format(Lib.HumanReadableDataRate(transmittedFile.transmitRate))
+						.Format(Lib.Ellipsis(transmittedFile.subject.FullTitle, 40), KF.Position(60)).Break();
 				}
 			}
 

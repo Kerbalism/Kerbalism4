@@ -34,16 +34,18 @@ namespace KERBALISM
 			{
 				CommNetStormPatchApplied = true;
 
-				if (API.Comm.handlers.Count == 0 && !RemoteTech.Installed)
+				//if (API.Comm.handlers.Count == 0 && !RemoteTech.Installed)
+				if (!RemoteTech.Installed)
 				{
 					CommNetStormPatch();
 				}
 			}
 
 
-			if (API.Comm.handlers.Count > 0)
-				handler = new CommHandler();
-			else if (RemoteTech.Installed)
+			//if (API.Comm.handlers.Count > 0)
+			//	handler = new CommHandler();
+			//else if (RemoteTech.Installed)
+			if (RemoteTech.Installed)
 				handler = new CommHandlerRemoteTech();
 			else if (isGroundController)
 				handler = new CommHandlerCommNetSerenity();
@@ -63,8 +65,8 @@ namespace KERBALISM
 
 			UpdateInputs(connection);
 
-			if (API.Comm.handlers.Count == 0)
-			{
+			//if (API.Comm.handlers.Count == 0)
+			//{
 				if (NetworkIsReady)
 				{
 					if (resetTransmitters)
@@ -79,18 +81,18 @@ namespace KERBALISM
 
 					UpdateNetwork(connection);
 				}
-			}
-			else
-			{
-				try
-				{
-					API.Comm.handlers[0].Invoke(null, new object[] { connection, vd.Vessel });
-				}
-				catch (Exception e)
-				{
-					Lib.Log("CommInfo handler threw exception " + e.Message + "\n" + e.ToString(), Lib.LogLevel.Error);
-				}
-			}
+			//}
+			//else
+			//{
+			//	try
+			//	{
+			//		API.Comm.handlers[0].Invoke(null, new object[] { connection, vd.Vessel });
+			//	}
+			//	catch (Exception e)
+			//	{
+			//		Lib.Log("CommInfo handler threw exception " + e.Message + "\n" + e.ToString(), Lib.LogLevel.Error);
+			//	}
+			//}
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -108,7 +110,9 @@ namespace KERBALISM
 		{
 			connection.transmitting = vd.filesTransmitted.Count > 0;
 			connection.storm = vd.EnvStorm;
-			connection.powered = vd.ResHandler.ElectricCharge.CriticalConsumptionSatisfied;
+			// TODO : use the recipe !
+			connection.powered = vd.ResHandler.ElectricCharge.Amount > 0.0;
+			//connection.powered = vd.ResHandler.ElectricCharge.CriticalConsumptionSatisfied;
 		}
 
 		protected virtual bool NetworkIsReady => true;

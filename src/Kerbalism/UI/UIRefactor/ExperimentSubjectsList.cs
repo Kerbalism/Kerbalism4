@@ -2,6 +2,7 @@ using KERBALISM.KsmGui;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using TMPro;
@@ -156,13 +157,12 @@ namespace KERBALISM
 
 			public BodyContainer(KsmGuiBase parent, CelestialBody body, SituationsBiomesSubject situationsAndSubjects) : base(parent)
 			{
-				KsmGuiHeader header = new KsmGuiHeader(this, body.name, KsmGuiStyle.boxColor);
+				KsmGuiHeader header = new KsmGuiHeader(this, body.name, null, KsmGuiStyle.boxColor);
 				header.TextObject.TextComponent.fontStyle = FontStyles.Bold;
 				header.TextObject.TextComponent.color = Lib.KolorToColor(Lib.Kolor.Orange);
 				header.TextObject.TextComponent.alignment = TextAlignmentOptions.Left;
-				bodyToggle = new KsmGuiIconButton(header, Textures.KsmGuiTexHeaderArrowsUp, ToggleBody);
-				bodyToggle.SetIconColor(Lib.Kolor.Orange);
-				bodyToggle.MoveAsFirstChild();
+				bodyToggle = header.AddButton(Textures.KsmGuiTexHeaderArrowsUp, ToggleBody, null, true);
+				bodyToggle.SetIconColor(Kolor.Orange);
 
 				SubjectsContainer = new SubjectsContainer(this, situationsAndSubjects);
 			}

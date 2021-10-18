@@ -29,6 +29,9 @@
 
 		public void Load(ConfigNode node)
 		{
+			// Note : we can't set the definition here since it might be switched latter by B9PS
+			// This mean that the definition can't be used from OnLoad(), a quite annoying limitation
+			// 
 			definitionId = Lib.ConfigValue(node, VALUENAME_DEFINITION_ID, string.Empty);
 
 			OnLoad(node);
@@ -58,6 +61,11 @@
 
 
 			OnSave(node);
+		}
+
+		public void LoadDefinition(KsmPartModule prefab)
+		{
+			Definition = KsmModuleDefinitionLibrary.GetDefinition(prefab, definitionId);
 		}
 
 		public abstract KsmModuleDefinition Definition { get; set; }
@@ -99,6 +107,12 @@
 
 			if (!ReferenceEquals(loadedModule, null))
 				this.loadedModule = (TModule)loadedModule;
+		}
+
+		public override void ClearLoadedAndProtoModuleReferences()
+		{
+			protoModule = null;
+			loadedModule = null;
 		}
 
 		public override KsmModuleDefinition Definition { get => definition; set => definition = (TDefinition)value; }

@@ -27,6 +27,17 @@ namespace KERBALISM.KsmGui
 		/// </summary>
 		public virtual RectTransform ParentTransformForChilds => TopTransform;
 
+		public KsmGuiBase() { }
+
+		public void WindowSetup(GameObject contentTopObject, LayoutElement contentLayoutElement = null)
+		{
+			TopObject = contentTopObject;
+			TopTransform = (RectTransform)contentTopObject.transform;
+			LayoutElement = contentLayoutElement;
+			LayoutOptimizer = TopObject.AddComponent<KsmGuiLayoutOptimizer>();
+			TopObject.SetLayerRecursive(5);
+		}
+
 		public KsmGuiBase(KsmGuiBase parent)
 		{
 			TopObject = new GameObject(Name);

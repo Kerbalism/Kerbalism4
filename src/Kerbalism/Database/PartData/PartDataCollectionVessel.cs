@@ -196,7 +196,7 @@ namespace KERBALISM
 
 		#region PERSISTENCE
 
-public override void Save(ConfigNode VesselDataNode)
+		public override void Save(ConfigNode VesselDataNode)
 		{
 			ConfigNode partsNode = new ConfigNode(NODENAME_PARTS);
 			foreach (PartData partData in partList)
@@ -204,7 +204,6 @@ public override void Save(ConfigNode VesselDataNode)
 				bool isPersistent = false;
 				ConfigNode partNode = new ConfigNode(partData.flightId.ToString());
 
-				isPersistent |= VirtualPartResource.SavePartResources(partData, partNode);
 				isPersistent |= PartRadiationData.Save(partData, partNode);
 
 				if (isPersistent)
@@ -230,7 +229,6 @@ public override void Save(ConfigNode VesselDataNode)
 					continue;
 				}
 
-				VirtualPartResource.LoadPartResources(partData, partNode);
 				PartRadiationData.Load(partData, partNode);
 			}
 		}
@@ -239,7 +237,7 @@ public override void Save(ConfigNode VesselDataNode)
 
 		#region LIST/DICTIONARY IMPLEMENTATION
 
-		protected override List<PartData> Parts => partList;
+		public override List<PartData> Parts => partList;
 
 		// base implementation
 		public override PartData this[Part part] => partDictionary[part.flightID];
@@ -343,6 +341,7 @@ public override void Save(ConfigNode VesselDataNode)
 			{
 				partData.vesselData = vesselData;
 				Add(partData);
+				partData.OnPartWasTransferred(other.vesselData);
 			}
 
 			other.Clear(false);

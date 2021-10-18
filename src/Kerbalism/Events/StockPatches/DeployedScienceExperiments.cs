@@ -49,24 +49,26 @@ namespace KERBALISM
 				}
 				float scienceValue = storedScienceData * subject.subjectValue;
 				double dataSize = scienceValue / subjectData.SciencePerMB;
-				foreach (DriveHandler drive in DriveHandler.GetDrives(ControllerVessel.GetVesselData(), false)) {
-					//Lib.Log(Lib.BuildString("BREAKING GROUND -- ", subject.id, " | ", storedScienceData.ToString()));
-					if(drive.RecordFile(subjectData, dataSize, true))
-					{
-						//Lib.Log("BREAKING GROUND -- file recorded!");
-						Lib.ReflectionValue<float>(__instance, "transmittedScienceData", transmittedScienceData + scienceValue);
-						Lib.ReflectionValue<float>(__instance, "storedScienceData", 0f);
-						break;
-					}
-					else
-					{
-						//Lib.Log("BREAKING GROUND -- file NOT recorded!");
-						__result = true;
-						return false;
-					}
+
+				DriveHandler drive = DriveHandler.FindBestDriveForFile(ControllerVessel.GetVesselData(), null, out _);
+				if (drive == null)
+				{
+					__result = true;
+					return false;
 				}
+
+				DriveHandler.ScienceFile file = drive.RecordFile(subjectData, dataSize);
+				if (file == null)
+				{
+					__result = true;
+					return false;
+				}
+
+				Lib.ReflectionValue<float>(__instance, "transmittedScienceData", transmittedScienceData + scienceValue);
+				Lib.ReflectionValue<float>(__instance, "storedScienceData", 0f);
 				__result = false;
 			}
+
 			return false; // always return false so we don't continue to the original code
 		}
 	}

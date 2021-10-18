@@ -1,12 +1,13 @@
 ﻿namespace KERBALISM
 {
+	/*
 	public class GreenhouseHandler :
 		KsmModuleHandler<ModuleKsmGreenhouse, GreenhouseHandler, GreenhouseDefinition>,
 		IB9Switchable
 	{
 
-		public Process GrowthProcess { get; private set; } // the process associated with the process name, for convenience
-		public Process SetupProcess { get; private set; } // the process associated with the process name, for convenience
+		public ProcessOld GrowthProcess { get; private set; } // the process associated with the process name, for convenience
+		public ProcessOld SetupProcess { get; private set; } // the process associated with the process name, for convenience
 
 		public double growthRate; // Current max. rate [0..1] of growth process
 		private PartResourceWrapper setupResource;
@@ -85,8 +86,8 @@
 
 		private void GetProcesses()
 		{
-			GrowthProcess = Profile.processes.Find(p => p.name == definition.growthProcessName);
-			SetupProcess = Profile.processes.Find(p => p.name == definition.setupProcessName);
+			GrowthProcess = ProfileParser.processes.Find(p => p.name == definition.growthProcessName);
+			SetupProcess = ProfileParser.processes.Find(p => p.name == definition.setupProcessName);
 		}
 
 		private void GetSetupResource()
@@ -125,7 +126,7 @@
 			node.AddValue("setupRunning", setupRunning);
 		}
 
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
 			growthRate = setupResource != null ? setupResource.Level : 1.0;
 		}
@@ -147,8 +148,8 @@
 		public string GetSubtypeDescription(KsmModuleDefinition subTypeDefinition, string techRequired)
 		{
 			GreenhouseDefinition processControllerDefinition = (GreenhouseDefinition)subTypeDefinition;
-			Process setupProcess = Profile.processes.Find(p => p.name == processControllerDefinition.setupProcessName);
-			Process growthProcess = Profile.processes.Find(p => p.name == processControllerDefinition.growthProcessName);
+			ProcessOld setupProcess = ProfileParser.processes.Find(p => p.name == processControllerDefinition.setupProcessName);
+			ProcessOld growthProcess = ProfileParser.processes.Find(p => p.name == processControllerDefinition.growthProcessName);
 
 			if (growthProcess == null)
 				return null;
@@ -163,4 +164,5 @@
 			return growthProcess.GetInfo(processControllerDefinition.growthProcessCapacity, true);
 		}
 	}
+	*/
 }

@@ -51,7 +51,6 @@ namespace KERBALISM
 		public PartRadiationData radiationData;
 		public PartVolumeAndSurface.Definition volumeAndSurface;
 		public PartResourceCollection resources;
-		public PartVirtualResourceCollection virtualResources;
 		public List<ModuleHandler> modules = new List<ModuleHandler>();
 
 		/// <summary> Localized part title </summary>
@@ -72,13 +71,12 @@ namespace KERBALISM
 			PartPrefab = GetPartPrefab(part.partInfo);
 			loadedPart = part;
 			resources = new PartResourceCollection(this);
-			virtualResources = new PartVirtualResourceCollection(this);
 			volumeAndSurface = PartVolumeAndSurface.GetDefinition(PartPrefab);
 			radiationData = new PartRadiationData(this);
 			loadedPartDatas[part.GetInstanceID()] = this;
 
 			if (flightId != 0)
-				flightPartDatas.Add(flightId, this);
+				flightPartDatas[flightId] = this;
 		}
 
 		public PartData(VesselDataBase vesselData, ProtoPartSnapshot protopart)
@@ -91,12 +89,11 @@ namespace KERBALISM
 			PartPrefab = GetPartPrefab(protopart.partInfo);
 			this.protoPart = protopart;
 			resources = new PartResourceCollection(this);
-			virtualResources = new PartVirtualResourceCollection(this);
 			volumeAndSurface = PartVolumeAndSurface.GetDefinition(PartPrefab);
 			radiationData = new PartRadiationData(this);
 
 			if (flightId != 0)
-				flightPartDatas.Add(flightId, this);
+				flightPartDatas[flightId] = this;
 		}
 
 		/// <summary>
@@ -229,6 +226,14 @@ namespace KERBALISM
 					unloadedHandler.FirstSetup();
 					unloadedHandler.Start();
 				}
+			}
+		}
+
+		public void OnPartWasTransferred(VesselDataBase previousVessel)
+		{
+			foreach (ModuleHandler moduleHandler in modules)
+			{
+				moduleHandler.OnPartWasTransferred(previousVessel);
 			}
 		}
 

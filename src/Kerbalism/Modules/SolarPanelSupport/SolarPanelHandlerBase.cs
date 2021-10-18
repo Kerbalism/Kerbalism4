@@ -174,8 +174,12 @@ namespace KERBALISM
 		private static string locTerrain;
 		protected static string LocTerrain => locTerrain ?? (locTerrain = Localizer.Format("#autoLOC_438839"));
 
+		// recipe
+		private Recipe recipe;
+		private RecipeOutput ecOutput;
+
 		// persisted fields
-		public double nominalRate;
+		private double nominalRate;
 		public PanelState state;
 		public int trackedStarIndex = 0;
 		private bool manualTracking = false;
@@ -183,8 +187,8 @@ namespace KERBALISM
 		private bool isSubmerged = false;
 
 		// computed fields
+		private bool isProducing;
 		protected bool isSubstepping;
-		public double currentOutput;
 		private string rateFormat;
 		private ExposureState exposureState;
 		private double exposureFactor;
@@ -201,6 +205,9 @@ namespace KERBALISM
 
 		private static FieldInfo panelStatusField = AccessTools.Field(typeof(SolarPanelHandlerBase), nameof(panelStatus));
 		private static FieldInfo editorEnabledField = AccessTools.Field(typeof(SolarPanelHandlerBase), nameof(editorEnabled));
+
+		public double CurrentRate => isProducing ? ecOutput.ExecutedRate : 0.0;
+		public double NominalRate => nominalRate;
 
 		public virtual void Load(ConfigNode node)
 		{
@@ -224,6 +231,9 @@ namespace KERBALISM
 
 		public override void OnStart()
 		{
+			recipe = new Recipe(partData.Title, RecipeCategory.SolarPanel);
+			ecOutput = recipe.AddOutput(VesselResHandler.ElectricChargeId, nominalRate, false, false);
+
 			if (IsLoaded)
 			{
 				UI_Toggle toggle = new UI_Toggle();
@@ -258,6 +268,12 @@ namespace KERBALISM
 			// setup target module animation for custom star tracking
 			// TODO : Calling SetTrackedBody here will likely not work (ModuleHandler.OnStart is called before the module OnStart)
 			SetTrackedBody(FlightGlobals.Bodies[trackedStarIndex]);
+		}
+
+		protected void SetNominalECRate(double nominalRate)
+		{
+			this.nominalRate = nominalRate;
+			ecOutput.NominalRate = nominalRate;
 
 			// set how many decimal points are needed to show the panel Ec output in the UI
 			if (nominalRate < 0.1) rateFormat = "F4";
@@ -300,12 +316,11 @@ namespace KERBALISM
 		}
 
 
-
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
 			isSubstepping = ((VesselData)VesselData).IsSubstepping;
 
-			StateUpdate(elapsedSec);
+			isProducing = StateUpdate(elapsedSec);
 
 			if (IsLoaded && !Lib.IsEditor && Lib.IsPAWOpen(partData.LoadedPart))
 			{
@@ -316,7 +331,7 @@ namespace KERBALISM
 #endif
 		}
 
-		private void StateUpdate(double elapsedSec)
+		private bool StateUpdate(double elapsedSec)
 		{
 			if (IsLoaded)
 			{
@@ -327,20 +342,18 @@ namespace KERBALISM
 			if (!(state == PanelState.Extended || state == PanelState.ExtendedFixed || state == PanelState.Static))
 			{
 				exposureState = ExposureState.Disabled;
-				currentOutput = 0.0;
-				return;
+				return false;
 			}
 
 			if (Lib.IsEditor)
 			{
-				return;
+				return false;
 			}
 
 			if (isSubmerged)
 			{
 				exposureState = ExposureState.Submerged;
-				currentOutput = 0.0;
-				return;
+				return false;
 			}
 
 			if (trackedStar.sunlightFactor == 0.0)
@@ -426,11 +439,11 @@ namespace KERBALISM
 
 
 			// get final output rate in EC/s
-			currentOutput = nominalRate * wearFactor * distanceFactor * exposureFactor;
+			double finalFactor = wearFactor * distanceFactor * exposureFactor;
 
 			// produce EC
-			VesselData.ResHandler.ElectricCharge.Produce(currentOutput * elapsedSec, ResourceBroker.GetOrCreate("sp2", ResourceBroker.BrokerCategory.SolarPanel, "sp2"));
-
+			recipe.RequestExecution(VesselData.ResHandler, finalFactor);
+			return true;
 		}
 
 		private void PAWUpdate()
@@ -459,31 +472,30 @@ namespace KERBALISM
 				else
 				{
 					KsmString status = KsmString.Get;
-
 					switch (exposureState)
 					{
 						case ExposureState.Exposed:
-							status.Add(currentOutput.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ", Local.SolarPanelFixer_exposure, KF.WhiteSpace);
+							status.Add(CurrentRate.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ", Local.SolarPanelFixer_exposure, KF.WhiteSpace);
 							status.Format(exposureFactor, "P0");
 							break;
 						case ExposureState.InShadow:
-							if (currentOutput > 0.001) status.Add(currentOutput.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
+							if (CurrentRate > 0.001) status.Add(CurrentRate.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
 							status.Format(Local.SolarPanelFixer_inshadow, KF.KolorYellow); //in shadow
 							break;
 						case ExposureState.OccludedTerrain:
-							if (currentOutput > 0.001) status.Add(currentOutput.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
+							if (CurrentRate > 0.001) status.Add(CurrentRate.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
 							status.Format(Local.SolarPanelFixer_occludedbyterrain, KF.KolorYellow); //occluded by terrain
 							break;
 						case ExposureState.OccludedPart:
-							if (currentOutput > 0.001) status.Add(currentOutput.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
+							if (CurrentRate > 0.001) status.Add(CurrentRate.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
 							status.Format(Local.SolarPanelFixer_occludedby.Format(occludingObject), KF.KolorYellow); //occluded by <<object>>
 							break;
 						case ExposureState.BadOrientation:
-							if (currentOutput > 0.001) status.Add(currentOutput.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
+							if (CurrentRate > 0.001) status.Add(CurrentRate.ToString(rateFormat), KF.WhiteSpace, Lib.ECAbbreviation, "/s, ");
 							status.Format(Local.SolarPanelFixer_badorientation, KF.KolorYellow); //bad orientation
 							break;
 						case ExposureState.Submerged:
-							status.Format("Submerged", KF.KolorYellow); //bad orientation
+							status.Format("Submerged", KF.KolorYellow);
 							break;
 					}
 
@@ -542,14 +554,14 @@ namespace KERBALISM
 		public virtual void OnSetTrackedBody(CelestialBody body) { }
 
 		/// <summary>Automation : override this with "return false" if the module doesn't support automation when loaded</summary>
-		public virtual bool SupportAutomation(SolarPanelFixer.PanelState state)
+		public virtual bool SupportAutomation(PanelState state)
 		{
 			switch (state)
 			{
-				case SolarPanelFixer.PanelState.Retracted:
-				case SolarPanelFixer.PanelState.Extending:
-				case SolarPanelFixer.PanelState.Extended:
-				case SolarPanelFixer.PanelState.Retracting:
+				case PanelState.Retracted:
+				case PanelState.Extending:
+				case PanelState.Extended:
+				case PanelState.Retracting:
 					return true;
 				default:
 					return false;
@@ -579,6 +591,8 @@ namespace KERBALISM
 		public virtual void Retract() { }
 
 		///<summary>Automation : Called OnLoad, must set the target module persisted extended/retracted fields to reflect changes done trough automation while unloaded</summary>
-		protected virtual void SetDeployedStateOnLoad(SolarPanelFixer.PanelState state) { }
+		protected virtual void SetDeployedStateOnLoad(PanelState state) { }
+
+
 	}
 }

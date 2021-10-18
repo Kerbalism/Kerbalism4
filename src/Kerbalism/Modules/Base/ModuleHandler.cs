@@ -39,6 +39,7 @@ namespace KERBALISM
 			public readonly string handlerTypeName;
 			public readonly string[] moduleTypeNames;
 			public readonly bool isPersistent;
+			public readonly bool isActiveCargo;
 			public readonly bool isKsmModule;
 			public readonly ActivationContext activation;
 
@@ -56,6 +57,7 @@ namespace KERBALISM
 				handlerTypeName = type.Name;
 				moduleTypeNames = dummyInstance.ModuleTypeNames;
 				isPersistent = dummyInstance is IPersistentModuleHandler;
+				isActiveCargo = dummyInstance is IActiveStoredHandler;
 				activation = dummyInstance.Activation;
 				isKsmModule = dummyInstance.GetType().IsSubclassOf(typeof(KsmModuleHandler));
 			}
@@ -72,6 +74,8 @@ namespace KERBALISM
 
 		/// <summary> for every KsmPartModule derived class name, the corresponding ModuleData constructor delegate </summary>
 		public static HashSet<string> persistentHandlersByModuleName = new HashSet<string>();
+
+		public static HashSet<string> activeCargoHandlersByModuleName = new HashSet<string>();
 
 		public static void RegisterPartModuleHandlerTypes()
 		{
@@ -94,6 +98,11 @@ namespace KERBALISM
 							{
 								persistentHandlersByModuleName.Add(moduleTypeName);
 							}
+
+							if (handlerType.isActiveCargo)
+							{
+								activeCargoHandlersByModuleName.Add(moduleTypeName);
+							}
 						}
 
 					}
@@ -114,7 +123,7 @@ namespace KERBALISM
 		public const string VALUENAME_SHIPID = "ksmShipId";
 
 		/// <summary> dictionary of all IPersistentModuleHandlers game-wide, by flightId</summary>
-		private static Dictionary<int, IPersistentModuleHandler> persistentFlightModuleHandlers = new Dictionary<int, IPersistentModuleHandler>();
+		protected static Dictionary<int, IPersistentModuleHandler> persistentFlightModuleHandlers = new Dictionary<int, IPersistentModuleHandler>();
 
 		public static void SavePersistentHandlers(PartDataCollectionBase partDatas, ConfigNode vesselDataNode)
 		{
@@ -129,7 +138,8 @@ namespace KERBALISM
 
 					// note : the customized node name is for save readibility, but it also has a functional use
 					// in the EditorCrewChanged GameEvent handling (see Events > Habitat)
-					ConfigNode handlerNode = topNode.AddNode(Lib.BuildString(partData.Name, "@", persistentHandler.GetType().Name));
+					string nodeName = (partData.Name + "@" + persistentHandler.GetType().Name).KeyToNodeName();
+					ConfigNode handlerNode = topNode.AddNode(nodeName);
 
 					if (persistentHandler.FlightId != 0)
 					{
@@ -245,7 +255,7 @@ namespace KERBALISM
 			}
 		}
 
-		private static int NewFlightId(IPersistentModuleHandler moduleHandler)
+		protected static int NewFlightId(IPersistentModuleHandler moduleHandler)
 		{
 			int flightId = 0;
 			do
@@ -357,8 +367,9 @@ namespace KERBALISM
 
 			ModuleHandler moduleHandler = handlerType.activator.Invoke();
 
-			if (moduleHandler is IPersistentModuleHandler persistentHandler)
+			if (handlerType.isPersistent)
 			{
+				IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler) moduleHandler;
 				int flightId = NewFlightId(persistentHandler);
 				persistentHandler.FlightId = flightId;
 				Lib.Proto.Set(protoModule, VALUENAME_FLIGHTID, flightId);
@@ -447,7 +458,9 @@ namespace KERBALISM
 
 		/// <summary>
 		/// Name of the type of the PartModule the handler will be attached to. Implemented by default in KsmModuleHandler and
-		/// TypedModuleHandler. Need to be overriden on a per-type basis for ForeignModuleHandler and APIModuleHandler.
+		/// TypedModuleHandler. Need to be overriden on a per-type basis for ForeignModuleHandler. <br/>
+		/// Note 1 : if the type has a derived child classes that you want to target too, they need to be specified explicitely.
+		/// Note 2 : this must be constant and accessible right after instantiation, you can't attach any logic to this.
 		/// </summary>
 		public abstract string[] ModuleTypeNames { get; }
 
@@ -459,17 +472,11 @@ namespace KERBALISM
 		/// </summary>
 		public abstract ActivationContext Activation { get; }
 
+		public abstract void ClearLoadedAndProtoModuleReferences();
+
 		public override string ToString() => $"{GetType().Name} - loaded={LoadedModuleBase != null}";
 
 		public abstract void SetModuleReferences(PartModule prefabModule, PartModule loadedModule);
-
-		public void VesselDataUpdate()
-		{
-			if (!handlerIsEnabled)
-				return;
-
-			OnVesselDataUpdate();
-		}
 
 		public virtual void FirstSetup()
 		{
@@ -540,18 +547,7 @@ namespace KERBALISM
 		/// This is intended to entirely replace the PartModule.FixedUpdate() method, ideally the PartModule shouldn't have one.
 		/// </summary>
 		/// <param name="elapsedSec"></param>
-		public virtual void OnFixedUpdate(double elapsedSec) { }
-
-		/// <summary>
-		/// Override this to implement "for every module" type code whose result will be further processed by VesselData. <br/>
-		/// Typically you will implement said processing in VesselDataBase.ModuleDataUpdate(); <br/>
-		/// This is called at every VesselData full update : <br/>
-		/// - On loaded vessels : at a variable interval (less frequently than FixedUpdate)<br/>
-		/// - On unloaded vessels : every VesselData update (less frequently than FixedUpdate)<br/>
-		/// - In the editor : on every planner simulation step <br/>
-		/// </summary>
-		/// <param name="elapsedSec">elapsed game time since last update</param>
-		public virtual void OnVesselDataUpdate() { }
+		public virtual void OnUpdate(double elapsedSec) { }
 
 		/// <summary>
 		/// Called only once for the life of the part, when the part is about to be definitely removed from the game.
@@ -567,6 +563,11 @@ namespace KERBALISM
 		/// Called when a previously loaded handler will become unloaded
 		/// </summary>
 		public virtual void OnBecomingUnloaded() { }
+
+		/// <summary>
+		/// Called when the part now belongs to a different vessel.
+		/// </summary>
+		public virtual void OnPartWasTransferred(VesselDataBase previousVessel) { }
 
 		#endregion
 

@@ -15,10 +15,12 @@ namespace KERBALISM
 
 		public SubjectData subjectData;
 
+		public bool transmit;
+
 		/// <summary> this is for UI purpose only, and can be unreliable in some situations, do not use this for evaluating things</summary>
 		public double transmitRate = 0.0;
 
-		public DriveFile(SubjectData subjectData, double size = 0.0, bool useStockCrediting = false, string resultText = "")
+		public DriveFile(SubjectData subjectData, double size = 0.0, bool useStockCrediting = false, string resultText = "", bool transmit = true)
 		{
 			this.subjectData = subjectData;
 			this.size = size;
@@ -33,6 +35,8 @@ namespace KERBALISM
 				this.resultText = ResearchAndDevelopment.GetResults(subjectData.StockSubjectId);
 			else
 				this.resultText = resultText;
+
+			this.transmit = transmit;
 		}
 
 		public static DriveFile Load(string integerSubjectId, ConfigNode node)
@@ -57,8 +61,9 @@ namespace KERBALISM
 
 			string resultText = Lib.ConfigValue(node, "resultText", "");
 			bool useStockCrediting = Lib.ConfigValue(node, "useStockCrediting", false);
+			bool transmit = Lib.ConfigValue(node, "transmit", true);
 
-			return new DriveFile(subjectData, size, useStockCrediting, resultText);
+			return new DriveFile(subjectData, size, useStockCrediting, resultText, transmit);
 		}
 
 		public void Save(ConfigNode node)
@@ -66,6 +71,7 @@ namespace KERBALISM
 			node.AddValue("size", size);
 			node.AddValue("resultText", resultText);
 			node.AddValue("useStockCrediting", useStockCrediting);
+			node.AddValue("transmit", transmit);
 
 			if (subjectData is UnknownSubjectData)
 				node.AddValue("stockSubjectId", subjectData.StockSubjectId);

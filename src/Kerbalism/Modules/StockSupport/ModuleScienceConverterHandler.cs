@@ -5,34 +5,45 @@ namespace KERBALISM
     // Basic support for the stock science converter : consume EC and scale data production by EC availability.
     // Should work reliably as long as you don't start using all the weird features of BaseConverter
     public class ModuleScienceConverterHandler : TypedModuleHandler<ModuleScienceConverter>
-    {
+	{
 		public override ActivationContext Activation => ActivationContext.Unloaded;
 
 		private double lastElapsedSec = 0.0;
+		private ProtoModuleValueDouble lastUpdateTime;
 
-        public override void OnStart()
+		private Recipe recipe;
+
+		public override void OnStart()
         {
-			if (!Lib.Proto.GetBool(protoModule, "IsActivated"))
+			if (!Lib.Proto.GetBool(protoModule, nameof(ModuleScienceConverter.IsActivated))
+			|| !ProtoModuleValueDouble.TryGet(protoModule.moduleValues, "lastUpdateTime", out lastUpdateTime))
             {
 				handlerIsEnabled = false;
+				return;
             }
-		}
 
-        public override void OnFixedUpdate(double elapsedSec)
+			recipe = new Recipe(partData.Title, RecipeCategory.ScienceLab, OnRecipeExecuted);
+			recipe.AddInput(VesselResHandler.ElectricChargeId, prefabModule.powerRequirement);
+        }
+
+        public override void OnUpdate(double elapsedSec)
         {
-			VesselData.ResHandler.ElectricCharge.Consume(prefabModule.powerRequirement * elapsedSec, ResourceBroker.ScienceLab);
+	        recipe.RequestExecution(VesselData.ResHandler);
+	        lastElapsedSec = elapsedSec;
+        }
 
-			// The strategy here is to increase the last update time when there isn't enough EC,
-			// to trick the stock post-facto simulation into producing less data.
-            if (VesselData.ResHandler.ElectricCharge.AvailabilityFactor < 1.0)
-            {
-				double lastUT = Lib.Proto.GetDouble(protoModule, "lastUpdateTime");
-				lastUT += lastElapsedSec * (1.0 - VesselData.ResHandler.ElectricCharge.AvailabilityFactor);
-				// make sure we don't accidentally set lastUpdateTime in the future (shouldn't happen but better safe than sorry)
-				Lib.Proto.Set(protoModule, "lastUpdateTime", Math.Min(lastUT, Planetarium.GetUniversalTime()));
-			}
+        public void OnRecipeExecuted(double elapsedSec)
+        {
+	        if (recipe.ExecutedFactor < 1.0)
+	        {
+				double lastUT = lastUpdateTime.Value;
 
-			lastElapsedSec = elapsedSec;
-		}
+				// The strategy here is to increase the last update time when there isn't enough EC,
+				// to trick the stock post-facto simulation into producing less data.
+				// We make sure we don't accidentally set lastUpdateTime in the future (shouldn't happen but better safe than sorry)
+				lastUT = Math.Min(lastUT + (lastElapsedSec * (1.0 - recipe.ExecutedFactor)), Planetarium.GetUniversalTime());
+				lastUpdateTime.Value = lastUT;
+	        }
+        }
 	}
 }

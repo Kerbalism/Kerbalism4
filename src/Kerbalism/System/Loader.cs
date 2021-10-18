@@ -82,13 +82,14 @@ namespace KERBALISM
 			// get time base configuration
 			Settings.ParseTime();
 
-			// parse the calendar according to orbital paraemters (Kopernicus support)
+			// parse the calendar according to orbital parameters (Kopernicus support)
 			string calendarInfo = Lib.SetupCalendar();
 			Lib.Log($"Parsing calendar : {calendarInfo}");
-			Lib.Log($"{Lib.HoursInDayExact.ToString()} exact hours per day, {Lib.DaysInYearExact.ToString()} exact days per year");
-			Lib.Log($"{Lib.HoursInDayFloored.ToString()} floored hours per day, {Lib.DaysInYearFloored.ToString()} floored days per year");
+			Lib.Log($"{Lib.HoursInDayExact} exact hours per day, {Lib.DaysInYearExact} exact days per year");
+			Lib.Log($"{Lib.HoursInDayFloored} floored hours per day, {Lib.DaysInYearFloored} floored days per year");
 
 			Assembly executingAssembly = Assembly.GetExecutingAssembly();
+
 			// Compile module definitions activators 
 			KsmModuleDefinitionLibrary.Init(executingAssembly);
 
@@ -99,7 +100,7 @@ namespace KERBALISM
 			Settings.CheckMods();
 
 			// Parse profile (supply, rules, processes...)
-			Profile.Parse();
+			ProfileParser.Parse();
 
 			// Parse module definitions
 			KsmModuleDefinitionLibrary.Parse();
@@ -137,6 +138,7 @@ namespace KERBALISM
 			{
 				ErrorManager.AddError(true, "ModuleManager not found");
 				ErrorManager.CheckErrors(true);
+				return;
 			}
 
 			PartVolumeAndSurface.SaveCache();

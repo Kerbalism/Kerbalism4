@@ -66,7 +66,7 @@ namespace KERBALISM
 							" of RemoteTech currently installed." + Environment.NewLine + "Please update your installation of RemoteTech to the latest version.", Lib.LogLevel.Warning);
 					}
 
-					API.Failure.Add(RTFailureHandler);
+					//API.Failure.Add(RTFailureHandler);
 					break;
 				}
 			}

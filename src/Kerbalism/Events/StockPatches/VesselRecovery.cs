@@ -101,31 +101,31 @@ namespace KERBALISM
 
 			double scienceToCredit = 0.0;
 
-			foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
+			foreach (DriveHandler drive in DriveHandler.GetDrives(vd))
 			{
-				foreach (DriveFile file in drive.files.Values)
+				foreach (DriveHandler.ScienceFile file in drive.Files)
 				{
-					double subjectValue = file.subjectData.ScienceValue(file.size);
-					file.subjectData.RemoveScienceCollectedInFlight(subjectValue);
+					double subjectValue = file.SubjectData.ScienceValue(file.Size);
+					file.SubjectData.RemoveScienceCollectedInFlight(subjectValue);
 
-					if (file.useStockCrediting)
+					if (file.UseStockCrediting)
 					{
 						file.ConvertToStockData().Save(protoHardDrive.moduleValues.AddNode("ScienceData"));
-						file.subjectData.SetAsPersistent();
+						file.SubjectData.SetAsPersistent();
 					}
 					else
 					{
-						double scienceCredited = file.subjectData.RetrieveScience(subjectValue, false, pv);
+						double scienceCredited = file.SubjectData.RetrieveScience(subjectValue, false, pv);
 						scienceToCredit += scienceCredited;
 
 						// stock recovery dialog is shown only if quick is false
 						if (!quick)
 						{
 							RecoveryWidgetData entry = new RecoveryWidgetData(
-								file.subjectData.RnDSubject,
+								file.SubjectData.RnDSubject,
 								(float)scienceCredited,
-								Lib.BuildString(file.subjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
-								Lib.BuildString(file.subjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
+								Lib.BuildString(file.SubjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
+								Lib.BuildString(file.SubjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
 								Lib.BuildString(scienceCredited.ToString("+0.0"), " ", "earned"));
 
 							recoveryScienceWidgets.Add(entry);
@@ -133,29 +133,29 @@ namespace KERBALISM
 					}
 				}
 
-				foreach (Sample sample in drive.samples.Values)
+				foreach (DriveHandler.ScienceSample sample in drive.Samples)
 				{
-					double subjectValue = sample.subjectData.ScienceValue(sample.size);
-					sample.subjectData.RemoveScienceCollectedInFlight(subjectValue);
+					double subjectValue = sample.SubjectData.ScienceValue(sample.Size);
+					sample.SubjectData.RemoveScienceCollectedInFlight(subjectValue);
 
-					if (sample.useStockCrediting)
+					if (sample.UseStockCrediting)
 					{
 						sample.ConvertToStockData().Save(protoHardDrive.moduleValues.AddNode("ScienceData"));
-						sample.subjectData.SetAsPersistent();
+						sample.SubjectData.SetAsPersistent();
 					}
 					else
 					{
-						double scienceCredited = sample.subjectData.RetrieveScience(subjectValue, false, pv);
+						double scienceCredited = sample.SubjectData.RetrieveScience(subjectValue, false, pv);
 						scienceToCredit += scienceCredited;
 
 						// stock recovery dialog is shown only if quick is false
 						if (!quick)
 						{
 							RecoveryWidgetData entry = new RecoveryWidgetData(
-								sample.subjectData.RnDSubject,
+								sample.SubjectData.RnDSubject,
 								(float)scienceCredited,
-								Lib.BuildString(sample.subjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
-								Lib.BuildString(sample.subjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
+								Lib.BuildString(sample.SubjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
+								Lib.BuildString(sample.SubjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
 								Lib.BuildString(scienceCredited.ToString("+0.0"), " ", "earned"));
 
 							recoveryScienceWidgets.Add(entry);

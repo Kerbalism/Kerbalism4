@@ -9,7 +9,7 @@ using static KERBALISM.HabitatHandler;
 namespace KERBALISM
 {
 	// Data structure holding the vessel wide habitat state, evaluated from VesselData
-	public class HabitatVesselData
+	public class VesselHabitat
 	{
 		/// <summary> volume (m3) of enabled and under breathable conditions habitats</summary>
 		public double livingVolume = 0.0;
@@ -31,6 +31,8 @@ namespace KERBALISM
 
 		/// <summary> [0.0 ; 1.0] amount of crew members not living with their helmets (pressurized hab / outside air) vs total crew count</summary>
 		public double pressureFactor = 0.0;
+
+		public int breathingCrewCount = 0;
 
 		/// <summary> [0.0 ; 1.0] % of CO2 in the air (averaged in case there is a mix of pressurized / outside air habitats)</summary>
 		public double poisoningLevel = 0.0;
@@ -61,7 +63,7 @@ namespace KERBALISM
 		/// <summary> current gravity, artificial or from the main body if landed</summary>
 		public double gravity = 0.0;
 
-		public Dictionary<string, ComfortInfoBase> comforts = new Dictionary<string, ComfortInfoBase>();
+		public ComfortInfoBase[] comforts;
 
 		/// <summary> active comforts count</summary>
 		public int comfortsActiveCount;
@@ -74,11 +76,12 @@ namespace KERBALISM
 
 		public List<HabitatHandler> Habitats { get; private set; } = new List<HabitatHandler>();
 
-		public HabitatVesselData()
+		public VesselHabitat()
 		{
-			foreach (KeyValuePair<string, ComfortDefinition> comfortDef in ComfortDefinition.definitions)
+			comforts = new ComfortInfoBase[ComfortDefinition.definitions.Count];
+			for (int i = 0; i < ComfortDefinition.definitions.Count; i++)
 			{
-				comforts.Add(comfortDef.Key, comfortDef.Value.GetComfortInfo());
+				comforts[i] = ComfortDefinition.definitions[i].GetComfortInfo();
 			}
 		}
 
@@ -100,7 +103,7 @@ namespace KERBALISM
 				= shieldingAmount = comfortsAverageLevel = comfortsTotalBonus = radiationAmbiantOcclusion = radiationEmittersOcclusion
 				= radiationRate = sunRadiationFactor = emittersRadiation = activeRadiationShielding = artificialGravity = gravity = 0.0;
 
-			comfortsActiveCount = 0;
+			comfortsActiveCount = breathingCrewCount = 0;
 
 			// the list of habitats will iterated over by every radiation emitter/shield, so build the list once.
 			Habitats.Clear();
@@ -118,11 +121,10 @@ namespace KERBALISM
 			double centrifugeVolume = 0;
 			double radiationConsideredPartVolume = 0.0;
 
-			foreach (ComfortInfoBase comfort in comforts.Values)
+			foreach (ComfortInfoBase comfort in comforts)
 			{
 				comfort.Reset();
 			}
-
 
 			for (int i = 0; i < Habitats.Count; i++)
 			{
@@ -152,12 +154,13 @@ namespace KERBALISM
 
 							foreach (ComfortValue comfort in habitat.definition.comforts)
 							{
-								((ComfortModuleInfo)comforts[comfort.Name]).AddComfortValue(comfort);
+								((ComfortModuleInfo)comforts[comfort.definition.definitionIndex]).AddComfortValue(comfort);
 							}
 
 							break;
 						case PressureState.Pressurized:
 						case PressureState.DepressurizingAboveThreshold:
+							breathingCrewCount += habitat.crewCount;
 							pressurizedVolume += habitat.definition.volume;
 							livingVolume += habitat.definition.volume;
 							pressurizedSurface += habitat.definition.surface;
@@ -183,7 +186,7 @@ namespace KERBALISM
 
 							foreach (ComfortValue comfort in habitat.definition.comforts)
 							{
-								((ComfortModuleInfo)comforts[comfort.Name]).AddComfortValue(comfort);
+								((ComfortModuleInfo)comforts[comfort.definition.definitionIndex]).AddComfortValue(comfort);
 							}
 
 							break;
@@ -191,6 +194,7 @@ namespace KERBALISM
 						case PressureState.Depressurized:
 						case PressureState.Pressurizing:
 						case PressureState.DepressurizingBelowThreshold:
+							breathingCrewCount += habitat.crewCount;
 							if (habitat.crewCount > 0)
 							{
 								shieldingSurface += habitat.definition.surface;
@@ -266,7 +270,7 @@ namespace KERBALISM
 			else
 				gravity = 0.0;
 
-			foreach (ComfortInfoBase comfort in comforts.Values)
+			foreach (ComfortInfoBase comfort in comforts)
 			{
 				comfort.ComputeLevel(vd);
 				if (comfort.Level > 0.0)
@@ -279,7 +283,7 @@ namespace KERBALISM
 				comfortsTotalBonus += comfort.Bonus;
 			}
 
-			comfortsAverageLevel /= comforts.Count;
+			comfortsAverageLevel /= comforts.Length;
 		}
 	}
 }

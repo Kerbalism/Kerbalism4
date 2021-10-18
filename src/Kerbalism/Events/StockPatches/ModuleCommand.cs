@@ -63,6 +63,7 @@ namespace KERBALISM
 	[HarmonyPatch("FixedUpdate")]
 	class ModuleCommand_FixedUpdate
 	{
+		// TODO : refactor this so the EC consumption is handled by the ModuleCommandHandler, and get a reference to the handler from here
 		static void Postfix(ModuleCommand __instance, ref VesselControlState ___localVesselControlState, ref ModuleControlState ___moduleState)
 		{
 			if (Lib.IsEditor)
@@ -76,31 +77,31 @@ namespace KERBALISM
 			if (__instance.hibernationMultiplier == 0.0)
 				return;
 
-			VesselKSPResource ec = vd.ResHandler.ElectricCharge;
+			VesselResourceKSP ec = vd.ResHandler.ElectricCharge;
 
-			// do not consume if this is a non-probe MC with no crew
-			// this make some sense: you left a vessel with some battery and nobody on board, you expect it to not consume EC
-			if (__instance.minimumCrew == 0 || __instance.part.protoModuleCrew.Count > 0)
-			{
-				double ecRate = __instance.hibernationMultiplier;
-				if (__instance.hibernation)
-					ecRate *= Settings.HibernatingEcFactor;
+			//// do not consume if this is a non-probe MC with no crew
+			//// this make some sense: you left a vessel with some battery and nobody on board, you expect it to not consume EC
+			//if (__instance.minimumCrew == 0 || __instance.part.protoModuleCrew.Count > 0)
+			//{
+			//	double ecRate = __instance.hibernationMultiplier;
+			//	if (__instance.hibernation)
+			//		ecRate *= Settings.HibernatingEcFactor;
 
-				ec.Consume(ecRate * Kerbalism.elapsed_s, ResourceBroker.Command, true);
-			}
+			//	ec.Consume(ecRate * Kerbalism.elapsed_s, RecipeCategory.Command, true);
+			//}
 
-			// replicate the resource checking code of ModuleCommand.UpdateControlSourceState()
-			// and the resulting states set from ModuleCommand.FixedUpdate()
-			if (!ec.CriticalConsumptionSatisfied)
-			{
-				__instance.part.isControlSource = Vessel.ControlLevel.NONE;
-				___moduleState = ModuleControlState.NotEnoughResources;
+			//// replicate the resource checking code of ModuleCommand.UpdateControlSourceState()
+			//// and the resulting states set from ModuleCommand.FixedUpdate()
+			//if (!ec.CriticalConsumptionSatisfied)
+			//{
+			//	__instance.part.isControlSource = Vessel.ControlLevel.NONE;
+			//	___moduleState = ModuleControlState.NotEnoughResources;
 
-				if (__instance.minimumCrew > 0)
-					___localVesselControlState = VesselControlState.Kerbal;
-				else
-					___localVesselControlState = VesselControlState.Probe;
-			}
+			//	if (__instance.minimumCrew > 0)
+			//		___localVesselControlState = VesselControlState.Kerbal;
+			//	else
+			//		___localVesselControlState = VesselControlState.Probe;
+			//}
 		}
 	}
 

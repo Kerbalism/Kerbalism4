@@ -1,27 +1,41 @@
 ﻿namespace KERBALISM
 {
-	// note : this work in conjunction with the ModuleCommand patch and some special handling in VesselData
+	// note : this works in conjunction/spaghetti with the ModuleCommand patch and some special handling in VesselData
     public class ModuleCommandHandler : TypedModuleHandler<ModuleCommand>
     {
 		public override ActivationContext Activation => ActivationContext.Unloaded;
 
-        public override void OnFixedUpdate(double elapsedSec)
+		public string BrokerTitle => ModuleTitle;
+
+		private ProtoModuleValueBool hibernation;
+
+		private Recipe ecRecipe;
+
+		public override void OnStart()
+		{
+			if (!ProtoModuleValueBool.TryGet(protoModule.moduleValues, nameof(ModuleCommand.hibernation), out hibernation))
+			{
+				handlerIsEnabled = false;
+				return;
+			}
+
+			double ecRate = Lib.Proto.GetDouble(protoModule, nameof(ModuleCommand.hibernationMultiplier), 0.02);
+			ecRecipe = new Recipe(partData.Title, RecipeCategory.Command);
+			ecRecipe.AddInput(VesselResHandler.ElectricChargeId, ecRate);
+		}
+
+		public override void OnUpdate(double elapsedSec)
         {
-			bool hibernating = Lib.Proto.GetBool(protoModule, nameof(ModuleCommand.hibernation), false);
+			bool hibernating = hibernation.Value;
 
 			if (!hibernating)
 				((VesselData)VesselData).hasNonHibernatingCommandModules = true;
 
-			// do not consume if this is a non-probe MC with no crew
-			// this make some sense: you left a vessel with some battery and nobody on board, you expect it to not consume EC
+			// do not consume if this is an uncrewed non-probe module
 			if (prefabModule.minimumCrew == 0 || partData.ProtoPart.protoModuleCrew.Count > 0)
 			{
-				double ecRate = Lib.Proto.GetDouble(protoModule, nameof(ModuleCommand.hibernationMultiplier), 0.02);
-
-				if (hibernating)
-					ecRate *= Settings.HibernatingEcFactor;
-
-				VesselData.ResHandler.ElectricCharge.Consume(ecRate * elapsedSec, ResourceBroker.Command, true);
+				double recipeFactor = hibernating ? Settings.HibernatingEcFactor : 1.0;
+				ecRecipe.RequestExecution(VesselData.ResHandler, recipeFactor);
 			}
 		}
     }

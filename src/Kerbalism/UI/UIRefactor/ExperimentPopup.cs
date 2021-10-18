@@ -64,19 +64,17 @@ namespace KERBALISM
 			activePopups.Add(popupId);
 
 			// create the window
-			window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, KsmGuiStyle.defaultWindowOpacity, true, 0, TextAnchor.UpperLeft, 5f);
+			window = new KsmGuiWindow(KsmGuiLib.Orientation.Vertical, true, KsmGuiStyle.defaultWindowOpacity, true, 0, TextAnchor.UpperLeft, 5f);
 			window.OnClose = () => activePopups.Remove(popupId);
 			window.SetLayoutElement(false, false, -1, -1, -1, 150);
 			window.SetUpdateAction(() => canInteract = vd.Connection.linked || vd.CrewCount > 0);
 
 			// top header
-			KsmGuiHeader topHeader = new KsmGuiHeader(window, data.definition.ExpInfo.Title, default, 120);
+			KsmGuiHeader topHeader = new KsmGuiHeader(window, data.definition.ExpInfo.Title, null, default, 120);
 			topHeader.TextObject.SetTooltip(Lib.BuildString(Local.SCIENCEARCHIVE_onvessel, " : ", Lib.Bold(data.VesselData.VesselName), "\n", Local.SCIENCEARCHIVE_onpart, " : ", Lib.Bold(data.partData.Title)));
-			rndVisibilityButton = new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderRnD, ToggleArchivePanel);//"show science archive"
-			rndVisibilityButton.MoveAsFirstChild();
-			expInfoVisibilityButton = new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderInfo, ToggleExpInfo);//"show experiment info"
-			expInfoVisibilityButton.MoveAsFirstChild();
-			new KsmGuiIconButton(topHeader, Textures.KsmGuiTexHeaderClose, () => window.Close());//"close"
+			topHeader.AddButton(Textures.KsmGuiTexHeaderRnD, ToggleArchivePanel, Local.SCIENCEARCHIVE_showarchive, true); //"show science archive"
+			topHeader.AddButton(Textures.KsmGuiTexHeaderInfo, ToggleExpInfo, Local.SCIENCEARCHIVE_showexperimentinfo, true); //"show experiment info"
+			topHeader.AddButton(Textures.KsmGuiTexHeaderClose, () => window.Close()); //"close"
 
 			// 2 columns
 			KsmGuiHorizontalLayout panels = new KsmGuiHorizontalLayout(window, 5, 0, 0, 0, 0);

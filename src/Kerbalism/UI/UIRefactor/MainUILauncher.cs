@@ -126,11 +126,17 @@ namespace KERBALISM
 
 		private void InstantiateWindow()
 		{
-			mainWindow = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, false, 0, TextAnchor.UpperLeft, 0f,
+			mainWindow = new KsmGuiWindow(KsmGuiLib.Orientation.Vertical, true, 0.8f, false, 0, TextAnchor.UpperLeft, 0f,
 				ApplicationLauncher.Instance.IsPositionedAtTop ? TextAnchor.UpperRight : TextAnchor.LowerRight,
 				ApplicationLauncher.Instance.IsPositionedAtTop ? TextAnchor.UpperRight : TextAnchor.LowerRight,
 				ApplicationLauncher.Instance.IsPositionedAtTop ? -40 : 0,
 				ApplicationLauncher.Instance.IsPositionedAtTop ? 0 : 40);
+
+			//mainWindow = new KsmGuiScrollableWindow(0.8f, 370, -1, 600,
+			//	ApplicationLauncher.Instance.IsPositionedAtTop ? TextAnchor.UpperRight : TextAnchor.LowerRight,
+			//	ApplicationLauncher.Instance.IsPositionedAtTop ? TextAnchor.UpperRight : TextAnchor.LowerRight,
+			//	ApplicationLauncher.Instance.IsPositionedAtTop ? -40 : 0,
+			//	ApplicationLauncher.Instance.IsPositionedAtTop ? 0 : 40);
 
 			mainWindow.TopTransform.sizeDelta = new Vector2(370, 800);
 
@@ -144,7 +150,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				new MainUIFlight(mainWindow);
+				new MainUIFlight(mainWindow, ApplicationLauncher.Instance.IsPositionedAtTop);
 			}
 		}
 

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static KERBALISM.Planner.Planner;
 
 namespace KERBALISM
 {
@@ -36,6 +35,7 @@ namespace KERBALISM
 		public void Start()
 		{
 			Synchronizer.Synchronize();
+			vesselComms.Init(this);
 
 			foreach (PartData part in ShipParts)
 			{
@@ -154,7 +154,42 @@ namespace KERBALISM
 
 		#region PLANNER METHODS
 
-		public void Analyze(CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
+		private static readonly Situation situationLanded = new Situation(0, Situation.LandedAlt, "Landed", "On the body surface");
+		private static readonly Situation situationLowOrbit = new Situation(1, Situation.LowOrbitAlt, "Low Orbit", "Just above safe altitude");
+		private static readonly Situation situationMidOrbit = new Situation(2, Situation.MidOrbitAlt, "Med. Orbit", "Four times the body radius");
+		private static readonly Situation situationHighOrbit = new Situation(3, Situation.HighOrbitAlt, "High Orbit", "Half the SOI limit");
+		private static readonly Situation[] situations = { situationLanded, situationLowOrbit, situationMidOrbit, situationHighOrbit };
+
+		public class Situation
+		{
+			public int index;
+			public string displayName;
+			public string tooltip;
+			private Func<CelestialBody, double> altitudeFunc;
+
+			public Situation(int index, Func<CelestialBody, double> altitudeFunc, string displayName, string tooltip)
+			{
+				this.index = index;
+				this.altitudeFunc = altitudeFunc;
+				this.displayName = displayName;
+				this.tooltip = tooltip;
+			}
+
+			public Situation Next => situations[(index + 1) % situations.Length];
+			public Situation Previous => situations[(index == 0 ? situations.Length : index) - 1];
+			public Situation Default => situations[1];
+			public double Altitude(CelestialBody body) => altitudeFunc(body);
+			public string AltitudeStr(CelestialBody body) => Lib.HumanReadableDistance(altitudeFunc(body));
+
+			public static double LandedAlt(CelestialBody body) => 0.0;
+			public static double LowOrbitAlt(CelestialBody body) => body.atmosphereDepth + 20000.0;
+			public static double MidOrbitAlt(CelestialBody body) => body.Radius * 4.0;
+			public static double HighOrbitAlt(CelestialBody body) => double.IsInfinity(body.sphereOfInfluence) ? body.Radius * 1000.0 : body.sphereOfInfluence * 0.5;
+		}
+
+		public enum SunlightState { SunlightNominal = 0, SunlightSimulated = 1, Shadow = 2 }
+
+		public void Analyze(CelestialBody body, Situation situation, SunlightState sunlight)
 		{
 			// Note : Vessel execution flow :
 
@@ -169,7 +204,6 @@ namespace KERBALISM
 			AnalyzeCrew();
 			AnalyzeComms();
 			//AnalyzeRadiation(parts);
-			AnalyzeReliability();
 
 			Simulate();
 		}
@@ -210,7 +244,7 @@ namespace KERBALISM
 					if (!module.handlerIsEnabled)
 						continue;
 
-					module.OnFixedUpdate(elapsedSec);
+					module.OnUpdate(elapsedSec);
 				}
 			}
 
@@ -219,18 +253,18 @@ namespace KERBALISM
 				kerbal.OnFixedUpdate(this, elapsedSec);
 			}
 
-			foreach (Process process in Profile.processes)
-			{
-				process.Execute(this, elapsedSec);
-			}
+			//foreach (ProcessOld process in ProfileParser.processes)
+			//{
+			//	process.Execute(this, elapsedSec);
+			//}
 
 			// process comms
-			resHandler.ElectricCharge.Consume(connection.ec_idle, ResourceBroker.CommsIdle);
-			if (connection.ec > 0.0)
-				resHandler.ElectricCharge.Consume(connection.ec - connection.ec_idle, ResourceBroker.CommsXmit);
+			//resHandler.ElectricCharge.Consume(connection.ec_idle, RecipeCategory.CommsIdle);
+			//if (connection.ec > 0.0)
+			//	resHandler.ElectricCharge.Consume(connection.ec - connection.ec_idle, RecipeCategory.CommsXmit);
 		}
 
-		private void AnalyzeEnvironment(CelestialBody body, Planner.Planner.Situation situation, SunlightState sunlight)
+		private void AnalyzeEnvironment(CelestialBody body, Situation situation, SunlightState sunlight)
 		{
 			this.body = body;
 			altitude = situation.Altitude(body);
@@ -355,96 +389,6 @@ namespace KERBALISM
 
 			commHandler.Update(connection, minHomeDistance, maxHomeDistance);
 		}
-
-		//private void AnalyzeRadiation(List<Part> parts)
-		//{
-		//	// scan the parts
-		//	emitted = 0.0;
-		//	foreach (Part p in parts)
-		//	{
-		//		// for each module
-		//		foreach (PartModule m in p.Modules)
-		//		{
-		//			// skip disabled modules
-		//			if (!m.isEnabled)
-		//				continue;
-
-		//			// accumulate emitter radiation
-		//			if (m.moduleName == "Emitter")
-		//			{
-		//				Emitter emitter = m as Emitter;
-		//				emitter.Recalculate();
-
-		//				if (emitter.running)
-		//				{
-		//					if (emitter.radiation > 0) emitted += emitter.radiation * emitter.radiation_impact;
-		//					else emitted += emitter.radiation;
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
-
-
-		private void AnalyzeReliability()
-		{
-			// reset data
-			highQuality = 0.0;
-			components = 0;
-			failureYear = 0.0;
-			redundancy = new Dictionary<string, int>();
-
-			// scan the parts
-			foreach (PartData partData in ShipParts)
-			{
-				// for each module
-				foreach (PartModule m in partData.LoadedPart.Modules)
-				{
-					// skip disabled modules
-					if (!m.isEnabled)
-						continue;
-
-					// malfunctions
-					if (m.moduleName == "Reliability")
-					{
-						Reliability reliability = m as Reliability;
-
-						// calculate mtbf
-						double mtbf = reliability.mtbf * (reliability.quality ? Settings.QualityScale : 1.0);
-						if (mtbf <= 0) continue;
-
-						// accumulate failures/y
-						failureYear += Settings.ConfigsSecondsInYear / mtbf;
-
-						// accumulate high quality percentage
-						highQuality += reliability.quality ? 1.0 : 0.0;
-
-						// accumulate number of components
-						++components;
-
-						// compile redundancy data
-						if (reliability.redundancy.Length > 0)
-						{
-							int count = 0;
-							if (redundancy.TryGetValue(reliability.redundancy, out count))
-							{
-								redundancy[reliability.redundancy] = count + 1;
-							}
-							else
-							{
-								redundancy.Add(reliability.redundancy, 1);
-							}
-						}
-
-					}
-				}
-			}
-
-			// calculate high quality percentage
-			highQuality /= Math.Max(components, 1u);
-		}
-
-
 
 		#endregion
 	}

@@ -81,87 +81,34 @@ namespace KERBALISM
 			ConfigsSecondsInYear = ConfigsDaysInYear * ConfigsHoursInDays * 3600.0;
 
 			ConfigsDurationMultiplier = Lib.ConfigValue(cfg, "ConfigsTimeMultiplier", 1.0);
-			UseHomeBodyCalendar = Lib.ConfigValue(cfg, "UseHomeBodyCalendar", true);
 		}
 
 		public static void Parse()
 		{
 			var kerbalismConfigNodes = GameDatabase.Instance.GetConfigs("KERBALISM_SETTINGS");
 			if (kerbalismConfigNodes.Length < 1) return;
-			ConfigNode cfg = kerbalismConfigNodes[0].config;
+			ConfigNode node = kerbalismConfigNodes[0].config;
 
-			// habitat & pressure 
-			PressureSuitVolume = Lib.ConfigValue(cfg, "PressureSuitVolume", 100.0);
-			HabitatAtmoResource = Lib.ConfigValue(cfg, "HabitatAtmoResource", "KsmAtmosphere");
-			HabitatWasteResource = Lib.ConfigValue(cfg, "HabitatWasteResource", "KsmWasteAtmosphere");
-			HabitatBreathableResource = Lib.ConfigValue(cfg, "HabitatBreathableResource", "Oxygen");
-			HabitatBreathableResourceRate = Lib.ConfigValue(cfg, "HabitatBreathableResourceRate", 0.00172379825);
-			DepressuriationDefaultDuration = Lib.ConfigDuration(cfg, "DepressuriationDefaultDuration", false, "5m");
-			PressureThreshold = Lib.ConfigValue(cfg, "PressureThreshold", 0.3);
+			CFGValue.ParseStatic(typeof(Settings), node);
 
-			// poisoning
-			PoisoningFactor = Lib.ConfigValue(cfg, "PoisoningFactor", 0.0);
-			PoisoningThreshold = Lib.ConfigValue(cfg, "PoisoningThreshold", 0.02);
+			DepressuriationDefaultDurationValue = Lib.ConfigDuration(node, "DepressuriationDefaultDuration", false, "5m");
 
-			// radiation
-			WallThicknessForOcclusion = Lib.ConfigValue(cfg, "WallThicknessForOcclusion", PartRadiationData.PART_WALL_THICKNESS_OCCLUSION);
-			WallThicknessForMassFraction = Lib.ConfigValue(cfg, "WallThicknessForMassFraction", PartRadiationData.PART_WALL_THICKNESS_MASSFRACTION);
+			if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(HabitatAtmoResource))
+				ErrorManager.AddError(true, "KERBALISM_SETTINGS parsing error", $"HabitatAtmoResource {HabitatAtmoResource} doesn't exists");
+			else
+				HabitatAtmoResourceId = PartResourceLibrary.Instance.GetDefinition(HabitatAtmoResource).id;
 
-			// signal
-			UnlinkedControl = Lib.ConfigEnum(cfg, "UnlinkedControl", UnlinkedCtrl.none);
-			DataRateMinimumBitsPerSecond = Lib.ConfigValue(cfg, "DataRateMinimumBitsPerSecond", 1.0);
-			DataRateSurfaceExperiment = Lib.ConfigValue(cfg, "DataRateSurfaceExperiment", 0.3f);
-			TransmitterActiveEcFactor = Lib.ConfigValue(cfg, "TransmitterActiveEcFactor", 1.5);
-			TransmitterPassiveEcFactor = Lib.ConfigValue(cfg, "TransmitterPassiveEcFactor", 0.04);
-			DampingExponentOverride = Lib.ConfigValue(cfg, "DampingExponentOverride", 0.0);
+			if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(HabitatWasteResource))
+				ErrorManager.AddError(true, "KERBALISM_SETTINGS parsing error", $"HabitatWasteResource {HabitatWasteResource} doesn't exists");
+			else
+				HabitatWasteResourceId = PartResourceLibrary.Instance.GetDefinition(HabitatWasteResource).id;
 
-			// science
-			ScienceDialog = Lib.ConfigValue(cfg, "ScienceDialog", true);
-			AsteroidSampleMassPerMB = Lib.ConfigValue(cfg, "AsteroidSampleMassPerMB", 0.00002);
+			if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(HabitatBreathableResource))
+				ErrorManager.AddError(true, "KERBALISM_SETTINGS parsing error", $"HabitatBreathableResource {HabitatBreathableResource} doesn't exists");
+			else
+				HabitatBreathableResourceId = PartResourceLibrary.Instance.GetDefinition(HabitatBreathableResource).id;
 
-			// reliability
-			QualityScale = Lib.ConfigValue(cfg, "QualityScale", 4.0);
-
-			// crew level
-			LaboratoryCrewLevelBonus = Lib.ConfigValue(cfg, "LaboratoryCrewLevelBonus", 0.2);
-			MaxLaborartoryBonus = Lib.ConfigValue(cfg, "MaxLaborartoryBonus", 2.0);
-			HarvesterCrewLevelBonus = Lib.ConfigValue(cfg, "HarvesterCrewLevelBonus", 0.1);
-			MaxHarvesterBonus = Lib.ConfigValue(cfg, "MaxHarvesterBonus", 2.0);
-
-			// misc
-			EnforceCoherency = Lib.ConfigValue(cfg, "EnforceCoherency", true);
-			HeadLampsCost = Lib.ConfigValue(cfg, "HeadLampsCost", 0.002);
-			LowQualityRendering = Lib.ConfigValue(cfg, "LowQualityRendering", false);
-			UIScale = Lib.ConfigValue(cfg, "UIScale", 1.0f);
-			UIPanelWidthScale = Lib.ConfigValue(cfg, "UIPanelWidthScale", 1.0f);
-			HibernatingEcFactor = Lib.ConfigValue(cfg, "HibernatingEcFactor", 0.001);
-
-			// save game settings presets
-			LifeSupportAtmoLoss = Lib.ConfigValue(cfg, "LifeSupportAtmoLoss", 50);
-			LifeSupportSurvivalTemperature = Lib.ConfigValue(cfg, "LifeSupportSurvivalTemperature", 295);
-			LifeSupportSurvivalRange = Lib.ConfigValue(cfg, "LifeSupportSurvivalRange", 5);
-
-			ComfortLivingSpace = Lib.ConfigValue(cfg, "ComfortLivingSpace", 20);
-			ComfortFirmGround = Lib.ConfigValue(cfg, "ComfortFirmGround", 0.3f);
-			ComfortExercise = Lib.ConfigValue(cfg, "ComfortExercise", 0.2f);
-			ComfortNotAlone = Lib.ConfigValue(cfg, "ComfortNotAlone", 0.3f);
-			ComfortCallHome = Lib.ConfigValue(cfg, "ComfortCallHome", 0.2f);
-			ComfortPanorama = Lib.ConfigValue(cfg, "ComfortPanorama", 0.1f);
-			ComfortPlants = Lib.ConfigValue(cfg, "ComfortPlants", 0.1f);
-
-			StormFrequency = Lib.ConfigValue(cfg, "StormFrequency", 0.4f);
-			StormDurationHours = Lib.ConfigValue(cfg, "StormDurationHours", 2);
-			StormEjectionSpeed = Lib.ConfigValue(cfg, "StormEjectionSpeed", 0.33f);
-			StormRadiation = Lib.ConfigValue(cfg, "StormRadiation", 5.0f) / 3600f;
-			ExternRadiation = Lib.ConfigValue(cfg, "ExternRadiation", 0.04f) / 3600f;
-			RadiationInSievert = Lib.ConfigValue(cfg, "RadiationInSievert", false);
-
-			EnableOrbitLineTweaks = Lib.ConfigValue(cfg, "EnableOrbitLineTweaks", true);
-
-			// debug / logging
-			VolumeAndSurfaceLogging = Lib.ConfigValue(cfg, "VolumeAndSurfaceLogging", false);
-
-			foreach (ConfigNode modNode in cfg.GetNodes(ModToCheck.NODENAME))
+			foreach (ConfigNode modNode in node.GetNodes(ModToCheck.NODENAME))
 			{
 				ModToCheck mod = ModToCheck.Get(modNode);
 				if (mod != null)
@@ -172,8 +119,6 @@ namespace KERBALISM
 						modsIncompatible.Add(mod);
 				}
 			}
-
-			loaded = true;
 		}
 
 		public static void CheckMods()
@@ -205,90 +150,120 @@ namespace KERBALISM
 		}
 
 		// time
-		public static double ConfigsHoursInDays;                // used when parsing duration fields in configs. Doesn't affect the "displayed" calendar, only relevant for configs.
-		public static double ConfigsDaysInYear;                 // used when parsing duration fields in configs. Doesn't affect the "displayed" calendar, only relevant for configs.
-		public static double ConfigsDurationMultiplier;         // multiplier applied to all config defined duraton fields (experiments, reliability...)
-		public static bool UseHomeBodyCalendar;					// if true, the ingame displayed time will use the calendar as determined by the home body rotation period and it's orbit rotation period.
-																// if false, the values from the "kerbin time" / "earth time" KSP main menu setting will be used.
+
+		/// <summary>used when parsing duration fields in configs. Doesn't affect the "displayed" calendar, only relevant for configs</summary>
+		public static double ConfigsHoursInDays = 6.0;
+		/// <summary>used when parsing duration fields in configs. Doesn't affect the "displayed" calendar, only relevant for configs</summary>
+		public static double ConfigsDaysInYear = 426.0;
+		/// <summary>multiplier applied to all config defined duraton fields (experiments, reliability...)</summary>
+		public static double ConfigsDurationMultiplier = 1.0;
+
+		/// <summary>
+		/// if true, the ingame displayed time will use the calendar as determined by the home body rotation period and it's orbit rotation period.
+		/// if false, the values from the "kerbin time" / "earth time" KSP main menu setting will be used.
+		/// </summary>
+		[CFGValue] public static bool UseHomeBodyCalendar = true;
+
 		// convenience values (not config defined)
 		public static double ConfigsSecondsInDays;
 		public static double ConfigsSecondsInYear;
 
 		// habitat
-		public static double PressureSuitVolume;                // pressure / EVA suit volume in liters, used for determining CO2 poisoning level while kerbals are in a depressurized habitat
-		public static string HabitatAtmoResource;               // resource used to manage habitat pressure
-		public static string HabitatWasteResource;              // resource used to manage habitat CO2 level (poisoning)
-		public static string HabitatBreathableResource;         // resource automagically produced when the habitat is under breathable external conditions (Oxygen in the default profile)
-		public static double HabitatBreathableResourceRate;     // per second, per kerbal production of the breathable resource. Should match the consumption defined in the breathing rule. Set it to 0 to disable it entirely.
-		public static double DepressuriationDefaultDuration;    // seconds / m3 of habitat volume
-		public static double PressureThreshold;                 // below that threshold, the vessel will be considered under non-survivable pressure and kerbals will put their helmets.
-																// also determine the altitude at which non-pressurized habitats can use the external air.
-																// note that while ingame we display hab pressure as % with no unit, 100 % = 1 atm = 101.325 kPa for all internal calculations
 
-		// poisoning
-		public static double PoisoningFactor;                   // poisoning modifier value for vessels below threshold
-		public static double PoisoningThreshold;                // level of waste atmosphere resource that determine co2 poisoning status
+		/// <summary>pressure / EVA suit volume in liters, used for determining CO2 poisoning level while kerbals are in a depressurized habitat</summary>
+		[CFGValue] public static double PressureSuitVolume = 100.0;
+		/// <summary>resource used to manage habitat pressure</summary>
+		[CFGValue] public static string HabitatAtmoResource = "KsmAtmosphere";
+		/// <summary>resource used to manage habitat CO2 level (poisoning)</summary>
+		[CFGValue] public static string HabitatWasteResource = "KsmWasteAtmosphere";
+		/// <summary>resource automagically produced when the habitat is under breathable external conditions (Oxygen in the default profile)</summary>
+		[CFGValue] public static string HabitatBreathableResource = "Oxygen";
+		/// <summary> per second, per kerbal production of the breathable resource. Should match the consumption defined in the breathing rule. Set it to 0 to disable it entirely.</summary>
+		[CFGValue] public static double HabitatBreathableResourceRate = 0.00172379825;
+		/// <summary>duration / m3 of habitat volume</summary>
+		[CFGValue] public static double DepressuriationDefaultDuration = 60.0 * 60.0 * 5.0;
 
-		public static double WallThicknessForOcclusion;         // Default 0.004 - Constant wall thickness (m) of all parts  used for radiation occlusion.
-		public static double WallThicknessForMassFraction;      // Default 0.02 - Constant wall thickness (m) used to determine the part structural mass that will be considered for occlusion.
-																// Separate from the occlusion thickness to account for KSP unrealistic part densities, can be set lower on a SMURFF/RO game.
+		/// <summary>
+		/// below that threshold, the vessel will be considered under non-survivable pressure and kerbals will put their helmets.
+		/// also determine the altitude at which non-pressurized habitats can use the external air.
+		/// note that while ingame we display hab pressure as % with no unit, 100 % = 1 atm = 101.325 kPa for all internal calculations
+		/// </summary>
+		[CFGValue] public static double PressureThreshold = 0.3;
+
+		/// <summary>seconds / m3 of habitat volume</summary>
+		public static double DepressuriationDefaultDurationValue;
+		/// <summary>resource used to manage habitat pressure</summary>
+		public static int HabitatAtmoResourceId;
+		/// <summary>resource used to manage habitat CO2 level (poisoning)</summary>
+		public static int HabitatWasteResourceId;
+		/// <summary>resource automagically produced when the habitat is under breathable external conditions (Oxygen in the default profile)</summary>
+		public static int HabitatBreathableResourceId;
+
+		// radiation
+
+		/// <summary>Default 0.004 - Constant wall thickness (m) of all parts  used for radiation occlusion</summary>
+		[CFGValue] public static double WallThicknessForOcclusion = PartRadiationData.PART_WALL_THICKNESS_OCCLUSION;
+		/// <summary>
+		/// Default 0.02 - Constant wall thickness (m) used to determine the part structural mass that will be considered for occlusion.
+		/// Separate from the occlusion thickness to account for KSP unrealistic part densities, can be set lower on a SMURFF/RO game.
+		/// </summary>
+		[CFGValue] public static double WallThicknessForMassFraction = PartRadiationData.PART_WALL_THICKNESS_MASSFRACTION;
 
 		// signal
-		public static UnlinkedCtrl UnlinkedControl;             // available control for unlinked vessels: 'none', 'limited' or 'full'
-		public static double DataRateMinimumBitsPerSecond;      // as long as there is a control connection, the science data rate will never go below this.
-		public static float DataRateSurfaceExperiment;          // transmission rate for surface experiments (Serenity DLC)
-		public static double TransmitterActiveEcFactor;         // how much of the configured EC rate is used while transmitter is active
-		public static double TransmitterPassiveEcFactor;        // how much of the configured EC rate is used while transmitter is passive
-		public static double DampingExponentOverride;           // Kerbalism will calculate a damping exponent to achieve good data communication rates (see log file, search for DataRateDampingExponent). If the calculated value is not good for you, you can set your own.
+
+		/// <summary>available control for unlinked vessels: 'none', 'limited' or 'full'</summary>
+		[CFGValue] public static UnlinkedCtrl UnlinkedControl = UnlinkedCtrl.none;
+		/// <summary>as long as there is a control connection, the science data rate will never go below this</summary>
+		[CFGValue] public static double DataRateMinimumBitsPerSecond = 1.0;
+		/// <summary>transmission rate for surface experiments (Serenity DLC)</summary>
+		[CFGValue] public static float DataRateSurfaceExperiment = 0.3f;
+		/// <summary>how much of the configured EC rate is used while transmitter is active</summary>
+		[CFGValue] public static double TransmitterActiveEcFactor = 1.5;
+		/// <summary>how much of the configured EC rate is used while transmitter is passive</summary>
+		[CFGValue] public static double TransmitterPassiveEcFactor = 0.04;
+		/// <summary>
+		/// Kerbalism will calculate a damping exponent to achieve good data communication rates (see log file, search for DataRateDampingExponent).
+		/// If the calculated value is not good for you, you can set your own.
+		/// </summary>
+		[CFGValue] public static double DampingExponentOverride = 0.0;
 
 		// science
-		public static bool ScienceDialog;                       // keep showing the stock science dialog
-		public static double AsteroidSampleMassPerMB;           // When taking an asteroid sample, mass (in t) per MB of sample (baseValue * dataScale). default of 0.00002 => 34 Kg in stock
 
-		// reliability
-		public static double QualityScale;                      // scale applied to MTBF for high-quality components
-
-
-		// crew level
-		public static double LaboratoryCrewLevelBonus;          // factor for laboratory rate speed gain per crew level above minimum
-		public static double MaxLaborartoryBonus;               // max bonus to be gained by having skilled crew on a laboratory
-		public static double HarvesterCrewLevelBonus;           // factor for harvester speed gain per engineer level above minimum
-		public static double MaxHarvesterBonus;                 // max bonus to be gained by having skilled engineers on a mining rig
+		/// <summary>keep showing the stock science dialog</summary>
+		[CFGValue] public static bool ScienceDialog = true;
+		/// <summary>
+		/// When taking an asteroid sample, mass (in t) per MB of sample (baseValue * dataScale).
+		/// default of 0.00002 => 34 Kg in stock
+		/// </summary>
+		[CFGValue] public static double AsteroidSampleMassPerMB = 0.00002;
 
 		// misc
-		public static bool EnforceCoherency;                    // detect and avoid issues at high timewarp in external modules
-		public static double HeadLampsCost;                     // EC/s cost if eva headlamps are on
-		public static bool LowQualityRendering;                 // use less particles to render the magnetic fields
-		public static float UIScale;                            // scale UI elements by this factor, relative to KSP scaling settings, useful for high PPI screens
-		public static float UIPanelWidthScale;                  // scale UI Panel Width by this factor, relative to KSP scaling settings, useful for high PPI screens
-		public static double HibernatingEcFactor;               // % of ec consumed on hibernating probes (ModuleCommand.hibernationMultiplier is ignored by Kerbalism)
+
+		/// <summary>use less particles to render the magnetic fields</summary>
+		[CFGValue] public static bool LowQualityRendering = false;
+		/// <summary>detect and avoid issues at high timewarp in external modules</summary>
+		[CFGValue] public static bool EnforceResourceCoherency = true;
+		/// <summary>EC/s cost if eva headlamps are on</summary>
+		[CFGValue] public static double HeadLampsECCost = 0.002;
+		/// <summary>% of ec consumed on hibernating probes (ModuleCommand.hibernationMultiplier is ignored by Kerbalism)</summary>
+		[CFGValue] public static double HibernatingEcFactor = 0.001;
+		/// <summary></summary>
+		[CFGValue] public static bool EnableOrbitLineTweaks = true;
 
 		// presets for save game preferences
 
-		public static int LifeSupportAtmoLoss;
-		public static int LifeSupportSurvivalTemperature;
-		public static int LifeSupportSurvivalRange;
-		public static int ComfortLivingSpace;
-		public static float ComfortFirmGround;
-		public static float ComfortExercise;
-		public static float ComfortNotAlone;
-		public static float ComfortCallHome;
-		public static float ComfortPanorama;
-		public static float ComfortPlants;
-
-		public static float StormFrequency;
-		public static int StormDurationHours;
-		public static float StormEjectionSpeed;
-		public static float ShieldingEfficiency;
-		public static float StormRadiation;
-		public static float ExternRadiation;
-		public static bool RadiationInSievert; // use Sievert iso. rad
+		[CFGValue] public static float StormFrequency = 0.4f;
+		[CFGValue] public static int StormDurationHours = 2;
+		[CFGValue] public static float StormEjectionSpeed = 0.33f;
+		[CFGValue] public static float StormRadiation = 5f / 3600f;
+		[CFGValue] public static float ExternRadiation = 0.04f / 3600f;
+		/// <summary>use sievert instead of rad</summary>
+		[CFGValue] public static bool RadiationInSievert = false;
 
 		// debug / logging
-		public static bool VolumeAndSurfaceLogging;
 
-		public static bool loaded { get; private set; } = false;
-		public static bool EnableOrbitLineTweaks = true;
-    }
+		[CFGValue] public static bool VolumeAndSurfaceLogging = false;
+		[CFGValue] public static bool LogProcessesMassConservationInfo = false;
+	}
 
-} // KERBALISM
+}

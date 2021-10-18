@@ -97,7 +97,7 @@ namespace KERBALISM
 
 		}
 
-		public void Update(bool requestSpin, bool loosingSpeed, float energyFactor = 1f)
+		public void Update(bool requestSpin, bool loosingSpeed, float elapsedSec, float energyFactor = 1f)
 		{
 			if (!IsDefined)
 				return;
@@ -111,7 +111,7 @@ namespace KERBALISM
 			// loosing speed
 			if (requestSpin && loosingSpeed && currentSpinRate <= targetSpinRate)
 			{
-				currentSpinRate -= spinLosses * TimeWarp.deltaTime * (1f - energyFactor);
+				currentSpinRate -= spinLosses * elapsedSec * (1f - energyFactor);
 				if (currentSpinRate <= 0f)
 				{
 					currentSpinRate = 0f;
@@ -121,8 +121,8 @@ namespace KERBALISM
 			// accelerating, accouting for spinLosses
 			else if (requestSpin && currentSpinRate < targetSpinRate)
 			{
-				currentSpinRate += spinAccel * TimeWarp.deltaTime * energyFactor;
-				currentSpinRate -= spinLosses * TimeWarp.deltaTime;
+				currentSpinRate += spinAccel * elapsedSec * energyFactor;
+				currentSpinRate -= spinLosses * elapsedSec;
 
 				if (currentSpinRate >= targetSpinRate)
 				{
@@ -166,16 +166,16 @@ namespace KERBALISM
 
 				// decelerate when we are at the right spot to reach zero point
 
-				float errorDelta = Lib.Clamp(deltaToStop - deltaToZero, 0f, spinAccel * TimeWarp.deltaTime);
+				float errorDelta = Lib.Clamp(deltaToStop - deltaToZero, 0f, spinAccel * elapsedSec);
 
 				if (deltaToStop >= deltaToZero && deltaToStop <= deltaToZero + currentSpinRate)
 					currentSpinRate =
 						currentSpinRate
-						- (spinAccel * TimeWarp.deltaTime) // remove speed using the acceleration rate
+						- (spinAccel * elapsedSec) // remove speed using the acceleration rate
 						- errorDelta; // compensate the current position to make sure we stop at the zero point (± the FP precison) 
 
 				// we will never exactly reach the stop point, so just force it
-				if (deltaToStop <= spinAccel * TimeWarp.deltaTime)
+				if (deltaToStop <= spinAccel * elapsedSec)
 				{
 					currentSpinRate = 0f;
 					if (IsAnimator)
@@ -192,7 +192,7 @@ namespace KERBALISM
 				return;
 
 			// clamp visual effect to 10° / frame (note : not sure how that will interact with the stopping code... Should be fine ?)
-			float spinDelta = Mathf.Clamp(currentSpinRate * TimeWarp.deltaTime, 0f, 10f);
+			float spinDelta = Mathf.Clamp(currentSpinRate * elapsedSec, 0f, 10f);
 			if (invertPlayDirection)
 				spinDelta *= -1f;
 

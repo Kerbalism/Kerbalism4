@@ -7,6 +7,8 @@ namespace KERBALISM.KsmGui
 {
 	public static class KsmGuiLib
 	{
+		public enum Orientation { Vertical, Horizontal }
+
 		public static void SetParentFixScale(this Transform child, Transform parent)
 		{
 			child.SetParent(parent, false);

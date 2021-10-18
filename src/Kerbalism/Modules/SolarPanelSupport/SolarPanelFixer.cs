@@ -1,6 +1,8 @@
 // TODO: DEPRECIATED : (very) partially re-implemented (only stock module support) as a ModuleHandler
 // Keeping it as a reference until everything is re-implemented
 
+/*
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,7 +11,6 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 using KSP.Localization;
-using KERBALISM.Planner;
 using System.Linq;
 using EdyCommonTools;
 
@@ -513,7 +514,7 @@ namespace KERBALISM
 			}
 
 			// produce EC
-			vd.ResHandler.ElectricCharge.Produce(currentOutput * Kerbalism.elapsed_s, ResourceBroker.SolarPanel);
+			vd.ResHandler.ElectricCharge.Produce(currentOutput * Kerbalism.elapsed_s, RecipeCategory.SolarPanel);
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -559,7 +560,7 @@ namespace KERBALISM
 			double output = nominalRate * efficiencyFactor;
 
 			// produce EC
-			ec.Produce(output * elapsed_s, ResourceBroker.SolarPanel);
+			ec.Produce(output * elapsed_s, RecipeCategory.SolarPanel);
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -572,7 +573,7 @@ namespace KERBALISM
 				{
 					case Planner.Planner.SunlightState.SunlightNominal:
 						editorOutput = nominalRate * (vesselData.IrradianceStarTotal / Sim.SolarFluxAtHome);
-						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, ResourceBroker.GetOrCreate("solar panel (nominal)", ResourceBroker.BrokerCategory.SolarPanel, "solar panel (nominal)"));
+						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, RecipeCategory.GetOrCreate("solar panel (nominal)", RecipeCategory.BrokerCategory.SolarPanel, "solar panel (nominal)"));
 						break;
 					case Planner.Planner.SunlightState.SunlightSimulated:
 						// create a sun direction according to the shadows direction in the VAB / SPH
@@ -580,7 +581,7 @@ namespace KERBALISM
 						double effiencyFactor = SolarPanel.GetCosineFactor(sunDir, true) * SolarPanel.GetOccludedFactor(sunDir, out string occludingPart, true);
 						double distanceFactor = vesselData.IrradianceStarTotal / Sim.SolarFluxAtHome;
 						editorOutput = nominalRate * effiencyFactor * distanceFactor;
-						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, ResourceBroker.GetOrCreate("solar panel (estimated)", ResourceBroker.BrokerCategory.SolarPanel, "solar panel (estimated)"));
+						if (editorOutput > 0.0) resHandler.ElectricCharge.Produce(editorOutput, RecipeCategory.GetOrCreate("solar panel (estimated)", RecipeCategory.BrokerCategory.SolarPanel, "solar panel (estimated)"));
 						break;
 				}
 			}
@@ -1551,34 +1552,35 @@ namespace KERBALISM
 		}
 		#endregion
 
-		#region ROSolar switcheable/resizeable MDSP derivative (ModuleROSolar)
-		// Made by Pap for RO. Implement in-editor model switching / resizing on top of the stock module.
-		// TODO: Tracking panels implemented in v1.1 (May 2020).  Need further work here to get those working?
-		// Plugin is here : https://github.com/KSP-RO/ROLibrary/blob/master/Source/ROLib/Modules/ModuleROSolar.cs
-		// Configs are here : https://github.com/KSP-RO/ROSolar
-		// Require the following MM patch to work :
-		/*
-		@PART:HAS[@MODULE[ModuleROSolar]]:AFTER[zzzKerbalism] { %MODULE[SolarPanelFixer]{} }
-		*/
-		private class ROConfigurablePanel : StockPanel
-		{
-			// Note : this has been implemented in the base class (StockPanel) because
-			// we have the same issue with NearFutureSolar B9PS-switching its MDSP modules.
+		//#region ROSolar switcheable/resizeable MDSP derivative (ModuleROSolar)
+		//// Made by Pap for RO. Implement in-editor model switching / resizing on top of the stock module.
+		//// TODO: Tracking panels implemented in v1.1 (May 2020).  Need further work here to get those working?
+		//// Plugin is here : https://github.com/KSP-RO/ROLibrary/blob/master/Source/ROLib/Modules/ModuleROSolar.cs
+		//// Configs are here : https://github.com/KSP-RO/ROSolar
+		//// Require the following MM patch to work :
+		//
+		////@PART:HAS[@MODULE[ModuleROSolar]]:AFTER[zzzKerbalism] { %MODULE[SolarPanelFixer]{} }
+		//
+		//private class ROConfigurablePanel : StockPanel
+		//{
+		//	// Note : this has been implemented in the base class (StockPanel) because
+		//	// we have the same issue with NearFutureSolar B9PS-switching its MDSP modules.
 
-			/*
-			public override PanelState GetState()
-			{
-				// We set the resHandler rate to 0 in StockPanel.OnStart(), and ModuleROSolar set it back
-				// to the new nominal rate after some switching/resizing has been done (see ModuleROSolar.RecalculateStats()),
-				// so don't complicate things by using events and just call StockPanel.OnStart() if we detect a non-zero rate.
-				if (Lib.IsEditor && panelModule.resHandler.outputResources[0].rate != 0.0)
-					OnStart(false, ref fixerModule.nominalRate);
+		//
+		//	public override PanelState GetState()
+		//	{
+		//		// We set the resHandler rate to 0 in StockPanel.OnStart(), and ModuleROSolar set it back
+		//		// to the new nominal rate after some switching/resizing has been done (see ModuleROSolar.RecalculateStats()),
+		//		// so don't complicate things by using events and just call StockPanel.OnStart() if we detect a non-zero rate.
+		//		if (Lib.IsEditor && panelModule.resHandler.outputResources[0].rate != 0.0)
+		//			OnStart(false, ref fixerModule.nominalRate);
 
-				return base.GetState();
-			}
-			*/
-		}
+		//		return base.GetState();
+		//	}
+		//
+		//}
 
-		#endregion
+		//#endregion
 	}
 } // KERBALISM
+*/

@@ -10,12 +10,33 @@
 		public override string[] ModuleTypeNames => moduleTypeNames;
 		private static string[] moduleTypeNames = new string[] { nameof(ModuleLight), "ModuleLightEva", "ModuleColoredLensLight", "ModuleMultiPointSurfaceLight", "ModuleStockLightColoredLens" };
 
-        public override void OnFixedUpdate(double elapsedSec)
+		private Recipe recipe;
+		private ProtoModuleValueBool isOn;
+
+		public override void OnStart()
 		{
-			if (prefabModule.useResources && Lib.Proto.GetBool(protoModule, nameof(ModuleLight.isOn)))
+			if (!prefabModule.useResources
+			    || prefabModule.resHandler.inputResources.Count == 0
+			    || !ProtoModuleValueBool.TryGet(protoModule.moduleValues, nameof(ModuleLight.isOn), out isOn))
 			{
-				VesselData.ResHandler.ElectricCharge.Consume(prefabModule.resourceAmount * elapsedSec, ResourceBroker.Light);
+				handlerIsEnabled = false;
+				return;
+			}
+
+			recipe = new Recipe(partData.Title, RecipeCategory.Light);
+
+			foreach (ModuleResource inputResource in prefabModule.resHandler.inputResources)
+			{
+				recipe.AddInput(inputResource.id, inputResource.rate);
 			}
 		}
+
+		public override void OnUpdate(double elapsedSec)
+		{
+			if (isOn.Value)
+				recipe.RequestExecution(VesselData.ResHandler);
+		}
+
+
 	}
 }

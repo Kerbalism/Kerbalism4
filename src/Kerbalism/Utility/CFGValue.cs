@@ -15,15 +15,29 @@ namespace KERBALISM
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 	public sealed class CFGValue : Attribute
 	{
+
+
 		/// <summary>
 		/// Deserialize all the instance fields/properties that have the [CFGValue] attribute and have a corresponding value
 		/// in the provided ConfigNode. If the value isn't defined in the ConfigNode, the instance field/property is untouched.
 		/// </summary>
 		public static void Parse(object instance, ConfigNode node)
 		{
-			Type instanceType = instance.GetType();
+			Parse(instance, instance.GetType(), node);
+		}
 
-			foreach (FieldInfo field in instanceType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+		/// <summary>
+		/// Deserialize all static fields/properties that have the [CFGValue] attribute and have a corresponding value
+		/// in the provided ConfigNode. If the value isn't defined in the ConfigNode, the static field/property is untouched.
+		/// </summary>
+		public static void ParseStatic(Type staticType, ConfigNode node)
+		{
+			Parse(null, staticType, node);
+		}
+
+		private static void Parse(object instance, Type instanceType, ConfigNode node)
+		{
+			foreach (FieldInfo field in instanceType.GetFields(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
 			{
 				if (!IsDefined(field, typeof(CFGValue)))
 					continue;
@@ -56,7 +70,7 @@ namespace KERBALISM
 				}
 			}
 
-			foreach (PropertyInfo property in instanceType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+			foreach (PropertyInfo property in instanceType.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
 			{
 				if (!property.CanWrite)
 					continue;

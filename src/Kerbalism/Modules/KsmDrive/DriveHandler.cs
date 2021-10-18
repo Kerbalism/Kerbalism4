@@ -1,254 +1,361 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
-using KSP.Localization;
 
 namespace KERBALISM
 {
-	// TODO : get ride of that mess. Ideally, data storage should be done through an interface
-	// that is implemented both in the drive module and in the experiment module (for private drives), mapped to a common implementation
-	// in a separate class, something like this :
-	// ModuleKsmDrive : IDataStorage
-	// ModuleKsmExperiment : IDataStorage
-	// class DataStore -> actual logic implementation, all drives have one instance and experiments have one optionally,
-	// implement the methods of IDataStorage
 
 
-	public sealed class DriveHandler : KsmModuleHandler<ModuleKsmDrive, DriveHandler, DriveDefinition>, IKsmModuleHandlerLateInit
+	public class DriveHandler : KsmModuleHandler<ModuleKsmDrive, DriveHandler, DriveDefinition>//, IKsmModuleHandlerLateInit
 	{
-		#region FIELDS
-
-		public Dictionary<SubjectData, DriveFile> files = new Dictionary<SubjectData, DriveFile>();
-		public Dictionary<SubjectData, Sample> samples = new Dictionary<SubjectData, Sample>();
-		public Dictionary<string, bool> fileSendFlags = new Dictionary<string, bool>();
-		public double dataCapacity;
-		public int sampleCapacity;
-		public bool isPrivate;
-
-		#endregion
-
-		#region LIFECYCLE
-
-		/// <summary> Auto-Assign hard drive storage capacity based on the parts position in the tech tree and part cost </summary>
-		public void OnLatePrefabInit(AvailablePart availablePart)
+		public abstract class KsmScienceData
 		{
-			// don't touch drives assigned to an experiment
-			if (!string.IsNullOrEmpty(modulePrefab.experiment_id))
-				return;
+			private const string VALUENAME_STOCKID = "stockId";
 
-			// no auto-assigning necessary
-			if (loadedModule.sampleCapacity != ModuleKsmDrive.CAPACITY_AUTO && loadedModule.dataCapacity != ModuleKsmDrive.CAPACITY_AUTO)
-				return;
+			public enum DataType { file, sample }
 
-			// get cumulative science cost for this part
-			double maxScienceCost = 0;
-			double tier = 1.0;
-			double maxTier = 1.0;
+			/// <summary>subject</summary>
+			public SubjectData SubjectData { get; protected set; }
 
-			// find start node and max. science cost
-			ProtoRDNode node = null;
-			ProtoRDNode maxNode = null;
+			/// <summary>data size in Mb. For samples, this is also a representation of the sample volume </summary>
+			public double Size { get; protected set; }
 
-			foreach (var n in AssetBase.RnDTechTree.GetTreeNodes())
+			/// <summary>Force the stock crediting formula to be applied on recovery. will be true if the file was created by the hijacker. </summary>
+			public bool UseStockCrediting { get; protected set; }
+
+			/// <summary>randomized result text</summary>
+			public string ResultText { get; protected set; }
+
+			/// <summary>the drive this is stored on </summary>
+			public DriveHandler Drive { get; protected set; }
+
+			public bool IsDeleted => Drive == null;
+
+			protected KsmScienceData(DriveHandler drive, SubjectData subjectData, bool generateResultText = true, string resultText = null, bool useStockCrediting = false)
 			{
-				if (n.tech.scienceCost > maxScienceCost)
+				Drive = drive;
+				SubjectData = subjectData;
+				UseStockCrediting = useStockCrediting;
+
+				if (generateResultText)
 				{
-					maxScienceCost = n.tech.scienceCost;
-					maxNode = n;
+					if (string.IsNullOrEmpty(resultText))
+						ResultText = ResearchAndDevelopment.GetResults(SubjectData.StockSubjectId);
+					else
+						ResultText = resultText;
 				}
-				if (availablePart.TechRequired == n.tech.techID)
-					node = n;
+				else
+				{
+					ResultText = string.Empty;
+				}
 			}
 
-			if (node == null)
+			/// <summary> Add the specified size in Mb </summary>
+			/// <returns> The actual size that was added </returns>
+			public double TryAddSize(double addedSize)
 			{
-				Lib.Log($"{availablePart.partPrefab.partInfo.name}: part not found in tech tree, skipping auto assignment", Lib.LogLevel.Warning);
-				return;
+				addedSize = Math.Min(addedSize, Drive.AvailableFileSize());
+
+				if (addedSize <= 0.0)
+					return 0.0;
+
+				AddSizeNoCapacityCheck(addedSize);
+				return addedSize;
 			}
 
-			// add up science cost from start node and all the parents
-			// (we ignore teh requirement to unlock multiple nodes before this one)
-			while (node.parents.Count > 0)
+			/// <summary> Add the specified size in Mb. Doesn't check if the drive has enough capacity </summary>
+			internal void AddSizeNoCapacityCheck(double addedSize)
 			{
-				tier++;
-				node = node.parents[0];
+				Size += addedSize;
+				Drive.filesSize += addedSize;
+				SubjectData.AddDataCollectedInFlight(addedSize);
+				OnAddSize(addedSize);
 			}
 
-			// determine max science cost and max tier
-			while (maxNode.parents.Count > 0)
+			protected virtual void OnAddSize(double addedSize) { }
+
+			/// <summary> Remove the specified size in Mb. Will delete the file/sample if the size parameter is negative or if this result in an empty file. </summary>
+			/// <returns> The actual data size that was removed </returns>
+			public double TryRemoveSize(double sizeToRemove = -1.0)
 			{
-				maxTier++;
-				maxNode = maxNode.parents[0];
+				if (sizeToRemove < 0.0 || sizeToRemove >= Size)
+				{
+					sizeToRemove = Size;
+					Size = 0.0;
+					Drive.files.Remove(SubjectData);
+					Drive.filesSize = Math.Max(0.0, Drive.filesSize - sizeToRemove);
+					OnRemoveSize(sizeToRemove);
+					Drive = null;
+				}
+				else
+				{
+					Drive.filesSize = Math.Max(0.0, Drive.filesSize - sizeToRemove);
+					Size -= sizeToRemove;
+				}
+
+				SubjectData.RemoveDataCollectedInFlight(sizeToRemove);
+				return sizeToRemove;
 			}
 
-			// see https://www.desmos.com/calculator/9oiyzsdxzv
-			//
-			// f = (tier / max. tier)^3
-			// capacity = f * max. capacity
-			// max. capacity factor 3GB (remember storages can be tweaked to 4x the base size, deep horizons had 8GB)
-			// with the variation effects, this caps out at about 10GB.
+			protected virtual void OnRemoveSize(double removedSize) { }
 
-			// add some part variance based on part cost
-			var t = tier - 1;
-			t += (availablePart.cost - 5000) / 10000;
-
-			double f = Math.Pow(t / maxTier, 3);
-			double dataCapacity = f * 3000;
-
-			dataCapacity = (int)(dataCapacity * 4) / 4.0; // set to a multiple of 0.25
-			if (dataCapacity > 2)
-				dataCapacity = (int)(dataCapacity * 2) / 2; // set to a multiple of 0.5
-			if (dataCapacity > 5)
-				dataCapacity = (int)(dataCapacity); // set to a multiple of 1
-			if (dataCapacity > 25)
-				dataCapacity = (int)(dataCapacity / 5) * 5; // set to a multiple of 5
-			if (dataCapacity > 250)
-				dataCapacity = (int)(dataCapacity / 25) * 25; // set to a multiple of 25
-			if (dataCapacity > 250)
-				dataCapacity = (int)(dataCapacity / 50) * 50; // set to a multiple of 50
-			if (dataCapacity > 1000)
-				dataCapacity = (int)(dataCapacity / 250) * 250; // set to a multiple of 250
-
-			dataCapacity = Math.Max(dataCapacity, 0.25); // 0.25 minimum
-
-			double sampleCapacity = tier / maxTier * 8;
-			sampleCapacity = Math.Max(sampleCapacity, 1); // 1 minimum
-
-			if (modulePrefab.dataCapacity == ModuleKsmDrive.CAPACITY_AUTO)
+			public static void Load(ConfigNode node, DriveHandler drive, DataType dataType)
 			{
-				modulePrefab.dataCapacity = dataCapacity;
-				Lib.Log($"{availablePart.partPrefab.partInfo.name}: tier {tier}/{maxTier} part cost {availablePart.cost.ToString("F0")} data cap. {dataCapacity.ToString("F2")}", Lib.LogLevel.Message);
+				SubjectData subjectData;
+				string stockSubjectId = Lib.ConfigValue(node, VALUENAME_STOCKID, string.Empty);
+				// the stock subject id is stored only if this is an asteroid sample, or a non-standard subject id
+				if (stockSubjectId != string.Empty)
+					subjectData = ScienceDB.GetSubjectDataFromStockId(stockSubjectId);
+				else
+					subjectData = ScienceDB.GetSubjectData(node.name);
+
+				if (subjectData == null)
+					return;
+
+				double size = Lib.ConfigValue(node, nameof(Size), 0.0);
+				if (double.IsNaN(size) || size <= 0.0)
+				{
+					Lib.LogStack($"Can't load {dataType} for {subjectData}, size of {size} is invalid", Lib.LogLevel.Error);
+					return;
+				}
+
+				string resultText = Lib.ConfigValue(node, nameof(ResultText), string.Empty);
+				bool useStockCrediting = Lib.ConfigValue(node, nameof(UseStockCrediting), false);
+
+				if (dataType == DataType.file)
+				{
+					if (drive.files.ContainsKey(subjectData))
+						return;
+
+					ScienceFile file = new ScienceFile(drive, subjectData, size, false, resultText, useStockCrediting, false); // can't check capacity as drive definition isn't yet loaded from OnLoad(), due to B9PS sheanigans
+					file.Transmit = Lib.ConfigValue(node, nameof(ScienceFile.Transmit), true);
+				}
+				else
+				{
+					if (drive.samples.ContainsKey(subjectData))
+						return;
+
+					ScienceSample sample = new ScienceSample(drive, subjectData, size, false, resultText, useStockCrediting, false); // can't check capacity as drive definition isn't yet loaded from OnLoad(), due to B9PS sheanigans
+					sample.Analyze = Lib.ConfigValue(node, nameof(ScienceSample.Analyze), true);
+				}
 			}
-			if (modulePrefab.sampleCapacity == ModuleKsmDrive.CAPACITY_AUTO)
+
+			public virtual void Save(ConfigNode node)
 			{
-				modulePrefab.sampleCapacity = (int)Math.Round(sampleCapacity);
-				Lib.Log($"{availablePart.partPrefab.partInfo.name}: tier {tier}/{maxTier} part cost {availablePart.cost.ToString("F0")} sample cap. {modulePrefab.sampleCapacity}", Lib.LogLevel.Message);
+				node.name = SubjectData.Id;
+				node.AddValue(nameof(Size), Size);
+				node.AddValue(nameof(UseStockCrediting), UseStockCrediting);
+				node.AddValue(nameof(ResultText), ResultText);
+
+				if (SubjectData is UnknownSubjectData)
+					node.AddValue(VALUENAME_STOCKID, SubjectData.StockSubjectId);
+			}
+
+			public abstract ScienceData ConvertToStockData();
+		}
+
+		public class ScienceFile : KsmScienceData
+		{
+			public bool Transmit { get; set; }
+
+			/// <summary>
+			/// This shouldn't be used outside of the DriveHandler class. Use the DriveHandler.RecordFile() method instead.
+			/// </summary>
+			internal ScienceFile(
+				DriveHandler drive,
+				SubjectData subjectData,
+				double size,
+				bool generateResultText = true,
+				string resultText = null,
+				bool useStockCrediting = false,
+				bool checkDriveCapacity = true)
+				: base(drive, subjectData, generateResultText, resultText, useStockCrediting)
+			{
+				Transmit = true;
+
+				if (checkDriveCapacity)
+					size = Math.Min(size, drive.AvailableFileSize());
+
+				if (size > 0.0)
+				{
+					drive.files.Add(subjectData, this);
+					AddSizeNoCapacityCheck(size);
+				}
+			}
+
+			public override void Save(ConfigNode node)
+			{
+				base.Save(node);
+				node.AddValue(nameof(Transmit), Transmit);
+			}
+
+			public override ScienceData ConvertToStockData()
+			{
+				return new ScienceData((float)Size, 1.0f, 1.0f, SubjectData.StockSubjectId, SubjectData.FullTitle);
 			}
 		}
 
-		public override void OnFirstSetup()
+		public class ScienceSample : KsmScienceData
 		{
-			// modulePrefab will be null for transmit buffer drives
-			if (modulePrefab != null)
+			/// <summary> Sample mass in tons </summary>
+			public double Mass { get; protected set; }
+
+			/// <summary>flagged for analysis in a laboratory</summary>
+			public bool Analyze { get; set; }
+
+			/// <summary>
+			/// This shouldn't be used outside of the DriveHandler class. Use the DriveHandler.RecordSample() method instead.
+			/// </summary>
+			internal ScienceSample(
+				DriveHandler drive,
+				SubjectData subjectData,
+				double size,
+				bool generateResultText = true,
+				string resultText = null,
+				bool useStockCrediting = false,
+				bool checkDriveCapacity = true)
+				: base(drive, subjectData, generateResultText, resultText, useStockCrediting)
 			{
-				dataCapacity = modulePrefab.effectiveDataCapacity;
-				sampleCapacity = modulePrefab.effectiveSampleCapacity;
-				isPrivate = !string.IsNullOrEmpty(modulePrefab.experiment_id);
-			}
-			else
-			{
-				dataCapacity = 0.0;
-				sampleCapacity = 0;
-				isPrivate = false;
+				Analyze = true;
+
+				if (checkDriveCapacity)
+				{
+					size = Math.Min(size, drive.AvailableSampleSize(true));
+				}
+
+				if (size > 0.0)
+				{
+					drive.samples.Add(subjectData, this);
+					AddSizeNoCapacityCheck(size);
+				}
 			}
 
-			if (isPrivate)
+			public override void Save(ConfigNode node)
 			{
-				isPrivate = false;
-				foreach (ModuleHandler handler in partData.modules)
+				base.Save(node);
+				node.AddValue(nameof(Analyze), Analyze);
+			}
+
+			protected override void OnAddSize(double addedSize)
+			{
+				double addedMass = addedSize * SubjectData.ExpInfo.MassPerMB;
+				Drive.samplesMass += addedMass;
+				UpdateMass();
+			}
+
+			protected override void OnRemoveSize(double removedSize)
+			{
+				double removedMass = removedSize * SubjectData.ExpInfo.MassPerMB;
+				Drive.samplesMass = Math.Max(0.0, Drive.samplesMass - removedMass);
+				UpdateMass();
+			}
+
+			public void UpdateMass()
+			{
+				Mass = Size * SubjectData.ExpInfo.MassPerMB;
+			}
+
+			public override ScienceData ConvertToStockData()
+			{
+				return new ScienceData((float)Size, 0f, 0f, SubjectData.StockSubjectId, SubjectData.FullTitle);
+			}
+		}
+
+		private bool isPrivate;
+		private double filesSize;
+		private double samplesSize;
+		private double samplesMass;
+
+		private Dictionary<SubjectData, ScienceFile> files = new Dictionary<SubjectData, ScienceFile>();
+		private Dictionary<SubjectData, ScienceSample> samples = new Dictionary<SubjectData, ScienceSample>();
+
+		public double FilesSize => filesSize;
+		public double SamplesSize => samplesSize;
+		public double SamplesMass => samplesMass;
+		public bool IsPrivate => isPrivate;
+
+		public Dictionary<SubjectData, ScienceFile>.ValueCollection Files => files.Values;
+		public Dictionary<SubjectData, ScienceSample>.ValueCollection Samples => samples.Values;
+
+		public Dictionary<SubjectData, ScienceFile> FileDictionary => files;
+		public Dictionary<SubjectData, ScienceSample> SampleDictionary => samples;
+
+		public override void OnUpdate(double elapsedSec)
+		{
+			filesSize = 0.0;
+			if (files.Count > 0)
+			{
+				foreach (ScienceFile file in files.Values)
 				{
-					// TODO : move experiment_id to the definition
-					if (handler is ExperimentHandler experimentHandler && experimentHandler.definition.ExpInfo.ExperimentId == modulePrefab.experiment_id)
-					{
-						isPrivate = true;
-						experimentHandler.PrivateDrive = this;
-					}
+					filesSize += file.Size;
+				}
+			}
+
+			samplesSize = 0.0;
+			samplesMass = 0.0;
+			if (samples.Count > 0)
+			{
+				foreach (ScienceSample sample in samples.Values)
+				{
+					samplesSize += sample.Size;
+					samplesMass += sample.Mass;
 				}
 			}
 		}
 
 		public override void OnLoad(ConfigNode node)
 		{
-			// parse science  files
-			files = new Dictionary<SubjectData, DriveFile>();
+			files.Clear();
 			ConfigNode filesNode = node.GetNode("FILES");
 			if (filesNode != null)
 			{
-				foreach (var file_node in filesNode.GetNodes())
+				foreach (ConfigNode fileNode in filesNode.GetNodes())
 				{
-					string subject_id = DB.FromSafeKey(file_node.name);
-					DriveFile file = DriveFile.Load(subject_id, file_node);
-					if (file != null)
-					{
-						if (files.ContainsKey(file.subjectData))
-						{
-							Lib.Log("discarding duplicate subject " + file.subjectData, Lib.LogLevel.Warning);
-						}
-						else
-						{
-							files.Add(file.subjectData, file);
-							file.subjectData.AddDataCollectedInFlight(file.size);
-						}
-					}
+					KsmScienceData.Load(fileNode, this, KsmScienceData.DataType.file);
 				}
 			}
 
-			// parse science samples
-			samples = new Dictionary<SubjectData, Sample>();
+			samples.Clear();
 			ConfigNode samplesNode = node.GetNode("SAMPLES");
 			if (samplesNode != null)
 			{
-				foreach (var sample_node in samplesNode.GetNodes())
+				foreach (ConfigNode sampleNode in samplesNode.GetNodes())
 				{
-					string subject_id = DB.FromSafeKey(sample_node.name);
-					Sample sample = Sample.Load(subject_id, sample_node);
-					if (sample != null)
-					{
-						samples.Add(sample.subjectData, sample);
-						sample.subjectData.AddDataCollectedInFlight(sample.size);
-					}
+					KsmScienceData.Load(sampleNode, this, KsmScienceData.DataType.sample);
 				}
 			}
 
 			// parse capacities. be generous with default values for backwards
 			// compatibility (drives had unlimited storage before this)
-			dataCapacity = Lib.ConfigValue(node, "dataCapacity", 100000.0);
-			sampleCapacity = Lib.ConfigValue(node, "sampleCapacity", 1000);
-
-			fileSendFlags = new Dictionary<string, bool>();
-			string fileNames = Lib.ConfigValue(node, "sendFileNames", string.Empty);
-			foreach (string fileName in Lib.Tokenize(fileNames, ','))
-			{
-				Send(fileName, true);
-			}
+			//DataCapacity = Lib.ConfigValue(node, "dataCapacity", 100000.0);
+			//SampleCapacity = Lib.ConfigValue(node, "sampleCapacity", 1000);
 		}
 
 		public override void OnSave(ConfigNode node)
 		{
-			// save science files
-			bool hasFiles = false;
-			ConfigNode filesNode = new ConfigNode("FILES");
-			foreach (DriveFile file in files.Values)
+			if (files.Count > 0)
 			{
-				file.Save(filesNode.AddNode(DB.ToSafeKey(file.subjectData.Id)));
-				hasFiles = true;
+				ConfigNode filesNode = node.AddNode("FILES");
+				foreach (ScienceFile file in files.Values)
+				{
+					ConfigNode fileNode = new ConfigNode();
+					file.Save(fileNode);
+					filesNode.AddNode(fileNode);
+				}
 			}
 
-			if (hasFiles)
-				node.AddNode(filesNode);
-
-			// save science samples
-			bool hasSamples = false;
-			ConfigNode samplesNode = new ConfigNode("SAMPLES");
-			foreach (Sample sample in samples.Values)
+			if (samples.Count > 0)
 			{
-				sample.Save(samplesNode.AddNode(DB.ToSafeKey(sample.subjectData.Id)));
-				hasSamples = true;
+				ConfigNode samplesNode = node.AddNode("SAMPLES");
+				foreach (ScienceSample sample in samples.Values)
+				{
+					ConfigNode sampleNode = new ConfigNode();
+					sample.Save(sampleNode);
+					samplesNode.AddNode(sampleNode);
+				}
 			}
 
-			if (hasSamples)
-				node.AddNode(samplesNode);
-
-			node.AddValue("dataCapacity", dataCapacity);
-			node.AddValue("sampleCapacity", sampleCapacity);
-
-			string fileNames = string.Empty;
-			foreach (string subjectId in fileSendFlags.Keys)
-			{
-				if (fileNames.Length > 0) fileNames += ",";
-				fileNames += subjectId;
-			}
-			node.AddValue("sendFileNames", fileNames);
+			//node.AddValue("dataCapacity", dataCapacity);
+			//node.AddValue("sampleCapacity", sampleCapacity);
 		}
 
 		public override void OnFlightPartWillDie()
@@ -256,534 +363,385 @@ namespace KERBALISM
 			DeleteAllData();
 		}
 
-		#endregion
-
-		public static double StoreFile(VesselData vd, SubjectData subjectData, double size, bool include_private = false)
+		public double AvailableFileSize()
 		{
-			if (size <= 0.0)
+			if (definition.FilesCapacity < 0.0)
+				return double.MaxValue;
+
+			return Math.Max(0.0, definition.FilesCapacity - filesSize);
+		}
+
+		public double AvailableSampleSize(bool checkCount)
+		{
+			if (checkCount && definition.MaxSamples > 0 && samples.Count >= definition.MaxSamples)
 				return 0.0;
 
-			// store what we can
-			TryStoreFile(vd.TransmitBuffer, subjectData, ref size);
+			if (definition.SamplesCapacity < 0.0)
+				return double.MaxValue;
 
-			if (size <= 0.0)
-				return size;
-
-			foreach (var d in GetDrives(vd, include_private))
-			{
-				if (!TryStoreFile(d, subjectData, ref size))
-					break;
-			}
-
-			return size;
+			return Math.Max(0.0, definition.SamplesCapacity - samplesSize);
 		}
 
-		private static bool TryStoreFile(DriveHandler drive, SubjectData subjectData, ref double size)
+		public int AvailableSampleCount()
 		{
-			var available = drive.FileCapacityAvailable();
-			var chunk = Math.Min(size, available);
-			if (!drive.RecordFile(subjectData, chunk, true))
-				return false;
-			size -= chunk;
+			if (definition.MaxSamples <= 0)
+				return int.MaxValue;
 
-			if (size <= 0.0)
-				return false;
-
-			return true;
+			return samples.Count - definition.MaxSamples;
 		}
 
-		// add science data, creating new file or incrementing existing one
-		public bool RecordFile(SubjectData subjectData, double amount, bool allowImmediateTransmission = true, bool useStockCrediting = false)
+		public bool CanStoreFile(double size)
 		{
-			if (dataCapacity >= 0 && FilesSize() + amount > dataCapacity)
-				return false;
-
-			// create new data or get existing one
-			DriveFile file;
-			if (!files.TryGetValue(subjectData, out file))
-			{
-				file = new DriveFile(subjectData, 0.0, useStockCrediting);
-				files.Add(subjectData, file);
-
-				if (!allowImmediateTransmission) Send(subjectData.Id, false);
-			}
-
-			// increase amount of data stored in the file
-			file.size += amount;
-
-			// keep track of data collected
-			subjectData.AddDataCollectedInFlight(amount);
-
-			return true;
-		}
-
-		public void Send(string subjectId, bool send)
-		{
-			if (!fileSendFlags.ContainsKey(subjectId)) fileSendFlags.Add(subjectId, send);
-			else fileSendFlags[subjectId] = send;
-		}
-
-		public bool GetFileSend(string subjectId)
-		{
-			if (!fileSendFlags.ContainsKey(subjectId)) return PreferencesScience.Instance.transmitScience;
-			return fileSendFlags[subjectId];
-		}
-
-		// add science sample, creating new sample or incrementing existing one
-		public bool RecordSample(SubjectData subjectData, double amount, double mass, bool useStockCrediting = false)
-		{
-			int currentSampleSlots = SamplesSize();
-			if (sampleCapacity >= 0)
-			{
-				if (!samples.ContainsKey(subjectData) && currentSampleSlots >= sampleCapacity)
-				{
-					// can't take a new sample if we're already at capacity
-					return false;
-				}
-			}
-
-			Sample sample;
-			if (samples.ContainsKey(subjectData) && sampleCapacity >= 0)
-			{
-				// test if adding the amount to the sample would exceed our capacity
-				sample = samples[subjectData];
-
-				int existingSampleSlots = Lib.SampleSizeToSlots(sample.size);
-				int newSampleSlots = Lib.SampleSizeToSlots(sample.size + amount);
-				if (currentSampleSlots - existingSampleSlots + newSampleSlots > sampleCapacity)
-					return false;
-			}
-
-			// create new data or get existing one
-			if (!samples.TryGetValue(subjectData, out sample))
-			{
-				sample = new Sample(subjectData, 0.0, useStockCrediting);
-				sample.analyze = PreferencesScience.Instance.analyzeSamples;
-				samples.Add(subjectData, sample);
-			}
-
-			// increase amount of data stored in the sample
-			sample.size += amount;
-			sample.mass += mass;
-
-			// keep track of data collected
-			subjectData.AddDataCollectedInFlight(amount);
-
-			return true;
-		}
-
-		// remove science data, deleting the file when it is empty
-		public void DeleteFile(SubjectData subjectData, double amount = 0.0)
-		{
-			// get data
-			DriveFile file;
-			if (files.TryGetValue(subjectData, out file))
-			{
-				// decrease amount of data stored in the file
-				if (amount == 0.0)
-					amount = file.size;
-				else
-					amount = Math.Min(amount, file.size);
-
-				file.size -= amount;
-
-				// keep track of data collected
-				subjectData.RemoveDataCollectedInFlight(amount);
-
-				// remove file if empty
-				if (file.size <= 0.0) files.Remove(subjectData);
-			}
-		}
-
-		// remove science sample, deleting the sample when it is empty
-		public double DeleteSample(SubjectData subjectData, double amount = 0.0)
-		{
-			// get data
-			Sample sample;
-			if (samples.TryGetValue(subjectData, out sample))
-			{
-				// decrease amount of data stored in the sample
-				if (amount == 0.0)
-					amount = sample.size;
-				else
-					amount = Math.Min(amount, sample.size);
-
-				double massDelta = sample.mass * amount / sample.size;
-				sample.size -= amount;
-				sample.mass -= massDelta;
-
-				// keep track of data collected
-				subjectData.RemoveDataCollectedInFlight(amount);
-
-				// remove sample if empty
-				if (sample.size <= 0.0) samples.Remove(subjectData);
-
-				return massDelta;
-			}
-			return 0.0;
-		}
-
-		// set analyze flag for a sample
-		public void Analyze(SubjectData subjectData, bool b)
-		{
-			Sample sample;
-			if (samples.TryGetValue(subjectData, out sample))
-			{
-				sample.analyze = b;
-			}
-		}
-
-		// move all data to another drive
-		public bool Move(DriveHandler destination, bool moveSamples)
-		{
-			bool result = true;
-
-			// copy files
-			List<SubjectData> filesList = new List<SubjectData>();
-			foreach (DriveFile file in files.Values)
-			{
-				double size = Math.Min(file.size, destination.FileCapacityAvailable());
-				if (destination.RecordFile(file.subjectData, size, true, file.useStockCrediting))
-				{
-					file.size -= size;
-					file.subjectData.RemoveDataCollectedInFlight(size);
-					if (file.size < double.Epsilon)
-					{
-						filesList.Add(file.subjectData);
-					}
-					else
-					{
-						result = false;
-						break;
-					}
-				}
-				else
-				{
-					result = false;
-					break;
-				}
-			}
-			foreach (SubjectData id in filesList) files.Remove(id);
-
-			if (!moveSamples) return result;
-
-			// move samples
-			List<SubjectData> samplesList = new List<SubjectData>();
-			foreach (Sample sample in samples.Values)
-			{
-				double size = Math.Min(sample.size, destination.SampleCapacityAvailable(sample.subjectData));
-				if (size < double.Epsilon)
-				{
-					result = false;
-					break;
-				}
-
-				double mass = sample.mass * (sample.size / size);
-				if (destination.RecordSample(sample.subjectData, size, mass, sample.useStockCrediting))
-				{
-					sample.size -= size;
-					sample.subjectData.RemoveDataCollectedInFlight(size);
-					sample.mass -= mass;
-
-					if (sample.size < double.Epsilon)
-					{
-						samplesList.Add(sample.subjectData);
-					}
-					else
-					{
-						result = false;
-						break;
-					}
-				}
-				else
-				{
-					result = false;
-					break;
-				}
-			}
-			foreach (var id in samplesList) samples.Remove(id);
-
-			return result; // true if everything was moved, false otherwise
-		}
-
-		public double FileCapacityAvailable()
-		{
-			if (dataCapacity < 0) return double.MaxValue;
-			return Math.Max(dataCapacity - FilesSize(), 0.0); // clamp to 0 due to fp precision in FilesSize()
-		}
-
-		public double FilesSize()
-		{
-			double amount = 0.0;
-			foreach (DriveFile file in files.Values)
-			{
-				amount += file.size;
-			}
-			return amount;
-		}
-
-		public double SampleCapacityAvailable(SubjectData subject = null)
-		{
-			if (sampleCapacity < 0) return double.MaxValue;
-
-			double result = Lib.SlotsToSampleSize(sampleCapacity - SamplesSize());
-			if (subject != null && samples.ContainsKey(subject))
-			{
-				int slotsForMyFile = Lib.SampleSizeToSlots(samples[subject].size);
-				double amountLostToSlotting = Lib.SlotsToSampleSize(slotsForMyFile) - samples[subject].size;
-				result += amountLostToSlotting;
-			}
-			return result;
-		}
-
-		public int SamplesSize()
-		{
-			int amount = 0;
-			foreach (Sample sample in samples.Values)
-			{
-				amount += Lib.SampleSizeToSlots(sample.size);
-			}
-			return amount;
-		}
-
-		// return size of data stored in Mb (including samples)
-		public string Size()
-		{
-			var f = FilesSize();
-			var s = SamplesSize();
-			var result = f > double.Epsilon ? Lib.HumanReadableDataSize(f) : "";
-			if (result.Length > 0) result += " ";
-			if (s > 0) result += Lib.HumanReadableSampleSize(s);
-			return result;
-		}
-
-		public bool Empty()
-		{
-			return files.Count + samples.Count == 0;
-		}
-
-		// transfer data from a vessel to a drive
-		public static bool Transfer(VesselData src, DriveHandler dst, bool samples)
-		{
-			double dataAmount = 0.0;
-			int sampleSlots = 0;
-			foreach (var drive in GetDrives(src, true))
-			{
-				dataAmount += drive.FilesSize();
-				sampleSlots += drive.SamplesSize();
-			}
-
-			if (dataAmount < double.Epsilon && (sampleSlots == 0 || !samples))
+			if (definition.FilesCapacity < 0.0)
 				return true;
 
-			// get drives
-			var allSrc = GetDrives(src, true);
-
-			bool allMoved = true;
-			foreach (var a in allSrc)
-			{
-				if (a.Move(dst, samples))
-				{
-					allMoved = true;
-					break;
-				}
-			}
-
-			return allMoved;
+			return filesSize + size < definition.FilesCapacity;
 		}
 
-		// transfer data from a drive to a vessel
-		public static bool Transfer(DriveHandler drive, VesselData dst, bool samples)
+		public bool CanStoreSample(double size)
 		{
-			double dataAmount = drive.FilesSize();
-			int sampleSlots = drive.SamplesSize();
+			if (samples.Count >= definition.MaxSamples)
+				return false;
 
-			if (dataAmount < double.Epsilon && (sampleSlots == 0 || !samples))
+			if (definition.SamplesCapacity < 0.0)
 				return true;
 
-			// get drives
-			var allDst = GetDrives(dst);
-
-			bool allMoved = true;
-			foreach (var b in allDst)
-			{
-				if (drive.Move(b, samples))
-				{
-					allMoved = true;
-					break;
-				}
-			}
-
-			return allMoved;
+			return samplesSize + size < definition.SamplesCapacity;
 		}
 
-		// transfer data between two vessels
-		public static void Transfer(VesselData src, VesselData dst, bool samples)
+		/// <summary>
+		/// Add a file for the provided subject, or if a file for that subject exists already, increase its size <br/>
+		/// Return the file that was created/incremented, or null if there isn't enough space on the drive.
+		/// </summary>
+		public ScienceFile RecordFile(SubjectData subjectData, double size, bool generateResultText = true, string resultText = null, bool useStockCrediting = false)
 		{
-			double dataAmount = 0.0;
-			int sampleSlots = 0;
-			foreach (var drive in GetDrives(src, true))
-			{
-				dataAmount += drive.FilesSize();
-				sampleSlots += drive.SamplesSize();
-			}
+			if (size <= 0.0 ||!CanStoreFile(size))
+				return null;
 
-			if (dataAmount < double.Epsilon && (sampleSlots == 0 || !samples))
-				return;
-
-			var allSrc = GetDrives(src, true);
-			bool allMoved = false;
-			foreach (var a in allSrc)
-			{
-				if (Transfer(a, dst, samples))
-				{
-					allMoved = true;
-					break;
-				}
-			}
-
-			// inform the user
-			if (allMoved)
-				Message.Post
-				(
-					Lib.HumanReadableDataSize(dataAmount) + " " + Local.Science_ofdatatransfer,
-				 	Lib.BuildString(Local.Generic_FROM, " <b>", src.VesselName, "</b> ", Local.Generic_TO, " <b>", dst.VesselName, "</b>")
-				);
+			// create new file or increase size of existing one
+			if (files.Count == 0 || !files.TryGetValue(subjectData, out ScienceFile file))
+				file = new ScienceFile(this, subjectData, size, generateResultText, resultText, useStockCrediting, false);
 			else
-				Message.Post
-				(
-					Lib.Color(Lib.BuildString("WARNING: not evering copied"), Lib.Kolor.Red, true),
-					Lib.BuildString(Local.Generic_FROM, " <b>", src.VesselName, "</b> ", Local.Generic_TO, " <b>", dst.VesselName, "</b>")
-				);
+				file.AddSizeNoCapacityCheck(size);
+
+			return file;
 		}
 
-		/// <summary> delete all files/samples in the drive</summary>
+		/// <summary>
+		/// Add a sample for the provided subject, or if a sample for that subject exists already, increase its size <br/>
+		/// Return the sample that was created/incremented, or null if there isn't enough space on the drive.
+		/// </summary>
+		public ScienceSample RecordSample(SubjectData subjectData, double size, bool generateResultText = true, string resultText = null, bool useStockCrediting = false)
+		{
+			if (!CanStoreSample(size))
+				return null;
+
+			// create new sample or increase size of existing one
+			if (samples.Count == 0 || !samples.TryGetValue(subjectData, out ScienceSample sample))
+				sample = new ScienceSample(this, subjectData, size, generateResultText, resultText, useStockCrediting, false);
+			else
+				sample.AddSizeNoCapacityCheck(size);
+
+			return sample;
+		}
+
+		/// <summary>
+		/// Remove some data on the file for the provided subject, deleting the file when it is empty
+		/// </summary>
+		public void DeleteFile(SubjectData subjectData, double sizeToRemove = -1.0)
+		{
+			if (files.TryGetValue(subjectData, out ScienceFile file))
+				file.TryRemoveSize(sizeToRemove);
+		}
+
+		/// <summary>
+		/// Remove some data on the sample for the provided subject, deleting the sample when it is empty
+		/// </summary>
+		public void DeleteSample(SubjectData subjectData, double sizeToRemove = -1.0)
+		{
+			if (samples.TryGetValue(subjectData, out ScienceSample sample))
+				sample.TryRemoveSize(sizeToRemove);
+		}
+
+		/// <summary>
+		/// Delete all files/samples in the drive. Use with care, this should onyl be used if all files/samples
+		/// are garanteed to be permanently removed from the game and aren't referenced by anything anymore.
+		/// </summary>
 		public void DeleteAllData()
 		{
-			foreach (DriveFile file in files.Values)
-				file.subjectData.RemoveDataCollectedInFlight(file.size);
-
-			foreach (Sample sample in samples.Values)
-				sample.subjectData.RemoveDataCollectedInFlight(sample.size);
+			foreach (ScienceFile file in files.Values)
+				file.SubjectData.RemoveDataCollectedInFlight(file.Size);
 
 			files.Clear();
+			filesSize = 0.0;
+
+			foreach (ScienceSample sample in samples.Values)
+				sample.SubjectData.RemoveDataCollectedInFlight(sample.Size);
+
 			samples.Clear();
+			samplesSize = 0.0;
+			samplesMass = 0.0;
 		}
 
-		/// <summary> delete all files/samples in the vessel drives</summary>
-		public static void DeleteDrivesData(VesselDataBase vd)
+		/// <summary> Attempt to move a file to another drive </summary>
+		public bool TryMoveFile(ScienceFile file, DriveHandler destination, bool allowPartial = true)
 		{
-			foreach (DriveHandler driveData in vd.Parts.AllModulesOfType<DriveHandler>())
-			{
-				driveData.DeleteAllData();
-			}
+			if (!files.TryGetValue(file.SubjectData, out ScienceFile driveFile) || file != driveFile)
+				return false;
+
+			return TryMoveDriveFile(file, destination, allowPartial);
 		}
 
-		public static IEnumerable<DriveHandler> GetDrives (VesselDataBase vd, bool includePrivate = false)
+		private bool TryMoveDriveFile(ScienceFile file, DriveHandler destination, bool allowPartial = true)
 		{
-			if (!includePrivate)
-			{
-				return vd.Parts.AllModulesOfType<DriveHandler>(p => !p.isPrivate);
-			}
-			else
-			{
-				return vd.Parts.AllModulesOfType<DriveHandler>();
-			}
+			double transferSize = Math.Min(file.Size, destination.AvailableFileSize());
+			if (transferSize == 0.0 || (!allowPartial && transferSize < file.Size))
+				return false;
+
+			if (destination.RecordFile(file.SubjectData, transferSize, false, file.ResultText, file.UseStockCrediting) == null)
+				return false;
+
+			file.TryRemoveSize(transferSize);
+			return true;
 		}
 
-		public static void GetDrivesInfo(VesselDataBase vd, out int filesCount, out double filesSize, out double filesCapacity, out double filesScience,
-			out int samplesCount, out int samplesSlots, out int slotsCapacity, out double samplesScience, out double samplesMass)
+		/// <summary> Attempt to move a sample to another drive </summary>
+		public bool TryMoveSample(ScienceSample sample, DriveHandler destination, bool allowPartial = true)
 		{
-			filesCount = samplesCount = samplesSlots = slotsCapacity = 0;
-			filesSize = filesCapacity = samplesMass = filesScience = samplesScience = 0.0;
+			if (!samples.TryGetValue(sample.SubjectData, out ScienceSample driveSample) || sample != driveSample)
+				return false;
 
-			foreach (DriveHandler drive in GetDrives(vd, true))
+			return TryMoveDriveSample(sample, destination, allowPartial);
+		}
+
+		private bool TryMoveDriveSample(ScienceSample sample, DriveHandler destination, bool allowPartial = true)
+		{
+			double transferSize = Math.Min(sample.Size, destination.AvailableSampleSize(true));
+			if (transferSize == 0.0 || (!allowPartial && transferSize < sample.Size))
+				return false;
+
+			if (destination.RecordSample(sample.SubjectData, transferSize, false, sample.ResultText, sample.UseStockCrediting) == null)
+				return false;
+
+			sample.TryRemoveSize(transferSize);
+			return true;
+		}
+
+		private static List<ScienceFile> fileMoveBuffer = new List<ScienceFile>();
+
+		/// <summary>
+		/// Attempt to move all files to another drive. <br/>
+		/// If there isn't enough space on the destination drive for all files, the last transferred file will be split. <br/>
+		/// Returns true if all files were transferred, false otherwise.
+		/// </summary>
+		public bool TryMoveAllFiles(DriveHandler destination)
+		{
+			fileMoveBuffer.Clear();
+			double availableSize = destination.AvailableFileSize();
+			double lastFileTransferSize = 0.0;
+			foreach (ScienceFile file in files.Values)
 			{
-				if (drive.dataCapacity < 0 || filesCapacity < 0)
+				double transferSize = Math.Min(availableSize, file.Size);
+				if (transferSize <= 0.0)
+					break;
+
+				if (destination.RecordFile(file.SubjectData, transferSize, false, file.ResultText, file.UseStockCrediting) == null)
+					break;
+
+				fileMoveBuffer.Add(file);
+				availableSize = destination.AvailableFileSize();
+
+				if (transferSize < file.Size)
 				{
-					filesCapacity = -1;
+					lastFileTransferSize = transferSize;
+					break;
 				}
+			}
+
+			int lastFileIndex = fileMoveBuffer.Count - 1;
+			for (int i = 0; i < fileMoveBuffer.Count; i++)
+			{
+				if (i == lastFileIndex)
+					fileMoveBuffer[i].TryRemoveSize(lastFileTransferSize);
 				else
-				{
-					filesCapacity += drive.dataCapacity;
-				}
-
-				if (drive.sampleCapacity < 0 || slotsCapacity < 0)
-				{
-					slotsCapacity = -1;
-				}
-				else
-				{
-					slotsCapacity += drive.sampleCapacity;
-				}
-
-				foreach (DriveFile file in drive.files.Values)
-				{
-					filesCount++;
-					filesSize += file.size;
-					filesScience += file.subjectData.ScienceValue(file.size);
-				}
-
-				foreach (Sample sample in drive.samples.Values)
-				{
-					samplesCount++;
-					samplesSlots += Lib.SampleSizeToSlots(sample.size);
-					samplesMass += sample.mass;
-					samplesScience += sample.subjectData.ScienceValue(sample.size);
-				}
+					fileMoveBuffer[i].TryRemoveSize();
 			}
+
+			fileMoveBuffer.Clear();
+			return lastFileTransferSize == 0.0;
 		}
 
-		/// <summary> Get a drive for storing files. Will return null if there are no drives on the vessel </summary>
-		public static DriveHandler FileDrive(VesselDataBase vesselData, double size = 0.0)
-		{
-			DriveHandler result = null;
-			foreach (var drive in GetDrives(vesselData))
-			{
-				if (result == null)
-				{
-					result = drive;
-					if (size > 0.0 && result.FileCapacityAvailable() >= size)
-						return result;
-					continue;
-				}
+		private static List<ScienceSample> sampleMoveBuffer = new List<ScienceSample>();
 
-				if (size > 0.0 && drive.FileCapacityAvailable() >= size)
+		/// <summary>
+		/// Attempt to move all samples to another drive. <br/>
+		/// If there isn't enough space on the destination drive for all samples, the last transferred sample will be split. <br/>
+		/// Returns true if all samples were transferred, false otherwise.
+		/// </summary>
+		public bool TryMoveAllSamples(DriveHandler destination)
+		{
+			sampleMoveBuffer.Clear();
+			double availableSize = destination.AvailableSampleSize(true);
+			double lastSampleTransferSize = 0.0;
+			foreach (ScienceSample sample in samples.Values)
+			{
+				double transferSize = Math.Min(availableSize, sample.Size);
+				if (transferSize <= 0.0)
+					break;
+
+				if (destination.RecordFile(sample.SubjectData, transferSize, false, sample.ResultText, sample.UseStockCrediting) == null)
+					break;
+
+				sampleMoveBuffer.Add(sample);
+				availableSize = destination.AvailableSampleSize(true);
+
+				if (transferSize < sample.Size)
 				{
+					lastSampleTransferSize = transferSize;
+					break;
+				}
+			}
+
+			int lastSampleIndex = sampleMoveBuffer.Count - 1;
+			for (int i = 0; i < sampleMoveBuffer.Count; i++)
+			{
+				if (i == lastSampleIndex)
+					sampleMoveBuffer[i].TryRemoveSize(lastSampleTransferSize);
+				else
+					sampleMoveBuffer[i].TryRemoveSize();
+			}
+
+			sampleMoveBuffer.Clear();
+			return lastSampleTransferSize == 0.0;
+		}
+
+		/// <summary> Get all drives on the vessel, including private drives </summary>
+		public static IEnumerable<DriveHandler> GetDrives(VesselDataBase vd)
+		{
+			return vd.Parts.AllModulesOfType<DriveHandler>();
+		}
+
+		/// <summary>
+		/// Get the drive who already has that subject, or if not found the drive with the largest available space.
+		/// Returns null if there no file capacity available on the vessel.
+		/// <param name="subject">if null, the drive with the largest available space will be returned</param>
+		/// <param name="availableSize">the available file size on the returned drive</param>
+		public static DriveHandler FindBestDriveForFile(VesselDataBase vesselData, SubjectData subject, out double availableSize)
+		{
+			DriveHandler biggestDrive = null;
+			availableSize = 0.0;
+			foreach (DriveHandler drive in GetDrives(vesselData))
+			{
+				double driveSize = drive.AvailableFileSize();
+
+				if (subject != null && driveSize > 0.0 && drive.files.ContainsKey(subject))
+				{
+					availableSize = driveSize;
 					return drive;
 				}
 
-				// if we're not looking for a minimum capacity, look for the biggest drive
-				if (drive.dataCapacity > result.dataCapacity)
+				if (driveSize > availableSize)
 				{
-					result = drive;
+					biggestDrive = drive;
+					availableSize = driveSize;
 				}
 			}
-			return result;
+			return biggestDrive;
 		}
 
-		/// <summary> Get a drive for storing samples. Will return null if there are no drives on the vessel </summary>
-		public static DriveHandler SampleDrive(VesselDataBase vesselData, double size = 0, SubjectData subject = null)
+		/// <summary> Get the drive with the most available space. Returns null if there are no drives on the vessel.
+		/// <param name="availableSize">the available sample size on the returned drive</param>
+		public static DriveHandler FindBestDriveForSamples(VesselDataBase vesselData, out double availableSize)
 		{
-			DriveHandler result = null;
-			foreach (var drive in GetDrives(vesselData))
+			DriveHandler biggestDrive = null;
+			availableSize = 0.0;
+			foreach (DriveHandler drive in GetDrives(vesselData))
 			{
-				if (result == null)
+				double driveSize = drive.AvailableSampleSize(true);
+				if (driveSize > availableSize)
 				{
-					result = drive;
+					biggestDrive = drive;
+					availableSize = driveSize;
+				}
+			}
+			return biggestDrive;
+		}
+
+		/// <summary>
+		/// Attempt to move all samples and files from a drive to another another vessel <br/>
+		/// If there isn't enough space on the destination vessel drives, the last transferred file/sample will be split. <br/>
+		/// Returns true if all files and samples were transferred, false otherwise.
+		/// </summary>
+		public static bool MoveAllFromDriveToVessel(DriveHandler fromDrive, VesselDataBase toVessel, bool moveSamples = true, bool moveFiles = true)
+		{
+			if (fromDrive.VesselData == toVessel)
+				return false;
+
+			foreach (DriveHandler toDrive in GetDrives(toVessel))
+			{
+				if (toDrive.isPrivate)
 					continue;
+
+				if (moveFiles && fromDrive.TryMoveAllFiles(toDrive))
+					moveFiles = false;
+
+				if (moveSamples && fromDrive.TryMoveAllSamples(toDrive))
+					moveSamples = false;
+			}
+
+			return !moveFiles && !moveSamples;
+		}
+
+		/// <summary>
+		/// Attempt to move all samples and files in a vessel to another vessel drive <br/>
+		/// If there isn't enough space on the destination drive, the last transferred file/sample will be split. <br/>
+		/// Returns true if all files and samples were transferred, false otherwise.
+		/// </summary>
+		public static bool MoveAllFromVesselToDrive(VesselDataBase fromVessel, DriveHandler toDrive, bool moveSamples = true, bool moveFiles = true)
+		{
+			if (toDrive.VesselData == fromVessel)
+				return false;
+
+			foreach (DriveHandler fromDrive in GetDrives(fromVessel))
+			{
+				if (moveFiles && fromDrive.TryMoveAllFiles(toDrive))
+					moveFiles = false;
+
+				if (moveSamples && fromDrive.TryMoveAllSamples(toDrive))
+					moveSamples = false;
+			}
+
+			return !moveFiles && !moveSamples;
+		}
+
+		/// <summary>
+		/// Attempt to move all samples and files in a vessel to another vessel drives <br/>
+		/// If there isn't enough space on the destination vessel drives, the last transferred file/sample will be split. <br/>
+		/// Returns true if all files and samples were transferred, false otherwise.
+		/// </summary>
+		public static bool MoveAllFromVesselToVessel(VesselDataBase fromVessel, VesselDataBase toVessel, bool moveSamples = true, bool moveFiles = true)
+		{
+			IEnumerable<DriveHandler> toDrives = GetDrives(toVessel);
+
+			foreach (DriveHandler fromDrive in GetDrives(fromVessel))
+			{
+				foreach (DriveHandler toDrive in toDrives)
+				{
+					if (toDrive.isPrivate)
+						continue;
+
+					if (moveFiles && fromDrive.TryMoveAllFiles(toDrive))
+						moveFiles = false;
+
+					if (moveSamples && fromDrive.TryMoveAllSamples(toDrive))
+						moveSamples = false;
 				}
 
-				double available = drive.SampleCapacityAvailable(subject);
-				if (size > double.Epsilon && available < size)
-					continue;
-				if (available > result.SampleCapacityAvailable(subject))
-					result = drive;
+				if (!moveFiles && !moveSamples)
+					break;
 			}
-			return result;
+
+			return !moveFiles && !moveSamples;
 		}
 	}
-
-
-} // KERBALISM
-
+}

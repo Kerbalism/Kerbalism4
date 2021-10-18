@@ -1,26 +1,48 @@
-﻿namespace KERBALISM
+﻿using System;
+using System.Collections.Generic;
+
+namespace KERBALISM
 {
     public class ModuleGeneratorHandler : TypedModuleHandler<ModuleGenerator>
     {
-		public override ActivationContext Activation => ActivationContext.Unloaded;
+	    public override ActivationContext Activation => ActivationContext.Unloaded;
 
-		public override void OnFixedUpdate(double elapsedSec)
-        {
-			// if active
-			if (Lib.Proto.GetBool(protoModule, nameof(ModuleGenerator.generatorIsActive)))
+	    public RecipeCategory Category => category;
+	    private RecipeCategory category = RecipeCategory.Converter;
+
+		private Recipe recipe;
+	    private ProtoModuleValueBool generatorIsActive;
+
+		public override void OnStart()
+		{
+			if (!ProtoModuleValueBool.TryGet(protoModule.moduleValues, nameof(ModuleGenerator.generatorIsActive), out generatorIsActive))
 			{
-				// create and commit recipe
-				Recipe recipe = new Recipe(ResourceBroker.StockConverter);
-				foreach (ModuleResource ir in prefabModule.resHandler.inputResources)
-				{
-					recipe.AddInput(ir.name, ir.rate * elapsedSec);
-				}
-				foreach (ModuleResource or in prefabModule.resHandler.outputResources)
-				{
-					recipe.AddOutput(or.name, or.rate * elapsedSec, true);
-				}
-				VesselData.ResHandler.AddRecipe(recipe);
+				handlerIsEnabled = false;
+				return;
+			}
+
+			recipe = new Recipe(partData.Title, RecipeCategory.Converter);
+
+			foreach (ModuleResource input in prefabModule.resHandler.inputResources)
+			{
+				recipe.AddInput(input.id, input.rate);
+			}
+
+			foreach (ModuleResource output in prefabModule.resHandler.outputResources)
+			{
+				recipe.AddOutput(output.id, output.rate, false, true);
+
+				if (output.id == VesselResHandler.ElectricChargeId)
+					recipe.category = RecipeCategory.ECGenerator;
 			}
 		}
-	}
+
+		public override void OnUpdate(double elapsedSec)
+        {
+	        if (generatorIsActive.Value)
+	        {
+		        recipe.RequestExecution(VesselData.ResHandler);
+	        }
+		}
+    }
 }

@@ -99,7 +99,8 @@ namespace KERBALISM
 					if (!VesselData.VesselNeedVesselData(pv))
 						continue;
 
-					ConfigNode vesselDataNode = vesselsNode?.GetNode(pv.vesselID.ToString());
+					string nodeName = pv.vesselID.ToString().KeyToNodeName();
+					ConfigNode vesselDataNode = vesselsNode?.GetNode(nodeName);
 					if (vesselDataNode == null)
 						continue;
 
@@ -116,7 +117,7 @@ namespace KERBALISM
             {
                 foreach (var body_node in node.GetNode(NODENAME_STORMS).GetNodes())
                 {
-                    storms.Add(FromSafeKey(body_node.name), new StormData(body_node));
+                    storms.Add(body_node.name.NodeNameToKey(), new StormData(body_node));
                 }
             }
 
@@ -158,8 +159,9 @@ namespace KERBALISM
 			foreach (ProtoVessel pv in HighLogic.CurrentGame.flightState.protoVessels)
 			{
                 if (pv.TryGetVesselData(out VesselData vd) && vd.IsPersisted)
-				{
-					ConfigNode vesselNode = vesselsNode.AddNode(pv.vesselID.ToString());
+                {
+	                string nodeName = pv.vesselID.ToString().KeyToNodeName();
+					ConfigNode vesselNode = vesselsNode.AddNode(nodeName);
 					vd.Save(vesselNode);
 				}
             }
@@ -172,7 +174,7 @@ namespace KERBALISM
             var bodies_node = node.AddNode(NODENAME_STORMS);
             foreach (var p in storms)
             {
-                p.Value.Save(bodies_node.AddNode(ToSafeKey(p.Key)));
+                p.Value.Save(bodies_node.AddNode(p.Key.KeyToNodeName()));
             }
 
 			// save ui data
@@ -181,11 +183,48 @@ namespace KERBALISM
 			SubStepSim.Save(node);
 		}
 
-		/// <summary> Avoid leading and trailing spaces from being removed when saving a string to a ConfigNode value</summary>
-		public static string ToSafeKey(string key) => key.Replace(" ", "___");
+		// ConfigNode names don't correctly round-trip if it contains space or parenthesis characters.
+		// Also, anything following the "//" string will be considered as a comment and removed.
+		// We replace them by utf-8 characters in the private use area range
 
-		/// <summary> Retrieve a string that was serialized using ToSafeKey() </summary>
-		public static string FromSafeKey(string key) => key.Replace("___", " ");
+		/// <summary>
+		/// Sanitize a string so it can correctly round-trip when used as ConfigNode name. The original
+		/// string can be retrieved by using the NodeNameToKey() extension method on the node name.
+		/// </summary>
+		public static string KeyToNodeName(this string key)
+		{
+			if (key.IndexOfAny(invalidNodeNameChars) == -1)
+				return key;
+
+			return key.Replace(' ', '\ue000').Replace('(', '\ue001').Replace(')', '\ue002').Replace("//", "\ue003");
+		}
+
+		/// <summary>
+		/// Retrieve the original string from a node name obtained with KeyToNodeName()
+		/// </summary>
+		public static string NodeNameToKey(this string key)
+		{
+			if (key.IndexOfAny(invalidNodeNameCharReplacements) == -1)
+				return key;
+
+			return key.Replace('\ue000', ' ').Replace('\ue001', '(').Replace('\ue002', ')').Replace("\ue003", "//");
+		}
+
+		private static char[] invalidNodeNameChars = new[] { ' ', '(', ')', '/' };
+		private static char[] invalidNodeNameCharReplacements = new[] { '\ue000', '\ue001', '\ue002', '\ue003' };
+
+		public static bool IsValidNodeName(this string name, out char invalidChar)
+		{
+			int invalidCharIndex = name.IndexOfAny(invalidNodeNameChars);
+			if (invalidCharIndex < 0)
+			{
+				invalidChar = default;
+				return true;
+			}
+
+			invalidChar = name[invalidCharIndex];
+			return false;
+		}
 
 		#endregion
 

@@ -23,15 +23,15 @@ namespace KERBALISM
 			((UI_Toggle)runningField.uiControlEditor).enabledText = Lib.Color(Local.Generic_ENABLED.ToLower(), Lib.Kolor.Green);
 			((UI_Toggle)runningField.uiControlEditor).disabledText = Lib.Color(Local.Generic_DISABLED.ToLower(), Lib.Kolor.Yellow);
 
-			if (Definition.Process != null)
+			if (Definition.processDefinition != null)
 				PAWSetup();
 		}
 
 		public void PAWSetup()
 		{
 			running = moduleHandler.IsRunning;
-			runningField.guiActive = runningField.guiActiveEditor = Definition.Process.canToggle;
-			runningField.guiName = Definition.Process.title;
+			runningField.guiActive = runningField.guiActiveEditor = Definition.processDefinition.canToggle;
+			runningField.guiName = Definition.processDefinition.title;
 
 			if (Definition.uiGroupName != null)
 				runningField.group = new BasePAWGroup(Definition.uiGroupName, Definition.uiGroupDisplayName ?? Definition.uiGroupName, false);
@@ -45,10 +45,10 @@ namespace KERBALISM
 		// IModuleInfo : module title
 		public string GetModuleTitle()
 		{
-			if (Definition.Process == null)
+			if (Definition.processDefinition == null)
 				return "Process controller";
 
-			return Definition.Process.title;
+			return Definition.processDefinition.title;
 		}
 
 		// IModuleInfo : part tooltip module description

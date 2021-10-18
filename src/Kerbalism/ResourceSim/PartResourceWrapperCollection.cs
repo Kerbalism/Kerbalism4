@@ -11,10 +11,24 @@ namespace KERBALISM
 	/// </summary>
 	public abstract class PartResourceWrapperCollection : IEnumerable<PartResourceWrapper>
 	{
+		protected struct LocalDeferredRequest
+		{
+			public PartResourceWrapper localWrapper;
+			public double deferred;
+
+			public LocalDeferredRequest(PartResourceWrapper localWrapper, double deferred)
+			{
+				this.localWrapper = localWrapper;
+				this.deferred = deferred;
+			}
+		}
+
+
 		protected List<PartResourceWrapper> partResources = new List<PartResourceWrapper>();
 
-		public IEnumerator<PartResourceWrapper> GetEnumerator() => partResources.GetEnumerator();
+		IEnumerator<PartResourceWrapper> IEnumerable<PartResourceWrapper>.GetEnumerator() => partResources.GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => partResources.GetEnumerator();
+		List<PartResourceWrapper>.Enumerator GetEnumerator() => partResources.GetEnumerator();
 
 		/// <summary> current amount </summary>
 		public double amount = 0.0;
@@ -27,6 +41,15 @@ namespace KERBALISM
 
 		/// <summary> remember vessel-wide capacity of previous step, to detect flow state changes </summary>
 		public double oldCapacity = 0.0;
+
+		protected List<LocalDeferredRequest> localDeferredRequests = new List<LocalDeferredRequest>();
+
+		public void AddLocalDeferredRequest(PartResourceWrapper localWrapper, double amount)
+		{
+			localDeferredRequests.Add(new LocalDeferredRequest(localWrapper, amount));
+		}
+
+		public bool NeedUpdate => amount != oldAmount || capacity != oldCapacity || localDeferredRequests.Count != 0;
 
 		/// <summary> To be called at the beginning of a simulation step :
 		/// <para/>- save current amount/capacity in oldAmount/oldCapacity
@@ -45,16 +68,37 @@ namespace KERBALISM
 			{
 				amount = 0.0;
 				capacity = 0.0;
-				partResources.Clear();
+				//partResources.Clear();
 			}
+
+			localDeferredRequests.Clear();
 		}
 
 		/// <summary> synchronize deferred to the PartResource / ProtoPartResourceSnapshot references</summary>
 		/// <param name="deferred">amount to add or remove</param>
 		/// <param name="equalizeMode">if true, the total amount (current + deffered) will redistributed equally amongst all parts </param>
-		public virtual void SyncToPartResources(double deferred, bool equalizeMode) { }
+		public abstract void SyncToPartResources(double deferred, bool equalizeMode);
 
-		public virtual void AddPartResourceWrapper(PartResourceWrapper partResource)
+		public virtual void SyncFromPartResources(bool resetCurrent = true, bool updateOld = true)
+		{
+			ClearPartResources(resetCurrent, updateOld);
+
+			foreach (PartResourceWrapper partResourceWrapper in partResources)
+			{
+				if (!partResourceWrapper.FlowState)
+					continue;
+
+				// avoid possible NaN creation
+				if (partResourceWrapper.Capacity <= 0.0)
+					continue;
+
+				amount += partResourceWrapper.Amount;
+				capacity += partResourceWrapper.Capacity;
+			}
+		}
+
+
+		public virtual void SyncFromPartResources(PartResourceWrapper partResource)
 		{
 			// avoid possible NaN creation
 			if (partResource.Capacity <= 0.0)
@@ -73,6 +117,16 @@ namespace KERBALISM
 			oldCapacity = otherWrapper.oldCapacity;
 		}
 
+		public void AddPartWrapper(PartResourceWrapper partResourceWrapper)
+		{
+			partResources.Add(partResourceWrapper);
+		}
+
+		public void RemovePartWrapper(PartResourceWrapper partResourceWrapper)
+		{
+			partResources.Remove(partResourceWrapper);
+		}
+
 		public override string ToString()
 		{
 			return $"{amount:F1} / {capacity:F1}";
@@ -82,9 +136,9 @@ namespace KERBALISM
 	/// <summary>
 	/// EditorResourceWrapper doesn't keep the PartResourceWrapper references and doesn't synchronize anything
 	/// </summary>
-	public class PlannerPartResourceWrapperCollection : PartResourceWrapperCollection
+	public sealed class PlannerPartResourceWrapperCollection : PartResourceWrapperCollection
 	{
-		public override void AddPartResourceWrapper(PartResourceWrapper partResource)
+		public override void SyncFromPartResources(PartResourceWrapper partResource)
 		{
 			// avoid possible NaN creation
 			if (partResource.Capacity <= 0.0)
@@ -97,10 +151,30 @@ namespace KERBALISM
 		public override void SyncToPartResources(double deferred, bool equalizeMode) { }
 	}
 
-	public class VesselPartResourceWrapperCollection : PartResourceWrapperCollection
+	public sealed class VesselPartResourceWrapperCollection : PartResourceWrapperCollection
 	{
 		public override void SyncToPartResources(double deferred, bool equalizeMode)
 		{
+			foreach (LocalDeferredRequest localRequest in localDeferredRequests)
+			{
+				double localDeffered = Lib.Clamp(localRequest.deferred, -localRequest.localWrapper.Amount, localRequest.localWrapper.Capacity - localRequest.localWrapper.Amount);
+				localRequest.localWrapper.Amount += localDeffered;
+
+				if (localRequest.localWrapper.FlowState)
+				{
+					deferred -= localDeffered;
+					amount += localDeffered;
+				}
+			}
+
+			// clamp consumption/production to vessel amount/capacity
+			// - if deferred is negative, then amount is guaranteed to be greater than zero
+			// - if deferred is positive, then capacity - amount is guaranteed to be greater than zero
+			deferred = Lib.Clamp(deferred, -amount, capacity - amount);
+
+			if (deferred == 0.0)
+				return;
+
 			if (equalizeMode)
 			{
 				// apply deferred consumption/production to all parts,
@@ -112,24 +186,36 @@ namespace KERBALISM
 			}
 			else
 			{
+				if (deferred == 0.0)
+					return;
+
 				// apply deferred consumption/production to all parts, simulating ALL_VESSEL_BALANCED
-				// avoid very small values in deferred consumption/production
-				if (Math.Abs(deferred) > 1e-16)
+				if (deferred < 0.0)
 				{
 					foreach (PartResourceWrapper partResource in partResources)
 					{
-						// calculate consumption/production coefficient for the part
-						double k;
-						if (deferred < 0.0)
-							k = partResource.Amount / amount;
-						else
-							k = (partResource.Capacity - partResource.Amount) / (capacity - amount);
+						// calculate consumption coefficient for the part
+						double k = partResource.Amount / amount;
 
-						// apply deferred consumption/production
+						// apply deferred consumption
+						partResource.Amount += deferred * k;
+					}
+				}
+				else
+				{
+					foreach (PartResourceWrapper partResource in partResources)
+					{
+						// calculate production coefficient for the part
+						double k = (partResource.Capacity - partResource.Amount) / (capacity - amount);
+
+						// apply deferred production
 						partResource.Amount += deferred * k;
 					}
 				}
 			}
+
+			// update amount, to get correct rate and levels at all times
+			amount += deferred;
 		}
 	}
 }

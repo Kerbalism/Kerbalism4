@@ -88,12 +88,12 @@ namespace KERBALISM
 					{
 						foreach (PartModule module in part.Modules)
 						{
-							if (module is ModuleKsmRadiationCoil coilModule
-								&& coilModule.moduleHandler.partData.virtualResources.Contains(existingEffect.chargeId))
-							{
-								effectParts.Add(part);
-								break;
-							}
+							//if (module is ModuleKsmRadiationCoil coilModule
+							//	&& coilModule.moduleHandler.partData.virtualResources.Contains(existingEffect.chargeId))
+							//{
+							//	effectParts.Add(part);
+							//	break;
+							//}
 						}
 					}
 
@@ -190,7 +190,7 @@ namespace KERBALISM
 
 			private void InstantiateCapsule()
 			{
-				capsule = UnityEngine.Object.Instantiate(GameDatabase.Instance.GetModel("Kerbalism/Models/RadiationCapsuleEffect"));
+				capsule = Instantiate(GameDatabase.Instance.GetModel("Kerbalism/Models/RadiationCapsuleEffect"));
 				capsule.transform.SetParent(null);
 				capsule.SetActive(true);
 				foreach (Transform transform in capsule.GetComponentsInChildren<Transform>())
@@ -208,13 +208,13 @@ namespace KERBALISM
 			{
 				capsule.DestroyGameObject();
 
-				string chargeId = masterCoil.moduleHandler.effectData.charge.Name;
+				//string chargeId = masterCoil.moduleHandler.effectData.charge.Name;
 
-				foreach (ModuleKsmRadiationCoil coil in coils)
-				{
-					coil.arrayEffect = null;
-					coil.moduleHandler.RemoveChargeResource(chargeId);
-				}
+				//foreach (ModuleKsmRadiationCoil coil in coils)
+				//{
+				//	coil.arrayEffect = null;
+				//	coil.moduleHandler.RemoveChargeResource(chargeId);
+				//}
 
 				// clear master coil reference
 				masterCoil.moduleHandler.effectData = null;
@@ -437,16 +437,16 @@ namespace KERBALISM
 
 		public override void OnStartFinished(StartState state)
 		{
-			// rebuild the array
-			if (moduleHandler.effectData != null && !ArrayEffect.FindArray(this, moduleHandler.effectData))
-			{
-				// if the array wasn't found or has changed, remove the charge resource
-				foreach (RadiationCoilHandler coil in moduleHandler.VesselData.Parts.AllModulesOfType<RadiationCoilHandler>())
-				{
-					coil.partData.virtualResources.RemoveResource(moduleHandler.effectData.chargeId);
-				}
-				moduleHandler.effectData = null;
-			}
+			//// rebuild the array
+			//if (moduleHandler.effectData != null && !ArrayEffect.FindArray(this, moduleHandler.effectData))
+			//{
+			//	// if the array wasn't found or has changed, remove the charge resource
+			//	foreach (RadiationCoilHandler coil in moduleHandler.VesselData.Parts.AllModulesOfType<RadiationCoilHandler>())
+			//	{
+			//		coil.partData.virtualResources.RemoveResource(moduleHandler.effectData.chargeId);
+			//	}
+			//	moduleHandler.effectData = null;
+			//}
 		}
 
 		public double GetPartProtectionFactor(Part part)
@@ -520,7 +520,7 @@ namespace KERBALISM
 			if (arrayEffect != null)
 			{
 				RadiationCoilHandler.ArrayEffectData effectData = arrayEffect.masterCoil.moduleHandler.effectData;
-				bool notCharged = effectData.charge.Amount == 0.0;
+				bool notCharged = effectData.chargeResource.Amount == 0.0;
 
 				Fields["chargeInfo"].guiActive = true;
 				
@@ -537,7 +537,7 @@ namespace KERBALISM
 					" (", "max", " -", Lib.HumanReadableRadiation(effectData.maxRadiation, false, false), ")");
 
 				// Charge: 0.0/478.00 kEC / Rate : -4.2 EC/s
-				chargeInfo = Lib.BuildString(Lib.HumanReadableStorage(effectData.charge.Amount, effectData.charge.Capacity), "EC", " - ", "Coils", ": ", arrayEffect.coils.Count.ToString());
+				chargeInfo = Lib.BuildString(Lib.HumanReadableStorage(effectData.chargeResource.Amount, effectData.chargeResource.Capacity), "EC", " - ", "Coils", ": ", arrayEffect.coils.Count.ToString());
 			}
 			else
 			{
@@ -559,7 +559,7 @@ namespace KERBALISM
 		{
 			if (moduleHandler.isDeployed && arrayEffect != null)
 			{
-				if (arrayEffect.masterCoil.moduleHandler.effectData.charge.Amount > 0.0)
+				if (arrayEffect.masterCoil.moduleHandler.effectData.chargeResource.Amount > 0.0)
 				{
 					Message.Post("Can't retract a charged coil !");
 					return;
@@ -606,7 +606,7 @@ namespace KERBALISM
 		{
 			if (arrayEffect != null)
 			{
-				if (arrayEffect.masterCoil.moduleHandler.effectData.charge.Amount > 0.0)
+				if (arrayEffect.masterCoil.moduleHandler.effectData.chargeResource.Amount > 0.0)
 				{
 					Message.Post("Can't reconnect a charged coil array!");
 					return;

@@ -50,7 +50,13 @@ namespace KERBALISM.KsmGui
 				if (value == null)
 					value = string.Empty;
 
-				TextComponent.SetText(value);
+				// DON'T USE SetText() !!!!
+				// SetText() won't check :
+				// - if the text has actually changed
+				// - if the changed text is actually causing a size change
+				// This reduce occurences of the canvas being marked dirty by 99+%,
+				// For complex windows, the savings can be several ms per update !
+				TextComponent.text = value;
 
 				if (useEllipsisWithTooltip)
 				{

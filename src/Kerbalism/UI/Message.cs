@@ -248,7 +248,7 @@ namespace KERBALISM
 		}
 
 
-		private readonly float offset = Styles.ScaleFloat(266.0f);
+		private readonly float offset = 266.0f;
 
 		// store entries
 		private Queue<Entry> entries = new Queue<Entry>();

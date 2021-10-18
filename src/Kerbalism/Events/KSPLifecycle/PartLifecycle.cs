@@ -92,7 +92,7 @@ namespace KERBALISM.Events
 	{
 		static void Prefix(Part __instance)
 		{
-			Lib.Log("PART START");
+			Lib.LogDebug($"Part starting : {__instance.partInfo.name}");
 
 			if (Lib.IsEditor)
 			{
@@ -128,6 +128,9 @@ namespace KERBALISM.Events
 					if (!VesselData.VesselNeedVesselData(__instance.vessel.protoVessel))
 						return;
 
+					// TODO : detaching parts in EVA construction mode currently end up here :
+					// - we need to handle Part.OnDetachFlight() to remove the part from vesseldata, and disable it / set it as a "held" part
+					// - we need to detect when the part is dropped, and create its vessel and everything...
 					Lib.LogDebugStack($"VesselData doesn't exists for vessel {__instance.vessel.vesselName}, can't link PartData !", Lib.LogLevel.Error);
 					return;
 				}

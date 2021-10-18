@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using KSPAchievements;
+﻿using System.Text;
 
 namespace KERBALISM
 {
 	public class KsmString
 	{
-		private static readonly ObjectPool<KsmString> stringBuildersPool = new ObjectPool<KsmString>();
+		private static readonly KsmStringObjectPool<KsmString> stringBuildersPool = new KsmStringObjectPool<KsmString>();
 
 		private StringBuilder sb = new StringBuilder();
 
@@ -29,7 +24,7 @@ namespace KERBALISM
 			return this;
 		}
 
-		/// <summary> Append a string </summary>
+		/// <summary> Append a line break </summary>
 		public KsmString Break()
 		{
 			sb.Append("\n");

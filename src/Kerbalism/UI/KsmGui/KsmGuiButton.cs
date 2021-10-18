@@ -12,7 +12,7 @@ namespace KERBALISM.KsmGui
 		public Image ImageComponent { get; private set; }
 		public Button ButtonComponent { get; private set; }
 		public KsmGuiText TextObject { get; private set; }
-		public KsmGuiIcon IconObject { get; private set; }
+		public KsmGuiImage IconObject { get; private set; }
 
 		private UnityAction onClick;
 
@@ -89,7 +89,7 @@ namespace KERBALISM.KsmGui
 		{
 			if (texture != null && IconObject == null)
 			{
-				IconObject = new KsmGuiIcon(this, texture, width, height);
+				IconObject = new KsmGuiImage(this, texture, width, height);
 				IconObject.TopTransform.SetParentFixScale(TopTransform);
 			}
 

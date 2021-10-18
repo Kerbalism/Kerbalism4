@@ -231,7 +231,8 @@ namespace KERBALISM
 					HashSet<int> enabledHabsShipIds = new HashSet<int>();
 					foreach (ConfigNode moduleDataNode in kerbalismDataNode.GetNode(VesselDataBase.NODENAME_MODULE).nodes)
 					{
-						if (moduleDataNode.name.Split('@')[1] == nameof(HabitatHandler) && Lib.ConfigValue(moduleDataNode, "habitatEnabled", false))
+						string nodeName = moduleDataNode.name.NodeNameToKey();
+						if (nodeName.Split('@')[1] == nameof(HabitatHandler) && Lib.ConfigValue(moduleDataNode, "habitatEnabled", false))
 						{
 							enabledHabsShipIds.Add(Lib.ConfigValue(moduleDataNode, ModuleHandler.VALUENAME_SHIPID, 0));
 						}

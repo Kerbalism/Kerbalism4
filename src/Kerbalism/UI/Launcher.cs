@@ -8,7 +8,6 @@ namespace KERBALISM
 
 	public sealed class Launcher
 	{
-
 		// click through locks
 		private bool clickThroughLocked = false;
 		private const ControlTypes MainGUILockTypes = ControlTypes.MANNODE_ADDEDIT | ControlTypes.MANNODE_DELETE | ControlTypes.MAP_UI |
@@ -16,11 +15,6 @@ namespace KERBALISM
 
 		public Launcher()
 		{
-			// initialize
-			Planner.Planner.Initialize();
-			monitor = new Monitor();
-			tooltip = new Tooltip();
-
 			GameEvents.onGUIApplicationLauncherReady.Add(Create);
 		}
 
@@ -49,7 +43,7 @@ namespace KERBALISM
 				{
 					if (!Lib.IsEditor)
 					{
-						KsmGuiWindow window = new KsmGuiWindow(KsmGuiWindow.LayoutGroupType.Vertical, true, 0.8f, true);
+						KsmGuiWindow window = new KsmGuiWindow(KsmGuiLib.Orientation.Vertical, true, 0.8f, true);
 						new VesselsManager(window);
 					}
 				};
@@ -95,11 +89,11 @@ namespace KERBALISM
 			// update planner/monitor content
 			if (Lib.IsEditor)
 			{
-				Planner.Planner.Update();
+				//Planner.Planner.Update();
 			}
 			else
 			{
-				monitor.Update();
+				// monitor.Update();
 			}
 		}
 
@@ -114,60 +108,8 @@ namespace KERBALISM
 			// render the window
 			if (vesselListLauncher.toggleButton.Value || vesselListLauncher.IsHovering || (win_rect.width > 0f && win_rect.Contains(Mouse.screenPos)))
 			{
-				// hard-coded offsets
-				// note: there is a bug in stock that only set appscale properly in non-flight-mode after you go in flight-mode at least once
-				float at_top_offset_x = 40.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
-				float at_top_offset_y = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
-				float at_bottom_offset_x = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
-				float at_bottom_offset_y = 40.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS;
-				float at_bottom_editor_offset_x = 0.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS; // 66
-				float at_bottom_editor_offset_y = 500.0f * GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS; // 40
-
-				// get screen size
-				float screen_width = Screen.width;
-				float screen_height = Screen.height;
-
-				// determine app launcher position;
-				bool is_at_top = ApplicationLauncher.Instance.IsPositionedAtTop;
-
-				// get window size
-				float width = Lib.IsEditor ? Planner.Planner.Width() : monitor.Width();
-				float height = Lib.IsEditor ? Planner.Planner.Height() : monitor.Height();
-
-				// calculate window position
-				float left = screen_width - width;
-				float top = is_at_top ? 0.0f : screen_height - height;
-				if (is_at_top)
-				{
-					left -= at_top_offset_x;
-					top += at_top_offset_y;
-				}
-				else
-				{
-					left -= !Lib.IsEditor ? at_bottom_offset_x : at_bottom_editor_offset_x;
-					top -= !Lib.IsEditor ? at_bottom_offset_y : at_bottom_editor_offset_y;
-				}
-
-				// store window geometry
-				win_rect = new Rect(left, top, width, height);
-
-				// begin window area
-				GUILayout.BeginArea(win_rect, Styles.win);
-
-				// a bit of spacing between title and content
-				GUILayout.Space(Styles.ScaleFloat(10.0f));
-
-				// draw planner in the editors, monitor everywhere else
-				if (!Lib.IsEditor)
-					monitor.Render();
-				else
-					Planner.Planner.Render();
-
-				// end window area
-				GUILayout.EndArea();
-
 				// draw tooltip
-				tooltip.Draw(new Rect(0.0f, 0.0f, Screen.width, Screen.height));
+				tooltip.Draw();
 			}
 			else
 			{
@@ -209,9 +151,6 @@ namespace KERBALISM
 
 		// window geometry
 		Rect win_rect;
-
-		// the vessel monitor
-		Monitor monitor;
 
 		// tooltip utility
 		Tooltip tooltip;

@@ -69,6 +69,8 @@ namespace KERBALISM
 
 		public string DebugStateInfo => $"{FullTitle} :\nExistsInRnD={ExistsInRnD} - ScienceMaxValue={ScienceMaxValue} - SciencePerMB={SciencePerMB} - ScienceCollectedInFlight={ScienceCollectedInFlight} - RnDSubject.science={RnDSubject?.science}";
 
+		public override string ToString() => StockSubjectId;
+
 		/// <summary> science value for the given data size </summary>
 		public double ScienceValue(double dataSize, bool clampByScienceRetrieved = false, bool clampByScienceRetrievedAndCollected = false)
 		{
@@ -239,15 +241,14 @@ namespace KERBALISM
 		/// <param name="fromVessel">passed to the OnScienceRecieved gameevent on subject completion. Can be null if not available</param>
 		/// <param name="file">if not null, the "subject completed" completed message will use the result text stored in the file. If null, it will be a generic message</param>
 		/// <returns>The amount of science credited, accounting for the subject + included subjects remaining science value</returns>
-		public double RetrieveScience(double scienceValue, bool showMessage = false, ProtoVessel fromVessel = null, DriveFile file = null)
+		public double RetrieveScience(double scienceValue, bool showMessage = false, ProtoVessel fromVessel = null, DriveHandler.ScienceFile file = null)
 		{
 			if (!ExistsInRnD)
 				CreateSubjectInRnD();
 
 			double scienceRetrieved = Math.Min(ScienceRemainingToRetrieve, scienceValue);
 
-			if (!API.preventScienceCrediting)
-				ScienceDB.uncreditedScience += scienceRetrieved;
+			ScienceDB.uncreditedScience += scienceRetrieved;
 
 			// fire subject completed events
 			int timesCompleted = UpdateSubjectCompletion(scienceValue);
@@ -257,44 +258,25 @@ namespace KERBALISM
 			RnDSubject.science = Math.Min((float)(RnDSubject.science + scienceValue), RnDSubject.scienceCap);
 			RnDSubject.scientificValue = ResearchAndDevelopment.GetSubjectValue(RnDSubject.science, RnDSubject);
 
-			if (API.subjectsReceivedEventEnabled)
-			{
-				bool exists = false;
-				for (int i = 0; i < ScienceDB.subjectsReceivedBuffer.Count; i++)
-				{
-					if (ScienceDB.subjectsReceivedBuffer[i].id == RnDSubject.id)
-					{
-						ScienceDB.subjectsReceivedValueBuffer[i] += scienceRetrieved;
-						exists = true;
-						break;
-					}
-				}
-				if (!exists)
-				{
-					ScienceDB.subjectsReceivedBuffer.Add(RnDSubject);
-					ScienceDB.subjectsReceivedValueBuffer.Add(scienceRetrieved);
-				}
-			}
-
 			foreach (SubjectData overridenSubject in IncludedSubjects)
 				scienceRetrieved += overridenSubject.RetrieveScience(scienceValue, showMessage && overridenSubject.TimesCompleted == 0, fromVessel);
 
 			return scienceRetrieved;
 		}
 
-		private void OnSubjectCompleted(bool showMessage = false, ProtoVessel fromVessel = null, DriveFile file = null)
+		private void OnSubjectCompleted(bool showMessage = false, ProtoVessel fromVessel = null, DriveHandler.ScienceFile file = null)
 		{
 			// fire science transmission game event. This is used by stock contracts and a few other things.
 			// note : in stock, it is fired with a null protovessel in some cases, so doing it should be safe.
 
-			if (API.preventScienceCrediting)
-			{
-				// passing 0 as a value breaks the stock "recover science from Kerbin" contracts (one of the
-				// fist 4 contracts at the beginning of the game). Bureaucracy ignores all values < 0.1, so passing
-				// 0.01 here should be OK (see https://github.com/Kerbalism/Kerbalism/issues/630)
-				GameEvents.OnScienceRecieved.Fire(0.01f, RnDSubject, fromVessel, false);
-			}
-			else
+			//if (API.preventScienceCrediting)
+			//{
+			//	// passing 0 as a value breaks the stock "recover science from Kerbin" contracts (one of the
+			//	// fist 4 contracts at the beginning of the game). Bureaucracy ignores all values < 0.1, so passing
+			//	// 0.01 here should be OK (see https://github.com/Kerbalism/Kerbalism/issues/630)
+			//	GameEvents.OnScienceRecieved.Fire(0.01f, RnDSubject, fromVessel, false);
+			//}
+			//else
 				GameEvents.OnScienceRecieved.Fire(TimesCompleted == 1 ? (float)ScienceMaxValue : 0f, RnDSubject, fromVessel, false);
 
 			if (ExpInfo.UnlockResourceSurvey)
@@ -308,7 +290,7 @@ namespace KERBALISM
 
 			// notify the player
 			string subjectResultText;
-			if (file == null || string.IsNullOrEmpty(file.resultText))
+			if (file == null || string.IsNullOrEmpty(file.ResultText))
 			{
 				subjectResultText = Lib.TextVariant(
 					Local.SciencresultText1,//"Our researchers will jump on it right now"
@@ -319,7 +301,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				subjectResultText = file.resultText;
+				subjectResultText = file.ResultText;
 			}
 			subjectResultText = Lib.WordWrapAtLength(subjectResultText, 70);
 			Message.Post(Lib.BuildString(

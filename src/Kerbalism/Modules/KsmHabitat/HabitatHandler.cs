@@ -80,11 +80,19 @@ namespace KERBALISM
 		private PartResourceWrapper atmoRes;
 		private PartResourceWrapper wasteRes;
 		private PartResourceWrapper shieldRes;
-		private VesselKSPResource ecResInfo;
-		private VesselKSPResource atmoResInfo;
-		private VesselKSPResource wasteResInfo;
-		private VesselKSPResource breathableResInfo;
+		private VesselResourceKSP atmoResInfo;
+		private VesselResourceKSP wasteResInfo;
 		private bool isEditor;
+
+		public Recipe deployRecipe;
+		public Recipe centrifugeRecipe;
+		public RecipeInput centrifugeECInput;
+		public Recipe depressurizationRecipe;
+		public RecipeInput depressurizationECInput;
+		public RecipeLocalInput depressurizationAtmoInput;
+		public RecipeLocalInput depressurizationWasteInput;
+		public RecipeOutput depressurizationAtmoOutput;
+
 
 		#endregion
 
@@ -93,7 +101,6 @@ namespace KERBALISM
 		public PartResourceWrapper AtmoRes => atmoRes;
 		public PartResourceWrapper WasteRes => wasteRes;
 		public PartResourceWrapper ShieldRes => shieldRes;
-		public VesselKSPResource EcResInfo => ecResInfo;
 
 		public bool IsDeployed
 		{
@@ -323,20 +330,18 @@ namespace KERBALISM
 		{
 			isEditor = Lib.IsEditor;
 
-			atmoRes = partData.resources.Find(p => p.ResName == Settings.HabitatAtmoResource);
-			wasteRes = partData.resources.Find(p => p.ResName == Settings.HabitatWasteResource);
-
-			if (definition.hasShielding)
+			foreach (PartResourceWrapper resource in partData.resources)
 			{
-				shieldRes = partData.resources.Find(p => p.ResName == definition.shieldingResource);
+				if (resource.ResName == Settings.HabitatAtmoResource)
+					atmoRes = resource;
+				else if (resource.ResName == Settings.HabitatWasteResource)
+					wasteRes = resource;
+				else if (definition.hasShielding && resource.ResName == definition.shieldingResource)
+					shieldRes = resource;
 			}
 
-			ecResInfo = VesselData.ResHandler.ElectricCharge;
-			atmoResInfo = (VesselKSPResource)VesselData.ResHandler.GetResource(Settings.HabitatAtmoResource);
-			wasteResInfo = (VesselKSPResource)VesselData.ResHandler.GetResource(Settings.HabitatWasteResource);
-
-			if (Settings.HabitatBreathableResourceRate > 0.0)
-				breathableResInfo = (VesselKSPResource)VesselData.ResHandler.GetResource(Settings.HabitatBreathableResource);
+			atmoResInfo = VesselData.ResHandler.GetKSPResource(Settings.HabitatAtmoResourceId);
+			wasteResInfo = VesselData.ResHandler.GetKSPResource(Settings.HabitatWasteResourceId);
 
 			switch (pressureState)
 			{
@@ -349,6 +354,35 @@ namespace KERBALISM
 				case PressureState.AlwaysDepressurized: AlwaysDepressurizedStartEvt(); break;
 			}
 
+			if (definition.deployECRate > 0.0)
+			{
+				deployRecipe = new Recipe(partData.Title, RecipeCategory.Deployement, OnDeployRecipeExecuted);
+				deployRecipe.AddInput(VesselResHandler.ElectricChargeId, definition.deployECRate);
+			}
+
+			if (definition.isCentrifuge)
+			{
+				centrifugeRecipe = new Recipe(partData.Title, RecipeCategory.Centrifuge, OnCentrifugeRecipeExecuted);
+				centrifugeECInput = centrifugeRecipe.AddInput(VesselResHandler.ElectricChargeId, definition.rotateECRate);
+			}
+
+			if (definition.canPressurize && definition.depressurizationRate > 0.0)
+			{
+				depressurizationRecipe = new Recipe(partData.Title, RecipeCategory.Pressure, OnDepressurizationRecipeExecuted);
+
+				depressurizationAtmoInput = depressurizationRecipe.AddLocalInput(atmoRes, definition.depressurizationRate);
+				depressurizationWasteInput = depressurizationRecipe.AddLocalInput(wasteRes, definition.depressurizationRate);
+
+				if (definition.depressurizeECRate > 0.0)
+				{
+					depressurizationECInput = depressurizationRecipe.AddInput(VesselResHandler.ElectricChargeId, definition.depressurizeECRate);
+				}
+
+				if (definition.reclaimFactor > 0.0)
+				{
+					depressurizationAtmoOutput = depressurizationRecipe.AddOutput(definition.reclaimResource, definition.depressurizationRate, true, false);
+				}
+			}
 		}
 
 		public override void OnLoad(ConfigNode node)
@@ -381,7 +415,7 @@ namespace KERBALISM
 
 		#region UPDATE
 
-		public override void OnFixedUpdate(double elapsedSec)
+		public override void OnUpdate(double elapsedSec)
 		{
 			isEditor = Lib.IsEditor;
 			AnimationsUpdate(elapsedSec);
@@ -419,11 +453,9 @@ namespace KERBALISM
 
 						if (loadedModule.deployAnimator.Playing)
 						{
-							if (!isEditor && definition.deployECRate > 0.0)
-							{
-								ecResInfo.Consume(definition.deployECRate * elapsed_s, ResourceBroker.Deployment);
-								loadedModule.deployAnimator.ChangeSpeed((float)ecResInfo.AvailabilityFactor);
-							}
+							if (!isEditor && deployRecipe != null)
+								deployRecipe.RequestExecution(VesselData.ResHandler);
+							
 							animTimer = loadedModule.deployAnimator.AnimDuration * (1f - loadedModule.deployAnimator.NormalizedTime);
 						}
 						else
@@ -458,11 +490,9 @@ namespace KERBALISM
 						{
 							if (loadedModule.deployAnimator.Playing)
 							{
-								if (!isEditor && definition.deployECRate > 0.0)
-								{
-									ecResInfo.Consume(definition.deployECRate * elapsed_s, ResourceBroker.Deployment);
-									loadedModule.deployAnimator.ChangeSpeed((float)ecResInfo.AvailabilityFactor);
-								}
+								if (!isEditor && deployRecipe != null)
+									deployRecipe.RequestExecution(VesselData.ResHandler);
+								
 								animTimer = loadedModule.deployAnimator.AnimDuration * loadedModule.deployAnimator.NormalizedTime;
 							}
 							else
@@ -480,8 +510,11 @@ namespace KERBALISM
 					case AnimState.Accelerating:
 						if (loadedModule.rotateAnimator.IsSpinningNominal)
 						{
-							if (!isEditor && definition.rotateECRate > 0.0)
-								ecResInfo.Consume(definition.rotateECRate * elapsed_s, ResourceBroker.GravityRing);
+							if (!isEditor)
+							{
+								centrifugeECInput.NominalRate = definition.rotateECRate;
+								centrifugeRecipe.RequestExecution(VesselData.ResHandler);
+							}
 
 							animState = AnimState.Rotating;
 						}
@@ -491,41 +524,23 @@ namespace KERBALISM
 						}
 						else
 						{
-							if (!isEditor && definition.accelerateECRate > 0.0)
-								ecResInfo.Consume(definition.accelerateECRate * elapsed_s, ResourceBroker.GravityRing);
+							if (!isEditor)
+							{
+								centrifugeECInput.NominalRate = definition.accelerateECRate;
+								centrifugeRecipe.RequestExecution(VesselData.ResHandler);
+							}
 						}
 						break;
 					case AnimState.Decelerating:
-
 						if (loadedModule.rotateAnimator.IsStopped)
-						{
 							animState = AnimState.Deployed;
-						}
 
 						break;
 					case AnimState.Rotating:
-						if (!isEditor && definition.rotateECRate > 0.0)
-						{
-							ecResInfo.Consume(definition.rotateECRate * elapsed_s, ResourceBroker.GravityRing);
-
-							if (ecResInfo.AvailabilityFactor < 1.0)
-								animState = AnimState.RotatingNotEnoughEC;
-						}
-						break;
 					case AnimState.RotatingNotEnoughEC:
-						if (!isEditor && definition.rotateECRate > 0.0)
-						{
-							ecResInfo.Consume(definition.rotateECRate * elapsed_s, ResourceBroker.GravityRing);
+						if (!isEditor)
+							centrifugeRecipe.RequestExecution(VesselData.ResHandler);
 
-							if (ecResInfo.AvailabilityFactor == 1.0)
-							{
-								animState = AnimState.Accelerating;
-							}
-							else if (loadedModule.rotateAnimator.IsStopped)
-							{
-								animState = AnimState.Stuck;
-							}
-						}
 						break;
 				}
 			}
@@ -537,15 +552,10 @@ namespace KERBALISM
 
 						if (!definition.deployWithPressure)
 						{
-							double deploySpeedFactor = 1.0;
-							if (definition.deployECRate > 0.0)
-							{
-								double timeSpent = Math.Min(elapsed_s, animTimer);
-								ecResInfo.Consume(definition.deployECRate * timeSpent, ResourceBroker.Deployment);
-								deploySpeedFactor = ecResInfo.AvailabilityFactor;
-							}
-
-							animTimer -= (float)(elapsed_s * deploySpeedFactor);
+							if (deployRecipe != null)
+								deployRecipe.RequestExecution(VesselData.ResHandler);
+							else
+								animTimer -= (float) elapsed_s;
 						}
 
 						if (animTimer <= 0f)
@@ -565,39 +575,18 @@ namespace KERBALISM
 						}
 						else
 						{
-							double retractSpeedFactor = 1.0;
-							if (definition.deployECRate > 0.0)
-							{
-								double timeSpent = Math.Min(elapsed_s, animTimer);
-								ecResInfo.Consume(definition.deployECRate * timeSpent, ResourceBroker.Deployment);
-								retractSpeedFactor = ecResInfo.AvailabilityFactor;
-							}
-
-							animTimer -= (float)(elapsed_s * retractSpeedFactor);
+							if (deployRecipe != null)
+								deployRecipe.RequestExecution(VesselData.ResHandler);
+							else
+								animTimer -= (float)elapsed_s;
 
 							if (animTimer <= 0f)
 								animState = AnimState.Retracted;
 						}
 						break;
 					case AnimState.Accelerating:
-
-						double accelSpeedFactor = 1.0;
-						if (definition.accelerateECRate > 0.0)
-						{
-							double timeSpent = Math.Min(elapsed_s, animTimer);
-							ecResInfo.Consume((definition.accelerateECRate + definition.rotateECRate) * timeSpent, ResourceBroker.GravityRing);
-							accelSpeedFactor = ecResInfo.AvailabilityFactor;
-						}
-
-						//accelSpeedFactor -= Transformator.spinLosses / modulePrefab.rotateAccelerationRate;
-
-						animTimer -= (float)(elapsed_s * accelSpeedFactor);
-
-						if (animTimer > modulePrefab.rotateAnimator.TimeNeededToStartOrStop)
-							animState = AnimState.Deployed;
-						else if (animTimer <= 0.0)
-							animState = AnimState.Rotating;
-
+						centrifugeECInput.NominalRate = definition.accelerateECRate;
+						centrifugeRecipe.RequestExecution(VesselData.ResHandler);
 						break;
 					case AnimState.Decelerating:
 
@@ -608,17 +597,7 @@ namespace KERBALISM
 
 						break;
 					case AnimState.Rotating:
-
-						if (definition.rotateECRate > 0.0)
-							ecResInfo.Consume(definition.rotateECRate * elapsed_s, ResourceBroker.GravityRing);
-
-						if (ecResInfo.AvailabilityFactor < 1.0)
-						{
-							//double speedLost = Transformator.spinLosses * elapsed_s * ecResInfo.AvailabilityFactor;
-							double speedLost = elapsed_s * ecResInfo.AvailabilityFactor;
-							animTimer = modulePrefab.rotateAnimator.TimeNeededToStartOrStop * Math.Min((float)speedLost / definition.rotateSpinRate, 1f);
-							animState = AnimState.Accelerating;
-						}
+						centrifugeRecipe.RequestExecution(VesselData.ResHandler);
 						break;
 				}
 			}
@@ -645,16 +624,6 @@ namespace KERBALISM
 						else
 							AlwaysDepressurizedStartEvt();
 						break;
-					}
-
-					// magic scrubbing and oxygen supply
-					if (breathableResInfo != null && crewCount > 0)
-					{
-						double rate = crewCount * Settings.HabitatBreathableResourceRate * elapsed_s;
-						breathableResInfo.Produce(rate, ResourceBroker.Environment);
-						// note : we abuse the isCritical system here to make sure this consumption
-						// is prioritized over the consume calls from scrubbers.
-						wasteResInfo.Consume(rate, ResourceBroker.Environment, true);
 					}
 
 					// equalize pressure with external pressure
@@ -705,7 +674,7 @@ namespace KERBALISM
 				case PressureState.Pressurizing:
 
 					if (!isEditor)
-						atmoResInfo.equalizeMode = VesselKSPResource.EqualizeMode.Disabled;
+						atmoResInfo.equalizeMode = VesselResourceKSP.EqualizeMode.Disabled;
 
 					if (definition.deployWithPressure && animState == AnimState.Deploying)
 					{
@@ -726,68 +695,51 @@ namespace KERBALISM
 				case PressureState.DepressurizingBelowThreshold:
 
 					// if fully depressurized, go to the depressurized state
-					if (atmoRes.Amount <= 0.0)
+					if (atmoRes.Amount == 0.0)
 					{
 						DepressurizingEndEvt();
 						break;
 					}
 					// if external pressure is less than the hab pressure, stop depressurization and go to the breathable state
-					else if (VesselData.EnvInOxygenAtmosphere && atmoRes.Amount / atmoRes.Capacity < VesselData.EnvStaticPressure && IsDeployed)
+					else if (VesselData.EnvInOxygenAtmosphere && atmoRes.Level < VesselData.EnvStaticPressure && IsDeployed)
 					{
 						DepressurizingEndEvt();
 						break;
 					}
 					// pressure is going below the survivable threshold : time for kerbals to put their helmets
-					else if (pressureState == PressureState.DepressurizingAboveThreshold && atmoRes.Amount / atmoRes.Capacity < Settings.PressureThreshold)
+					else if (pressureState == PressureState.DepressurizingAboveThreshold && atmoRes.Level < Settings.PressureThreshold)
 					{
 						DepressurizingPassThresholdEvt();
 					}
 
-					// remove atmosphere and convert it into the reclaimed resource :
-					// - consume EC if there we are reclaiming, or if we are deflating an inflatable
-					// - if EC is consumed, scale the output with EC availability
-
 					bool isReclaiming = definition.reclaimFactor > 0.0 && atmoRes.Level >= 1.0 - definition.reclaimFactor;
 					bool isInflatableRetracting = definition.isDeployable && definition.deployWithPressure && animState == AnimState.Retracting;
 
-					double ecFactor;
-					if (definition.depressurizeECRate > 0.0 && (isReclaiming || isInflatableRetracting))
+					// consume EC if we are reclaiming, or if we are deflating an inflatable
+					if (depressurizationECInput != null)
 					{
-						ecResInfo.Consume(definition.depressurizeECRate * elapsed_s, ResourceBroker.Depressurization);
-						ecFactor = ecResInfo.AvailabilityFactor;
-					}
-					else
-					{
-						ecFactor = 1.0;
+						if (isReclaiming || isInflatableRetracting)
+							depressurizationECInput.NominalRate = definition.depressurizeECRate;
+						else
+							depressurizationECInput.NominalRate = 0.0;
 					}
 
-					double newAtmoAmount = atmoRes.Amount - (definition.depressurizationSpeed * elapsed_s);
-					newAtmoAmount = Math.Max(newAtmoAmount, 0.0);
+					// produce nitrogen back if we are reclaiming
+					if (isReclaiming && depressurizationAtmoOutput != null)
+					{
+						if (isReclaiming)
+							depressurizationAtmoOutput.NominalRate = depressurizationAtmoInput.NominalRate;
+						else
+							depressurizationAtmoOutput.NominalRate = 0.0;
+					}
 
 					// we only vent CO2 when the kerbals aren't yet in their helmets
 					if (pressureState == PressureState.DepressurizingAboveThreshold)
-					{
-						wasteRes.Amount *= atmoRes.Amount > 0.0 ? newAtmoAmount / atmoRes.Amount : 1.0;
-						wasteRes.Amount = Lib.Clamp(wasteRes.Amount, 0.0, wasteRes.Capacity);
-					}
+						depressurizationWasteInput.NominalRate = depressurizationAtmoInput.NominalRate * (wasteRes.Amount / atmoRes.Amount);
+					else
+						depressurizationWasteInput.NominalRate = 0.0; // Nope, rate of zero doesn't work
 
-					if (isReclaiming)
-					{
-						VesselData.ResHandler.Produce(definition.reclaimResource, (atmoRes.Amount - newAtmoAmount) * ecFactor, ResourceBroker.Depressurization);
-					}
-
-					atmoRes.Amount = newAtmoAmount;
-
-					// handle inflatable retraction animation / animation timer
-					if (isInflatableRetracting)
-					{
-						float deployLevel = Math.Min(1f, (float)(atmoRes.Amount / (atmoRes.Capacity * Settings.PressureThreshold)));
-						if (partData.IsLoaded)
-							loadedModule.deployAnimator.Still(deployLevel);
-
-						animTimer = modulePrefab.deployAnimator.AnimDuration * deployLevel;
-					}
-
+					depressurizationRecipe.RequestExecution(VesselData.ResHandler);
 					break;
 			}
 
@@ -798,11 +750,11 @@ namespace KERBALISM
 			// set equalizaton mode if it hasn't been explictely disabled in the breathable / depressurizing states
 			if (!isEditor)
 			{
-				if (atmoResInfo.equalizeMode == VesselKSPResource.EqualizeMode.NotSet)
-					atmoResInfo.equalizeMode = VesselKSPResource.EqualizeMode.Enabled;
+				if (atmoResInfo.equalizeMode == VesselResourceKSP.EqualizeMode.NotSet)
+					atmoResInfo.equalizeMode = VesselResourceKSP.EqualizeMode.Enabled;
 
-				if (wasteResInfo.equalizeMode == VesselKSPResource.EqualizeMode.NotSet)
-					wasteResInfo.equalizeMode = VesselKSPResource.EqualizeMode.Enabled;
+				if (wasteResInfo.equalizeMode == VesselResourceKSP.EqualizeMode.NotSet)
+					wasteResInfo.equalizeMode = VesselResourceKSP.EqualizeMode.Enabled;
 			}
 		}
 
@@ -844,7 +796,7 @@ namespace KERBALISM
 
 			if (!isEditor)
 			{
-				atmoResInfo.equalizeMode = VesselKSPResource.EqualizeMode.Disabled;
+				atmoResInfo.equalizeMode = VesselResourceKSP.EqualizeMode.Disabled;
 				pressureState = PressureState.Pressurizing;
 			}
 			else
@@ -984,5 +936,90 @@ namespace KERBALISM
 		}
 
 		#endregion
+
+		private void OnDepressurizationRecipeExecuted(double elapsedSec)
+		{
+			if (definition.isDeployable && definition.deployWithPressure && animState == AnimState.Retracting)
+			{
+				float deployLevel = Math.Min(1f, (float)(atmoRes.Amount / (atmoRes.Capacity * Settings.PressureThreshold)));
+				if (partData.IsLoaded)
+					loadedModule.deployAnimator.Still(deployLevel);
+
+				animTimer = modulePrefab.deployAnimator.AnimDuration * deployLevel;
+			}
+		}
+
+		private void OnDeployRecipeExecuted(double elapsedSec)
+		{
+			if (animState == AnimState.Deploying || animState == AnimState.Retracting)
+			{
+				if (partData.IsLoaded)
+				{
+					loadedModule.deployAnimator.ChangeSpeed((float)deployRecipe.ExecutedFactor);
+				}
+				else
+				{
+					animTimer -= (float)(elapsedSec * deployRecipe.ExecutedFactor);
+				}
+			}
+		}
+
+		private void OnCentrifugeRecipeExecuted(double elapsedSec)
+		{
+			if (partData.IsLoaded)
+			{
+				switch (animState)
+				{
+					case AnimState.Accelerating:
+					case AnimState.Decelerating:
+					case AnimState.Rotating:
+					case AnimState.RotatingNotEnoughEC:
+						bool loosingSpeed = animState == AnimState.RotatingNotEnoughEC;
+						bool isRotationEnabled = IsRotationEnabled;
+						float executedFactor = (float)centrifugeRecipe.ExecutedFactor;
+
+						loadedModule.rotateAnimator.Update(isRotationEnabled, loosingSpeed, (float)elapsedSec, executedFactor);
+						loadedModule.counterweightAnimator.Update(isRotationEnabled, loosingSpeed, (float)elapsedSec, executedFactor);
+
+						if (animState == AnimState.Rotating && executedFactor < 1f)
+						{
+							animState = AnimState.RotatingNotEnoughEC;
+						}
+						else if (loosingSpeed)
+						{
+							if (executedFactor == 1f)
+								animState = AnimState.Accelerating;
+							else if (loadedModule.rotateAnimator.IsStopped)
+								animState = AnimState.Stuck;
+						}
+
+						break;
+				}
+			}
+			else
+			{
+				switch (animState)
+				{
+					case AnimState.Accelerating:
+						animTimer -= (float)(elapsedSec * centrifugeRecipe.ExecutedFactor);
+
+						if (animTimer <= 0.0)
+						{
+							centrifugeECInput.NominalRate = definition.rotateECRate;
+							animState = AnimState.Rotating;
+						}
+						break;
+					case AnimState.Rotating:
+						if (centrifugeRecipe.ExecutedFactor < 1.0)
+						{
+							float speedLost = (float)(elapsedSec * centrifugeRecipe.ExecutedFactor);
+							float timeToAccelerate = definition.rotateSpinRate / definition.rotateAccelerationRate;
+							animTimer = timeToAccelerate * Math.Min(speedLost / definition.rotateSpinRate, 1f);
+							animState = AnimState.Accelerating;
+						}
+						break;
+				}
+			}
+		}
 	}
 }

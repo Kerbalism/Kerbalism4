@@ -52,5 +52,7 @@ namespace KERBALISM
 				default:          return null;
 			}
 		}
+
+		public static implicit operator Color(Kolor kolor) => kolor.color;
 	}
 }
