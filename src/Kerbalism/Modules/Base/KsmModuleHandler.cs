@@ -1,40 +1,22 @@
 ﻿namespace KERBALISM
 {
-	
-
-
 	public abstract class KsmModuleHandler : ModuleHandler, IPersistentModuleHandler
 	{
 		private const string VALUENAME_DEFINITION_ID = "definitionId";
 
 		public ModuleHandler ModuleHandler => this;
-
-		/// <summary>
-		/// Flight context id, saved in the protovessel.
-		/// Garanteed to be unique and constant from the moment this module is 
-		/// first instantiated on a vessel and the destruction/recovery of the part.
-		/// </summary>
-		public int FlightId { get => flightId; set => flightId = value; }
-		private int flightId;
-
-		/// <summary>
-		/// Editor context id, saved in the shipconstruct.
-		/// This is only used for persistence purposes and can't be relied upon outside of the save/load cycle.
-		/// NOTE : this could maybe be expanded to be editor-wide unique if needed
-		/// </summary>
-		public int ShipId { get => shipId; set => shipId = value; }
-		private int shipId;
+		public bool ConfigLoaded { get; set; }
 
 		protected string definitionId;
 
 		public void Load(ConfigNode node)
 		{
-			// Note : we can't set the definition here since it might be switched latter by B9PS
-			// This mean that the definition can't be used from OnLoad(), a quite annoying limitation
-			// 
 			definitionId = Lib.ConfigValue(node, VALUENAME_DEFINITION_ID, string.Empty);
-
-			OnLoad(node);
+			if (!string.IsNullOrEmpty(definitionId) && KsmModuleDefinitionLibrary.TryGetDefinition(definitionId, out KsmModuleDefinition definition))
+			{
+				Definition = definition;
+				OnLoad(node);
+			}
 		}
 
 		public void Save(ConfigNode node)
@@ -63,11 +45,6 @@
 			OnSave(node);
 		}
 
-		public void LoadDefinition(KsmPartModule prefab)
-		{
-			Definition = KsmModuleDefinitionLibrary.GetDefinition(prefab, definitionId);
-		}
-
 		public abstract KsmModuleDefinition Definition { get; set; }
 
 		public virtual void OnLoad(ConfigNode node) { }
@@ -81,6 +58,7 @@
 		/// Note that other modules of greater index won't be loaded / initialized when this is called.
 		/// </summary>
 		public virtual void OnPrefabCompilation() { }
+
 	}
 
 
@@ -93,29 +71,27 @@
 
 		public TModule loadedModule;
 
-		public override PartModule LoadedModuleBase => loadedModule;
+		public override PartModule LoadedModuleBase
+		{
+			get => loadedModule;
+			set => loadedModule = (TModule)value;
+		}
 
 		public TModule modulePrefab;
 
-		public override PartModule PrefabModuleBase => modulePrefab;
-
-		public override string[] ModuleTypeNames { get; } = new string[] { typeof(TModule).Name };
-
-		public override void SetModuleReferences(PartModule prefabModule, PartModule loadedModule)
+		public override PartModule PrefabModuleBase
 		{
-			modulePrefab = (TModule)prefabModule;
-
-			if (!ReferenceEquals(loadedModule, null))
-				this.loadedModule = (TModule)loadedModule;
+			get => modulePrefab;
+			set => modulePrefab = (TModule)value;
 		}
 
-		public override void ClearLoadedAndProtoModuleReferences()
-		{
-			protoModule = null;
-			loadedModule = null;
-		}
+		public override string[] ModuleTypeNames { get; } = new string[] {typeof(TModule).Name};
 
-		public override KsmModuleDefinition Definition { get => definition; set => definition = (TDefinition)value; }
+		public override KsmModuleDefinition Definition
+		{
+			get => definition;
+			set => definition = (TDefinition)value;
+		}
 
 		public override void FirstSetup()
 		{
@@ -138,8 +114,8 @@
 				handlerIsEnabled = Lib.Proto.GetBool(protoModule, "isEnabled", true);
 			}
 
-			setupDone = true;
 			OnFirstSetup();
+			setupDone = true;
 		}
 
 		public override void Start()
@@ -150,14 +126,17 @@
 				return;
 			}
 
-			if (!ReferenceEquals(loadedModule, null))
+			if (definition == null)
 			{
-				loadedModule.ModuleHandler = this;
-				definition = (TDefinition)KsmModuleDefinitionLibrary.GetDefinition(loadedModule, definitionId);
-			}
-			else
-			{
-				definition = (TDefinition)KsmModuleDefinitionLibrary.GetDefinition(modulePrefab, definitionId);
+				if (!ReferenceEquals(loadedModule, null))
+				{
+					loadedModule.ModuleHandler = this;
+					definition = (TDefinition)KsmModuleDefinitionLibrary.GetDefinition(loadedModule, definitionId);
+				}
+				else
+				{
+					definition = (TDefinition)KsmModuleDefinitionLibrary.GetDefinition(modulePrefab, definitionId);
+				}
 			}
 
 			if (handlerIsEnabled)

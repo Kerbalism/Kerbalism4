@@ -115,6 +115,7 @@ namespace KERBALISM
 			capacity = otherWrapper.capacity;
 			oldAmount = otherWrapper.oldAmount;
 			oldCapacity = otherWrapper.oldCapacity;
+			partResources = otherWrapper.partResources;
 		}
 
 		public void AddPartWrapper(PartResourceWrapper partResourceWrapper)

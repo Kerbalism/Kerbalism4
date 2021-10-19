@@ -43,8 +43,6 @@ namespace KERBALISM.Events
 		// part node doesn't cause any issue, but just in case, better remove it.
 		static void Prefix(ConfigNode root)
 		{
-			ModuleHandler.handlerShipIdsByModuleInstanceId.Clear();
-
 			editorPreviousShipId = EditorLogic.fetch?.ship?.persistentId ?? 0u;
 			kerbalismDataNode = null;
 
@@ -99,7 +97,6 @@ namespace KERBALISM.Events
 			bool isNewShip = editorPreviousShipId == 0 || editorNewShipId == 0 || editorPreviousShipId != editorNewShipId;
 
 			VesselDataBase.LoadShipConstruct(__instance, kerbalismDataNode, isNewShip);
-			ModuleHandler.handlerShipIdsByModuleInstanceId.Clear();
 			kerbalismDataNode = null;
 
 		}

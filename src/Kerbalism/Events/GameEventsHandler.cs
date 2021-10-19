@@ -15,6 +15,7 @@ namespace KERBALISM.Events
 		private GameEventsHabitat gameEventsHabitat = new GameEventsHabitat();
 		private GameEventsKerbals gameEventsCrew = new GameEventsKerbals();
 		private GameEventsUI gameEventsUI = new GameEventsUI();
+		private GameLifecyle gameLifecyle = new GameLifecyle();
 		private VesselLifecycle vesselLifecycle = new VesselLifecycle();
 		private PartLifecycle partLifecycle = new PartLifecycle();
 		private PartModuleLifecycle partModuleLifecycle = new PartModuleLifecycle();
@@ -50,6 +51,9 @@ namespace KERBALISM.Events
 			// EDITOR
 			GameEvents.onEditorShipModified.Add(editorLifecycle.OnEditorShipModified);
 			GameEvents.onEditorPartEvent.Add(editorLifecycle.OnEditorPartEvent);
+
+			// GAME
+			GameEvents.onGameSceneSwitchRequested.Add(gameLifecyle.OnSceneSwitchRequested);
 
 			// UI
 			GameEvents.onGUIEditorToolbarReady.Add(gameEventsUI.AddEditorCategory);

@@ -108,8 +108,8 @@ namespace KERBALISM
 				}
 			}
 
-			// put modifiers with affectRateOnly = true at the end of the list
-			modifiers.Sort((a, b) => a.cancelRateMode.CompareTo(b.cancelRateMode));
+			// sort modifiers by priority
+			modifiers.Sort((a, b) => a.modifierPriority.CompareTo(b.modifierPriority));
 		}
 
 		public string TooltipText()

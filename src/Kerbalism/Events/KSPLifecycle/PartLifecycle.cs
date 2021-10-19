@@ -109,7 +109,7 @@ namespace KERBALISM.Events
 					// create and link the ModuleData for every KsmPartModule
 					for (int i = 0; i < __instance.Modules.Count; i++)
 					{
-						ModuleHandler.NewEditorLoaded(__instance.Modules[i], i, partData, ModuleHandler.ActivationContext.Editor, false);
+						ModuleHandler.GetForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Editor);
 					}
 				}
 
@@ -152,15 +152,7 @@ namespace KERBALISM.Events
 
 					for (int i = 0; i < __instance.Modules.Count; i++)
 					{
-						// if the module is a type we haven't a handler for, continue
-						if (!ModuleHandler.TryGetModuleHandlerType(__instance.Modules[i].moduleName, out ModuleHandler.ModuleHandlerType handlerType))
-							continue;
-
-						// only instaniate handlers that have the loaded context
-						if ((handlerType.activation & ModuleHandler.ActivationContext.Loaded) == 0)
-							continue;
-
-						ModuleHandler.NewLoaded(handlerType, __instance.Modules[i], i, partData, true);
+						ModuleHandler.GetForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 					}
 
 					foreach (ModuleHandler handler in partData.modules)
@@ -185,6 +177,23 @@ namespace KERBALISM.Events
 		}
 	}
 
+	[HarmonyPatch(typeof(Part))]
+	[HarmonyPatch(nameof(Part.OnDetachFlight))]
+	public class Part_OnDetachFlight
+	{
+		static void Postfix(Part __instance)
+		{
+			if (__instance.State != PartStates.CARGO)
+				return;
 
+			if (!PartData.TryGetLoadedPartData(__instance, out PartData partData))
+				return;
+
+			VesselData vd = (VesselData)partData.vesselData;
+
+			vd.Parts.Remove(partData);
+			vd.OnVesselWasModified();
+		}
+	}
 
 }

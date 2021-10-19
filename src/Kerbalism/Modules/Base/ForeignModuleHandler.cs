@@ -11,25 +11,7 @@ namespace KERBALISM
 	/// </summary>
 	public abstract class ForeignModuleHandler : ModuleHandler
 	{
-		public PartModule loadedModule;
-		public PartModule prefabModule;
-
-		public override PartModule LoadedModuleBase => loadedModule;
-		public override PartModule PrefabModuleBase => prefabModule;
-
-		public override void SetModuleReferences(PartModule prefabModule, PartModule loadedModule)
-		{
-			this.prefabModule = prefabModule;
-			if (!ReferenceEquals(loadedModule, null)) // bypass unity null equality overload
-			{
-				this.loadedModule = loadedModule;
-			}
-		}
-
-		public override void ClearLoadedAndProtoModuleReferences()
-		{
-			protoModule = null;
-			loadedModule = null;
-		}
+		public override PartModule LoadedModuleBase { get; set; }
+		public override PartModule PrefabModuleBase { get; set; }
 	}
 }

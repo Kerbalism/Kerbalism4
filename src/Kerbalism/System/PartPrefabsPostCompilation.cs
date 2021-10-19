@@ -53,7 +53,8 @@ namespace KERBALISM
 						// rely on our modules being correctly initialized on the EVA prefabs.
 						if (ksmModule.ModuleHandler.PrefabModuleBase == null)
 						{
-							ksmModule.ModuleHandler.SetModuleReferences(ksmModule, ksmModule);
+							ksmModule.ModuleHandler.PrefabModuleBase = ksmModule;
+							ksmModule.ModuleHandler.LoadedModuleBase = ksmModule;
 						}
 
 						if (ksmModule.ModuleHandler is IKsmModuleHandlerLateInit lateInitHandler)

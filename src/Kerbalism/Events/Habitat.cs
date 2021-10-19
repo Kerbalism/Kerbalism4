@@ -234,7 +234,7 @@ namespace KERBALISM
 						string nodeName = moduleDataNode.name.NodeNameToKey();
 						if (nodeName.Split('@')[1] == nameof(HabitatHandler) && Lib.ConfigValue(moduleDataNode, "habitatEnabled", false))
 						{
-							enabledHabsShipIds.Add(Lib.ConfigValue(moduleDataNode, ModuleHandler.VALUENAME_SHIPID, 0));
+							//enabledHabsShipIds.Add(Lib.ConfigValue(moduleDataNode, ModuleHandler.VALUENAME_SHIPID, 0));
 						}
 					}
 
@@ -244,12 +244,12 @@ namespace KERBALISM
 						if (habitatModuleNode == null)
 							continue;
 
-						int dataShipId = Lib.ConfigValue(habitatModuleNode, ModuleHandler.VALUENAME_SHIPID, 0);
-						if (dataShipId != 0 && enabledHabsShipIds.Contains(dataShipId))
-						{
-							uint partCraftId = uint.Parse(partNode.GetValue("part").Split('_')[1]);
-							enabledHabsPartId.Add(partCraftId);
-						}
+						//int dataShipId = Lib.ConfigValue(habitatModuleNode, ModuleHandler.VALUENAME_SHIPID, 0);
+						//if (dataShipId != 0 && enabledHabsShipIds.Contains(dataShipId))
+						//{
+						//	uint partCraftId = uint.Parse(partNode.GetValue("part").Split('_')[1]);
+						//	enabledHabsPartId.Add(partCraftId);
+						//}
 					}
 				}
 				catch (Exception)

@@ -11,9 +11,7 @@ namespace KERBALISM
 		public override ActivationContext Activation => ActivationContext.Editor | ActivationContext.Loaded | ActivationContext.Unloaded;
 
 		public ModuleHandler ModuleHandler => this;
-
-		public int FlightId { get; set; }
-		public int ShipId { get; set; }
+		public bool ConfigLoaded { get; set; }
 
 		public bool transmitterEnabled = true;
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace KERBALISM
@@ -9,7 +8,6 @@ namespace KERBALISM
 		#region FIELDS
 
 		public static Dictionary<uint, PartData> allFlightPartDatas = new Dictionary<uint, PartData>();
-		private static Dictionary<int, ConfigNode> handlerNodesCache = new Dictionary<int, ConfigNode>();
 		private Dictionary<uint, PartData> partDictionary = new Dictionary<uint, PartData>();
 		private List<PartData> partList = new List<PartData>();
 		private VesselDataBase vesselData;
@@ -28,16 +26,6 @@ namespace KERBALISM
 				partData.flightId = partData.LoadedPart.flightID;
 				partData.vesselData = vesselData;
 				Add(partData);
-			}
-
-			if (Kerbalism.VesselsReady)
-			{
-				Lib.LogDebug($"Assigning FlightIds for launched vessel {vesselData}");
-				AssignFlightIdsOnVesselLaunch();
-			}
-			else
-			{
-				Lib.LogDebug($"Skipping FlightId affectations for launched vessel {vesselData}, other vessels not ready.");
 			}
 		}
 
@@ -67,7 +55,7 @@ namespace KERBALISM
 
 				for (int i = 0; i < part.Modules.Count; i++)
 				{
-					ModuleHandler.NewEditorLoaded(part.Modules[i], i, partData, ModuleHandler.ActivationContext.Loaded, true);
+					ModuleHandler.GetForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 				}
 			}
 		}
@@ -76,8 +64,6 @@ namespace KERBALISM
 		{
 			Lib.LogDebug($"Loading partdatas for existing vessel {protoVessel.vesselName}");
 			this.vesselData = vesselData;
-
-			bool hasNode = ParseNodesIntoDictionary(vesselDataNode);
 
 			foreach (ProtoPartSnapshot protopart in protoVessel.protoPartSnapshots)
 			{
@@ -92,31 +78,9 @@ namespace KERBALISM
 
 				PartData partData = Add(protopart);
 
-				foreach (ProtoPartModuleSnapshot protoModule in protopart.modules)
+				for (int i = 0; i < protopart.modules.Count; i++)
 				{
-					// if the module is type we haven't a handler for, continue
-					if (!ModuleHandler.TryGetModuleHandlerType(protoModule.moduleName, out ModuleHandler.ModuleHandlerType handlerType))
-						continue;
-
-					// only instaniate handlers that have the unloaded context
-					// loaded-only handlers will be instantiated later in the Part.Start() patch
-					if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) == 0)
-						continue;
-
-					// if handler is persistent, get the flightId from the protomodule
-					if (handlerType.isPersistent)
-					{
-						int flightId = Lib.Proto.GetInt(protoModule, ModuleHandler.VALUENAME_FLIGHTID, 0);
-						if (hasNode && flightId != 0 && handlerNodesCache.TryGetValue(flightId, out ConfigNode moduleNode))
-						{
-							ModuleHandler.NewPersistedFlightFromProto(handlerType, protopart, protoModule, partData, moduleNode, flightId);
-							continue;
-						}
-					}
-
-					// if not persistent, or if flightId not found (vessel was created unloaded), instantiate.
-					// (will affect a new flightId if persistent)
-					ModuleHandler.NewFlightFromProto(handlerType, protopart, protoModule, partData);
+					ModuleHandler.GetForProtoModule(partData, protopart, protopart.modules[i], i, ModuleHandler.ActivationContext.Unloaded);
 				}
 			}
 		}
@@ -126,68 +90,13 @@ namespace KERBALISM
 			Lib.LogDebug($"Loading partdatas for existing vessel {vessel.vesselName}");
 			this.vesselData = vesselData;
 
-			bool hasNode = ParseNodesIntoDictionary(vesselDataNode);
-
 			foreach (Part part in vessel.parts)
 			{
 				PartData partData = Add(part);
 
 				for (int i = 0; i < part.Modules.Count; i++)
 				{
-					// if the module is type we haven't a handler for, continue
-					if (!ModuleHandler.TryGetModuleHandlerType(part.Modules[i].moduleName, out ModuleHandler.ModuleHandlerType handlerType))
-						continue;
-
-					// only instaniate handlers that have the loaded context
-					if ((handlerType.activation & ModuleHandler.ActivationContext.Loaded) == 0)
-						continue;
-
-					// if handler is persistent, get the flightId from the protomodule
-					if (handlerType.isPersistent && part.protoPartSnapshot != null && i < part.protoPartSnapshot.modules.Count)
-					{
-						int flightId = Lib.Proto.GetInt(part.protoPartSnapshot.modules[i], ModuleHandler.VALUENAME_FLIGHTID, 0);
-						if (hasNode && flightId != 0 && handlerNodesCache.TryGetValue(flightId, out ConfigNode handlerNode))
-						{
-							ModuleHandler.NewLoadedFromNode(handlerType, part.Modules[i], i, partData, handlerNode);
-							continue;
-						}
-					}
-
-					// if not persistent, or if flightId not found (vessel was created unloaded or config has changed), instantiate.
-					// Will affect a new flightId if persistent
-					ModuleHandler.NewLoaded(handlerType, part.Modules[i], i, partData, true);
-				}
-			}
-		}
-
-		private bool ParseNodesIntoDictionary(ConfigNode vesselDataNode)
-		{
-			handlerNodesCache.Clear();
-
-			ConfigNode modulesNode = vesselDataNode?.GetNode(VesselDataBase.NODENAME_MODULE);
-
-			if (modulesNode == null)
-				return false;
-
-			foreach (ConfigNode moduleNode in modulesNode.GetNodes())
-			{
-				int flightId = Lib.ConfigValue(moduleNode, ModuleHandler.VALUENAME_FLIGHTID, 0);
-				if (flightId != 0)
-					handlerNodesCache.Add(flightId, moduleNode);
-			}
-			return true;
-		}
-
-		public void AssignFlightIdsOnVesselLaunch()
-		{
-			foreach (PartData partData in partList)
-			{
-				foreach (ModuleHandler moduleHandler in partData.modules)
-				{
-					if (moduleHandler is IPersistentModuleHandler persistentHandler)
-					{
-						ModuleHandler.AssignNewFlightId(persistentHandler);
-					}
+					ModuleHandler.GetForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 				}
 			}
 		}
@@ -250,7 +159,7 @@ namespace KERBALISM
 		public bool Contains(uint flightId) => partDictionary.ContainsKey(flightId);
 		public bool TryGet(uint flightId, out PartData pd) => partDictionary.TryGetValue(flightId, out pd);
 
-		public void Add(PartData partData)
+		public override void Add(PartData partData)
 		{
 			if (partDictionary.ContainsKey(partData.flightId))
 			{
@@ -295,7 +204,7 @@ namespace KERBALISM
 			return pd;
 		}
 
-		public void Remove(PartData partdata)
+		public override bool Remove(PartData partdata)
 		{
 			if (partDictionary.TryGetValue(partdata.flightId, out PartData partData))
 			{
@@ -303,7 +212,7 @@ namespace KERBALISM
 				partList.Remove(partData);
 			}
 
-			allFlightPartDatas.Remove(partdata.flightId);
+			return allFlightPartDatas.Remove(partdata.flightId);
 		}
 
 		public void Remove(uint flightID)

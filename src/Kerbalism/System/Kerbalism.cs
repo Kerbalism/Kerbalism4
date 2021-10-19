@@ -270,7 +270,7 @@ namespace KERBALISM
 			if (!ReferenceEquals(lastLaunchedVessel, null) && lastLaunchedVessel.TryGetVesselData(out VesselData launchedVD))
 			{
 				Lib.LogDebug($"Assigning FlightIds for launched vessel {launchedVD}");
-				((PartDataCollectionVessel)launchedVD.Parts).AssignFlightIdsOnVesselLaunch();
+				//((PartDataCollectionVessel)launchedVD.Parts).AssignFlightIdsOnVesselLaunch();
 			}
 
 			lastLaunchedVessel = null;

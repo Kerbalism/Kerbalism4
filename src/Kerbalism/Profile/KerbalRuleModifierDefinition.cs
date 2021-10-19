@@ -15,6 +15,12 @@ namespace KERBALISM
 		// Then the result of that modifier will be added, but only if the result is
 		// nearer from zero. Use this to prevent modifiers from "regenerating" a rule.
 		[CFGValue] public bool cancelRateMode = false;
+
+		// If set to true, that modifier will be applied only if no other modifier is active.
+		[CFGValue] public bool zeroRateMode = false;
+
+		public int modifierPriority = 0;
+
 		public bool hasModifier = false;
 		public IGenericExpression<double> rateModifier;
 
@@ -47,6 +53,12 @@ namespace KERBALISM
 			{
 				modifierDefinition.baseRate *= ruleDefinition.maxValue / baseRateDuration;
 			}
+
+			if (modifierDefinition.cancelRateMode)
+				modifierDefinition.modifierPriority = 1;
+
+			if (modifierDefinition.zeroRateMode)
+				modifierDefinition.modifierPriority = 2;
 
 			return modifierDefinition;
 		}

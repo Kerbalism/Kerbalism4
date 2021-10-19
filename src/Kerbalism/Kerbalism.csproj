@@ -132,6 +132,7 @@
     <Compile Include="Comms\IConnectionInfo.cs" />
     <Compile Include="Database\DB.cs" />
     <Compile Include="Database\VesselDataComponents\VesselComms.cs" />
+    <Compile Include="Events\KSPLifecycle\GameLifecyle.cs" />
     <Compile Include="Modules\KsmLocalProcess\LocalRecipeDefinition.cs" />
     <Compile Include="Modules\KsmLocalProcess\ModuleKsmLocalProcess.cs" />
     <Compile Include="Modules\KsmLocalProcess\LocalProcessDefinition.cs" />

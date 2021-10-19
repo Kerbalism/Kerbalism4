@@ -17,7 +17,7 @@ namespace KERBALISM
 		public int stormDurationHours = Settings.StormDurationHours;
 
 		[GameParameters.CustomFloatParameterUI("#KERBALISM_stormRadiation", minValue = 1, maxValue = 15, displayFormat = "F2", toolTip = "#KERBALISM_stormRadiation_desc")]//Average storm radiation rad/h--Radiation during a solar storm
-		public float stormRadiation = Settings.StormRadiation;
+		public float stormRadiation = Settings.StormRadiation * 3600f;
 
 		public double AvgStormDuration { get { return stormDurationHours * 3600.0; } }
 
@@ -36,7 +36,7 @@ namespace KERBALISM
 				case GameParameters.Preset.Easy:
 					lifetime = false;
 					stormFrequency = Settings.StormFrequency * 0.9f;
-					stormRadiation = Settings.StormRadiation * 0.9f;
+					stormRadiation = Settings.StormRadiation * 3600f * 0.9f;
 					break;
 				case GameParameters.Preset.Normal:
 					lifetime = false;
@@ -46,12 +46,12 @@ namespace KERBALISM
 				case GameParameters.Preset.Moderate:
 					lifetime = true;
 					stormFrequency = Settings.StormFrequency * 1.3f;
-					stormRadiation = Settings.StormRadiation * 1.2f;
+					stormRadiation = Settings.StormRadiation * 3600f * 1.2f;
 					break;
 				case GameParameters.Preset.Hard:
 					lifetime = true;
 					stormFrequency = Settings.StormFrequency * 1.5f;
-					stormRadiation = Settings.StormRadiation * 1.5f;
+					stormRadiation = Settings.StormRadiation * 3600f * 1.5f;
 					break;
 				default:
 					break;

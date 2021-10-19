@@ -28,6 +28,8 @@ namespace KERBALISM
 
 		public double ExecutedFactor => executedEnabled ? recipe.ExecutedFactor * executedAdjuster : 0.0;
 
+		public override string ToString() => $"{definition.name}, enabled={enabled}, executedFactor={ExecutedFactor}";
+
 		public Process(ProcessDefinition definition)
 		{
 			this.definition = definition;

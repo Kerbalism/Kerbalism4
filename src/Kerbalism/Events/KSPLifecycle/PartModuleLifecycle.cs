@@ -2,8 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using static KERBALISM.ModuleHandler;
+using ActivationContext = KERBALISM.ModuleHandler.ActivationContext;
 
 namespace KERBALISM.Events
 {
@@ -13,123 +16,13 @@ namespace KERBALISM.Events
 	{
 		static void Postfix(PartModule __instance, ConfigNode node)
 		{
-			if (Lib.IsEditor)
+			if (loadedHandlersByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out ModuleHandler handler))
 			{
-				// only save known module types
-				if (!ModuleHandler.handlerTypesByModuleName.TryGetValue(__instance.moduleName, out ModuleHandler.ModuleHandlerType handlerType))
-					return;
-
-				// only save persistant handlers having the editor context
-				// the context check is needed because we will instantiate missing modules if needed.
-				if (!handlerType.isPersistent || (handlerType.activation & ModuleHandler.ActivationContext.Editor) == 0)
-					return;
-
-				Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
-
-				int instanceId = __instance.GetInstanceID();
-
-				if (__instance.part == StoredPartData.heldPart)
+				if (handler is IPersistentModuleHandler persistentHandler)
 				{
-					if (!ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(instanceId, out int moduleShipId))
-						return;
-
-					AssignHeldPartShipId(StoredPartData.heldPartData, node, instanceId, moduleShipId);
-					return;
-				}
-
-				if (!ModuleHandler.loadedHandlersByModuleInstanceId.TryGetValue(instanceId, out ModuleHandler handler))
-				{
-					// if we are here, that's because ShipConstruct.SaveShip is called to create the "auto-saved ship" 
-					// in the editor just after the first part is instantiated when you pick it up from the part list
-					// This happens before Part.Start(), meaning we won't have yet instantiated the PartData and the
-					// ModuleHandler
-
-					if (!VesselDataShip.ShipParts.TryGet(__instance.part, out PartData partData))
-					{
-						partData = new PartData(VesselDataShip.Instance, __instance.part);
-						VesselDataShip.ShipParts.Add(partData);
-						ShipConstruct_SaveShip.newPartDatas.Add(partData);
-					}
-
-					ModuleHandler.NewEditorLoaded(__instance, __instance.part.Modules.IndexOf(__instance), partData, ModuleHandler.ActivationContext.Editor, false);
-					handler = ModuleHandler.loadedHandlersByModuleInstanceId[instanceId]; // this can't fail unless something is deeply wrong.
-				}
-
-				node.AddValue(ModuleHandler.VALUENAME_SHIPID, instanceId);
-				((IPersistentModuleHandler)handler).ShipId = instanceId;
-			}
-			else
-			{
-				if (__instance.part == StoredPartData.heldPart)
-				{
-					Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
-
-					if (ModuleHandler.handlerFlightIdsByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out int moduleFlightId))
-						node.AddValue(ModuleHandler.VALUENAME_FLIGHTID, moduleFlightId);
-					else if (ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out int moduleShipId))
-						AssignHeldPartShipId(StoredPartData.heldPartData, node, __instance.GetInstanceID(), moduleShipId);
-					return;
-				}
-
-				if (!ModuleHandler.loadedHandlersByModuleInstanceId.TryGetValue(__instance.GetInstanceID(), out ModuleHandler handler))
-					return;
-
-				if (!(handler is IPersistentModuleHandler persistentHandler))
-					return;
-
-				Lib.LogDebug($"Saving {__instance.moduleName} on {__instance.part.name}");
-
-				// TODO : this check might not be failproof to mods (KCT/Scrapyard...) doing flight vessel to ShipConstruct conversions. Need some testing.
-				if (persistentHandler.FlightId != 0)
-				{
-					node.AddValue(ModuleHandler.VALUENAME_FLIGHTID, persistentHandler.FlightId);
-				}
-				else
-				{
-					// There are two (stock) cases where a VesselDataShip is saved in flight :
-					// On launching a new vessel, during the AssembleForLaunch() call, KSP will save the "revert to launchpad / revert to editor" shipConstruct
-					// from the freshly instantiatied shipConstruct (it does a Save() call on the actual parts, not a simple backup of the shipConstruct).
-					// In order for that backup shipConstruct to be loadable again by us, we need to assign every shipId.
-					if (persistentHandler.ModuleHandler.VesselData is VesselDataShip)
-					{
-						int instanceId = __instance.GetInstanceID();
-						node.AddValue(ModuleHandler.VALUENAME_SHIPID, instanceId);
-						persistentHandler.ShipId = instanceId;
-					}
-					else
-					{
-						Lib.Log($"FlightId isn't affected on {__instance.moduleName} for persistent {handler.GetType().Name} on part {__instance.part.name}", Lib.LogLevel.Warning);
-					}
-				}
-			}
-		}
-
-		static void AssignHeldPartShipId(StoredPartData storedPart, ConfigNode moduleNode, int moduleInstanceId, int moduleShipId)
-		{
-			if (storedPart.activeHandlers != null)
-			{
-				foreach (ModuleHandler activeHandler in storedPart.activeHandlers)
-				{
-					if (activeHandler is IPersistentModuleHandler persistentHandler && persistentHandler.ShipId == moduleShipId)
-					{
-						moduleNode.AddValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
-						persistentHandler.ShipId = moduleInstanceId;
-						return;
-					}
-				}
-			}
-
-			if (storedPart.persistentHandlersData != null)
-			{
-				foreach (ConfigNode persistentHandlerNode in storedPart.persistentHandlersData)
-				{
-					int shipId = Lib.ConfigValue(persistentHandlerNode, ModuleHandler.VALUENAME_SHIPID, 0);
-					if (shipId == moduleShipId)
-					{
-						moduleNode.AddValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
-						persistentHandlerNode.SetValue(ModuleHandler.VALUENAME_SHIPID, moduleInstanceId);
-						return;
-					}
+					ConfigNode moduleNode = node.AddNode("KSM_MODULE");
+					moduleNode.AddValue(nameof(ModuleHandler.handlerIsEnabled), handler.handlerIsEnabled);
+					persistentHandler.Save(moduleNode);
 				}
 			}
 		}
@@ -141,22 +34,105 @@ namespace KERBALISM.Events
 	{
 		static void Postfix(PartModule __instance, ConfigNode node)
 		{
-			Lib.LogDebug($"Loading {__instance.moduleName} on {__instance.part.name}");
-
-			if (!ModuleHandler.persistentHandlersByModuleName.Contains(__instance.moduleName))
+			if (!handlerTypesByModuleName.TryGetValue(__instance.moduleName, out ModuleHandlerType handlerType))
 				return;
 
-			foreach (ConfigNode.Value value in node.values)
+			int instanceId = __instance.GetInstanceID();
+
+			if (!loadedHandlersByModuleInstanceId.TryGetValue(instanceId, out ModuleHandler handler))
 			{
-				if (value.name == ModuleHandler.VALUENAME_FLIGHTID && int.TryParse(value.value, out int flightd))
+				handler = handlerType.Instantiate();
+				loadedHandlersByModuleInstanceId[instanceId] = handler;
+			}
+
+			if (handlerType.isPersistent)
+			{
+				IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)handler;
+
+				if (!persistentHandler.ConfigLoaded)
 				{
-					ModuleHandler.handlerFlightIdsByModuleInstanceId[__instance.GetInstanceID()] = flightd;
-					return;
+					ConfigNode moduleNode = node.GetNode("KSM_MODULE");
+					if (moduleNode != null)
+					{
+						handler.setupDone = true;
+						handler.ParseEnabled(__instance, moduleNode);
+						persistentHandler.Load(moduleNode);
+						persistentHandler.ConfigLoaded = true;
+					}
 				}
-				else if (value.name == ModuleHandler.VALUENAME_SHIPID && int.TryParse(value.value, out int shipId))
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(ProtoPartModuleSnapshot))]
+	[HarmonyPatch(MethodType.Constructor, typeof(PartModule))]
+	class ProtoPartModuleSnapshot_PMCtor
+	{
+		static void Postfix(ProtoPartModuleSnapshot __instance, PartModule module)
+		{
+			if (loadedHandlersByModuleInstanceId.TryGetValue(module.GetInstanceID(), out ModuleHandler handler))
+			{
+				protoHandlersByProtoModule[__instance] = handler;
+				return;
+			}
+
+			if (!handlerTypesByModuleName.TryGetValue(__instance.moduleName, out ModuleHandlerType handlerType))
+				return;
+
+			if (!protoHandlersByProtoModule.TryGetValue(__instance, out handler))
+			{
+				handler = handlerType.Instantiate();
+				protoHandlersByProtoModule[__instance] = handler;
+			}
+
+			if (handlerType.isPersistent)
+			{
+				IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)handler;
+
+				if (!persistentHandler.ConfigLoaded)
 				{
-					ModuleHandler.handlerShipIdsByModuleInstanceId[__instance.GetInstanceID()] = shipId;
-					return;
+					ConfigNode moduleNode = __instance.moduleValues.GetNode("KSM_MODULE");
+					if (moduleNode != null)
+					{
+						handler.setupDone = true;
+						handler.ParseEnabled(__instance, moduleNode);
+						persistentHandler.Load(moduleNode);
+						persistentHandler.ConfigLoaded = true;
+					}
+				}
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(ProtoPartModuleSnapshot))]
+	[HarmonyPatch(MethodType.Constructor, typeof(ConfigNode))]
+	class ProtoPartModuleSnapshot_ConfigNodeCtor
+	{
+		static void Postfix(ProtoPartModuleSnapshot __instance, ConfigNode node)
+		{
+			if (!handlerTypesByModuleName.TryGetValue(__instance.moduleName, out ModuleHandlerType handlerType))
+				return;
+
+			if (!protoHandlersByProtoModule.TryGetValue(__instance, out ModuleHandler handler))
+			{
+				handler = handlerType.Instantiate();
+				protoHandlersByProtoModule[__instance] = handler;
+			}
+
+			if (handlerType.isPersistent)
+			{
+				IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)handler;
+
+				if (!persistentHandler.ConfigLoaded)
+				{
+					ConfigNode moduleNode = node.GetNode("KSM_MODULE");
+					if (moduleNode != null)
+					{
+						handler.setupDone = true;
+						handler.ParseEnabled(__instance, moduleNode);
+						persistentHandler.Load(moduleNode);
+						persistentHandler.ConfigLoaded = true;
+					}
 				}
 			}
 		}

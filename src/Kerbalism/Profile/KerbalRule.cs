@@ -200,7 +200,16 @@ namespace KERBALISM
 			{
 				modifier.Evaluate(vesselData);
 
-				if (modifier.currentRate != 0.0 && modifier.Definition.cancelRateMode)
+				if (modifier.currentRate == 0.0)
+					continue;
+
+				if (modifier.Definition.zeroRateMode && ChangeRate != 0.0)
+				{
+					modifier.currentRate = 0.0;
+					continue;
+				}
+
+				if (modifier.Definition.cancelRateMode)
 				{
 					if (ChangeRate > 0.0)
 					{

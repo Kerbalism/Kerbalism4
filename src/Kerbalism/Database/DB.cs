@@ -80,9 +80,6 @@ namespace KERBALISM
 			// remove all vessels
 			vessels.Clear();
 
-			// clear the dictionaries of moduledatas and partdatas
-			ModuleHandler.ClearOnLoad();
-			PartData.ClearOnLoad();
 			// Clear the loaded parts transforms cache
 			PartRadiationData.RaycastTask.ClearLoadedPartsCache();
 

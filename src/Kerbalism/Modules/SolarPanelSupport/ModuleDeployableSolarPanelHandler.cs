@@ -68,7 +68,7 @@ namespace KERBALISM
 
 			if (IsLoaded)
 			{
-				loadedPanel = (ModuleDeployableSolarPanel)loadedModule;
+				loadedPanel = (ModuleDeployableSolarPanel)LoadedModuleBase;
 
 				// hide stock ui
 				loadedPanel.Fields["sunAOA"].guiActive = false;

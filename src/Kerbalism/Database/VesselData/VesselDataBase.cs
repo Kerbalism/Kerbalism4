@@ -220,7 +220,6 @@ namespace KERBALISM
 			OnSave(vesselNode);
 			VesselProcesses.Save(vesselNode);
 			Parts.Save(vesselNode);
-			ModuleHandler.SavePersistentHandlers(Parts, vesselNode);
 
 			node.AddValue(nameof(DeviceTransmit), DeviceTransmit);
 
@@ -239,13 +238,11 @@ namespace KERBALISM
 		// the handling is completely different. Ideally, we should use common methods but the
 		// hacky nature of forcing our data into the stock ShipConstruct persistence, as well
 		// as the difficulty of keeping our editor data synchronized severly limit the options.
-		private static Dictionary<int, ConfigNode> moduleDataNodes = new Dictionary<int, ConfigNode>();
 		public static void LoadShipConstruct(ShipConstruct ship, ConfigNode vesselDataNode, bool isNewShip)
 		{
 			ModuleHandler.ActivationContext context = Lib.IsEditor ? ModuleHandler.ActivationContext.Editor : ModuleHandler.ActivationContext.Loaded;
 
 			Lib.LogDebug($"Loading VesselDataShip for shipconstruct {ship.shipName}");
-			moduleDataNodes.Clear();
 
 			List<PartData> thisShipParts = new List<PartData>(ship.parts.Count);
 
@@ -269,18 +266,6 @@ namespace KERBALISM
 				{
 					VesselDataShip.Instance.Load(vesselDataNode, false);
 				}
-
-				//VesselDataShip.Instance.Synchronizer.Synchronize();
-				//VesselDataShip.Instance.ResHandler.ForceHandlerSync();
-
-				// populate the dictionary of ModuleData nodes to load, to avoid doing a full loop
-				// on every node for each ModuleData
-				foreach (ConfigNode moduleNode in vesselDataNode.GetNode(NODENAME_MODULE).GetNodes())
-				{
-					int shipId = Lib.ConfigValue(moduleNode, ModuleHandler.VALUENAME_SHIPID, 0);
-					if (shipId != 0)
-						moduleDataNodes.Add(shipId, moduleNode);
-				}
 			}
 			else
 			{
@@ -302,15 +287,7 @@ namespace KERBALISM
 			{
 				for (int i = 0; i < partData.LoadedPart.Modules.Count; i++)
 				{
-					if (ModuleHandler.handlerShipIdsByModuleInstanceId.TryGetValue(partData.LoadedPart.Modules[i].GetInstanceID(), out int shipId)
-						&& moduleDataNodes.TryGetValue(shipId, out ConfigNode handlerNode))
-					{
-						ModuleHandler.NewLoadedFromNode(partData.LoadedPart.Modules[i], i, partData, handlerNode, context);
-					}
-					else
-					{
-						ModuleHandler.NewEditorLoaded(partData.LoadedPart.Modules[i], i, partData, context, false);
-					}
+					ModuleHandler.GetForLoadedModule(partData, partData.LoadedPart.Modules[i], i, context);
 				}
 			}
 
@@ -334,8 +311,6 @@ namespace KERBALISM
 					}
 				}
 			}
-
-
 		}
 
 		#endregion

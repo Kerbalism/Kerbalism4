@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Steamworks;
 using UnityEngine;
 
 namespace KERBALISM
@@ -43,7 +44,15 @@ namespace KERBALISM
 			public readonly bool isKsmModule;
 			public readonly ActivationContext activation;
 
-			public readonly Func<ModuleHandler> activator;
+			private readonly Func<ModuleHandler> activator;
+
+			public ModuleHandler Instantiate()
+			{
+				ModuleHandler handler = activator.Invoke();
+				handler.handlerType = this;
+				return handler;
+			}
+			
 
 			public ModuleHandlerType(Type type)
 			{
@@ -52,7 +61,7 @@ namespace KERBALISM
 				LambdaExpression lambda = Expression.Lambda(typeof(Func<ModuleHandler>), newExp);
 				activator = (Func<ModuleHandler>)lambda.Compile();
 
-				ModuleHandler dummyInstance = activator.Invoke();
+				ModuleHandler dummyInstance = Instantiate();
 
 				handlerTypeName = type.Name;
 				moduleTypeNames = dummyInstance.ModuleTypeNames;
@@ -117,114 +126,20 @@ namespace KERBALISM
 
 		#endregion
 
-		#region Static : persistence 
-
-		public const string VALUENAME_FLIGHTID = "ksmFlightId";
-		public const string VALUENAME_SHIPID = "ksmShipId";
-
-		/// <summary> dictionary of all IPersistentModuleHandlers game-wide, by flightId</summary>
-		protected static Dictionary<int, IPersistentModuleHandler> persistentFlightModuleHandlers = new Dictionary<int, IPersistentModuleHandler>();
-
-		public static void SavePersistentHandlers(PartDataCollectionBase partDatas, ConfigNode vesselDataNode)
-		{
-			ConfigNode topNode = vesselDataNode.AddNode(VesselDataBase.NODENAME_MODULE);
-
-			foreach (PartData partData in partDatas)
-			{
-				foreach (ModuleHandler moduleHandler in partData.modules)
-				{
-					if (!(moduleHandler is IPersistentModuleHandler persistentHandler))
-						continue;
-
-					// note : the customized node name is for save readibility, but it also has a functional use
-					// in the EditorCrewChanged GameEvent handling (see Events > Habitat)
-					string nodeName = (partData.Name + "@" + persistentHandler.GetType().Name).KeyToNodeName();
-					ConfigNode handlerNode = topNode.AddNode(nodeName);
-
-					if (persistentHandler.FlightId != 0)
-					{
-						handlerNode.AddValue(VALUENAME_FLIGHTID, persistentHandler.FlightId);
-					}
-					else if (persistentHandler.ShipId != 0)
-					{
-						handlerNode.AddValue(VALUENAME_SHIPID, persistentHandler.ShipId);
-					}
-					else
-					{
-						Lib.Log($"Can't save ModuleHandler, both flightId and shipId aren't defined !", Lib.LogLevel.Warning);
-						continue;
-					}
-
-					handlerNode.AddValue(nameof(handlerIsEnabled), moduleHandler.handlerIsEnabled);
-					persistentHandler.Save(handlerNode);
-				}
-			}
-		}
-
-		#endregion
-
 		#region Static : loaded modules dictionaries
 
 		public static Dictionary<int, ModuleHandler> loadedHandlersByModuleInstanceId = new Dictionary<int, ModuleHandler>();
-		public static Dictionary<int, int> handlerShipIdsByModuleInstanceId = new Dictionary<int, int>();
-		public static Dictionary<int, int> handlerFlightIdsByModuleInstanceId = new Dictionary<int, int>();
+		public static Dictionary<ProtoPartModuleSnapshot, ModuleHandler> protoHandlersByProtoModule = new Dictionary<ProtoPartModuleSnapshot, ModuleHandler>();
 
 		#endregion
 
 		#region Static : activators and lifecycle
 
-		public static bool ExistsInFlight(int flightId) => persistentFlightModuleHandlers.ContainsKey(flightId);
-
-		public static bool TryGetPersistentFlightHandler<TModule, TData, TDefinition>(int flightId, out TData handler)
-			where TModule : KsmPartModule<TModule, TData, TDefinition>
-			where TData : KsmModuleHandler<TModule, TData, TDefinition>
-			where TDefinition : KsmModuleDefinition
-		{
-			if (persistentFlightModuleHandlers.TryGetValue(flightId, out IPersistentModuleHandler persistentHandler))
-			{
-				handler = (TData)persistentHandler;
-				return true;
-			}
-
-			handler = null;
-			return false;
-		}
-
-		public static bool TryGetPersistentFlightHandler(int flightId, out ModuleHandler modulehandler)
-		{
-			if (persistentFlightModuleHandlers.TryGetValue(flightId, out IPersistentModuleHandler persistentHandler))
-			{
-				modulehandler = (ModuleHandler)persistentHandler;
-				return true;
-			}
-			modulehandler = null;
-			return false;
-		}
-
-		public static bool TryGetPersistentFlightHandler<TModule, TData, TDefinition>(ProtoPartModuleSnapshot protoModule, out TData moduleHandler)
-			where TModule : KsmPartModule<TModule, TData, TDefinition>
-			where TData : KsmModuleHandler<TModule, TData, TDefinition>
-			where TDefinition : KsmModuleDefinition
-		{
-			int flightId = Lib.Proto.GetInt(protoModule, VALUENAME_FLIGHTID, 0);
-
-			if (persistentFlightModuleHandlers.TryGetValue(flightId, out IPersistentModuleHandler persistentHandler))
-			{
-				moduleHandler = (TData)persistentHandler;
-				return true;
-			}
-
-			moduleHandler = null;
-			return false;
-		}
-
 		/// <summary> must be called in OnLoad(), before any VesselData are loaded</summary>
-		public static void ClearOnLoad()
+		public static void ClearOnSceneSwitch()
 		{
-			persistentFlightModuleHandlers.Clear();
-			handlerFlightIdsByModuleInstanceId.Clear();
-			handlerShipIdsByModuleInstanceId.Clear();
 			loadedHandlersByModuleInstanceId.Clear();
+			protoHandlersByProtoModule.Clear();
 		}
 
 		// this called by the Part.Start() prefix patch. It's a "catch all" method for all the situations were a
@@ -234,190 +149,113 @@ namespace KERBALISM
 		// - previously unloaded vessel entering physics range
 		// - KIS created parts
 
-
-		public static void GetPersistedOrNewLoadedFlightHandler(PartData partData, PartModule partModule, int moduleIndex)
-		{
-			int moduleInstanceId = partModule.GetInstanceID();
-			if (handlerFlightIdsByModuleInstanceId.TryGetValue(moduleInstanceId, out int flightId))
-			{
-				if (persistentFlightModuleHandlers.TryGetValue(flightId, out IPersistentModuleHandler persistentHandler))
-				{
-					if (partModule is KsmPartModule ksmPartModule)
-					{
-						ksmPartModule.ModuleHandler = persistentHandler.ModuleHandler;
-					}
-					persistentHandler.ModuleHandler.SetModuleReferences(partData.PartPrefab.Modules[moduleIndex], partModule);
-				}
-			}
-			else
-			{
-				NewEditorLoaded(partModule, moduleIndex, partData, ActivationContext.Loaded, true);
-			}
-		}
-
-		protected static int NewFlightId(IPersistentModuleHandler moduleHandler)
-		{
-			int flightId = 0;
-			do
-			{
-				flightId = Guid.NewGuid().GetHashCode();
-			}
-			while (persistentFlightModuleHandlers.ContainsKey(flightId) || flightId == 0);
-
-			persistentFlightModuleHandlers.Add(flightId, moduleHandler);
-
-			return flightId;
-		}
-
-		public static void AssignNewFlightId(IPersistentModuleHandler moduleHandler)
-		{
-			int flightId = NewFlightId(moduleHandler);
-			moduleHandler.FlightId = flightId;
-		}
-
 		// TODO : maybe instantiate a PartData for the prefab ?
 		public static void NewForPrefab(KsmPartModule prefabModule)
 		{
-			KsmModuleHandler moduleHandler = (KsmModuleHandler)handlerTypesByModuleName[prefabModule.moduleName].activator.Invoke();
+			KsmModuleHandler moduleHandler = (KsmModuleHandler)handlerTypesByModuleName[prefabModule.moduleName].Instantiate();
 			moduleHandler.Definition = KsmModuleDefinitionLibrary.GetDefinition(prefabModule, null);
 			prefabModule.ModuleHandler = moduleHandler;
-			moduleHandler.SetModuleReferences(prefabModule, prefabModule);
+			moduleHandler.PrefabModuleBase = prefabModule;
+			moduleHandler.LoadedModuleBase = prefabModule;
 			moduleHandler.OnPrefabCompilation();
 		}
 
-		public static void NewEditorLoaded(PartModule module, int moduleIndex, PartData partData, ActivationContext context, bool affectFlightId)
+		public static ModuleHandler GetForLoadedModule(PartData partData, PartModule module, int moduleIndex, ActivationContext context)
 		{
 			if (!handlerTypesByModuleName.TryGetValue(module.moduleName, out ModuleHandlerType handlerType))
-				return;
-
-			if ((handlerType.activation & context) == 0)
-				return;
-
-			// This handle a bunch of in-editor case where we try to re-instatiate an already instantiated handler
-			// TODO : what about non-ksm handlers ? In the current state of things, we will likely instantiate duplicates...
-			if (module is KsmPartModule ksmModule && ksmModule.ModuleHandler != null)
-				return;
-
-			NewLoaded(handlerType, module, moduleIndex, partData, affectFlightId);
-		}
-
-		public static void NewLoaded(ModuleHandlerType handlerType, PartModule module, int moduleIndex, PartData partData, bool affectFlightId)
-		{
-			ModuleHandler moduleHandler = handlerType.activator.Invoke();
-
-			loadedHandlersByModuleInstanceId[module.GetInstanceID()] = moduleHandler;
-
-			if (affectFlightId && moduleHandler is IPersistentModuleHandler persistentHandler)
-			{
-				int flightId = NewFlightId(persistentHandler);
-				persistentHandler.FlightId = flightId;
-			}
-
-			moduleHandler.partData = partData;
-			moduleHandler.SetModuleReferences(partData.PartPrefab.Modules[moduleIndex], module);
-			partData.modules.Add(moduleHandler);
-
-			Lib.LogDebug($"Instantiated new {moduleHandler} for part {partData.Title} on {partData.vesselData} - affectFlightId={affectFlightId}");
-		}
-
-		public static void NewLoadedFromNode(PartModule module, int moduleIndex, PartData partData, ConfigNode handlerNode, ActivationContext context)
-		{
-			if (!handlerTypesByModuleName.TryGetValue(module.moduleName, out ModuleHandlerType handlerType))
-				return;
-
-			if ((handlerType.activation & context) == 0)
-				return;
-
-			NewLoadedFromNode(handlerType, module, moduleIndex, partData, handlerNode);
-		}
-
-		public static void NewLoadedFromNode(ModuleHandlerType handlerType, PartModule module, int moduleIndex, PartData partData, ConfigNode handlerNode)
-		{
-			ModuleHandler moduleHandler = handlerType.activator.Invoke();
-			moduleHandler.setupDone = true;
-
-			loadedHandlersByModuleInstanceId[module.GetInstanceID()] = moduleHandler;
-
-			moduleHandler.partData = partData;
-			
-			moduleHandler.SetModuleReferences(partData.PartPrefab.Modules[moduleIndex], module);
-			partData.modules.Add(moduleHandler);
-
-			moduleHandler.handlerIsEnabled = Lib.ConfigValue(handlerNode, nameof(handlerIsEnabled), true);
-
-			IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)moduleHandler;
-			persistentHandler.Load(handlerNode);
-			
-
-			// handlerFlightIdsByModuleInstanceId is populated in the PartModule.Load() PostFix harmony patch
-			if (handlerFlightIdsByModuleInstanceId.TryGetValue(module.GetInstanceID(), out int flightId))
-			{
-				persistentHandler.FlightId = flightId;
-				persistentFlightModuleHandlers.Add(flightId, persistentHandler);
-			}
-
-			Lib.LogDebug($"Instantiated persisted {moduleHandler} for {partData} on {partData.vesselData}");
-		}
-
-		public static ModuleHandler NewFlightFromProto(ModuleHandlerType handlerType, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, PartData partData)
-		{
-			// TODO : optimisation, search the part once and find the prefab in the caller (PartDataCollectionVessel ctor) instead of redoing it for each module
-			if (!Lib.TryFindModulePrefab(protoPart, protoModule, out PartModule modulePrefab))
 				return null;
 
-			ModuleHandler moduleHandler = handlerType.activator.Invoke();
-
-			if (handlerType.isPersistent)
-			{
-				IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler) moduleHandler;
-				int flightId = NewFlightId(persistentHandler);
-				persistentHandler.FlightId = flightId;
-				Lib.Proto.Set(protoModule, VALUENAME_FLIGHTID, flightId);
-			}
-			else
-			{
-				moduleHandler.handlerIsEnabled = Lib.Proto.GetBool(protoModule, nameof(PartModule.isEnabled), true);
-			}
-
-			moduleHandler.partData = partData;
-			moduleHandler.SetModuleReferences(modulePrefab, null);
-			moduleHandler.protoModule = protoModule;
-			partData.modules.Add(moduleHandler);
-
-			Lib.LogDebug($"Instantiated new {moduleHandler} for {partData} on {partData.vesselData}");
-
-			return moduleHandler;
+			return GetForLoadedModule(handlerType, partData, module, moduleIndex, context);
 		}
 
-		public static void NewPersistedFlightFromProto(ModuleHandlerType handlerType, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, PartData partData, ConfigNode handlerNode, int flightId)
+		public static ModuleHandler GetForLoadedModule(ModuleHandlerType handlerType, PartData partData, PartModule module, int moduleIndex, ActivationContext context)
 		{
-			// TODO : optimisation, search the part once and find the prefab in the caller (PartDataCollectionVessel ctor) instead of redoing it for each module
-			if (!Lib.TryFindModulePrefab(protoPart, protoModule, out PartModule modulePrefab))
-				return;
+			if ((handlerType.activation & context) == 0)
+				return null;
 
-			ModuleHandler moduleHandler = handlerType.activator.Invoke();
-			moduleHandler.setupDone = true;
-			IPersistentModuleHandler persistentHandler = (IPersistentModuleHandler)moduleHandler;
+			int instanceId = module.GetInstanceID();
+			if (!loadedHandlersByModuleInstanceId.TryGetValue(instanceId, out ModuleHandler handler))
+			{
+				handler = handlerType.Instantiate();
+				loadedHandlersByModuleInstanceId[instanceId] = handler;
+			}
 
-			persistentFlightModuleHandlers.Add(flightId, persistentHandler);
-			persistentHandler.FlightId = flightId;
-			moduleHandler.partData = partData;
-			moduleHandler.SetModuleReferences(modulePrefab, null);
-			moduleHandler.protoModule = protoModule;
-			partData.modules.Add(moduleHandler);
+			handler.partData = partData;
+			handler.moduleIndex = moduleIndex;
+			handler.PrefabModuleBase = partData.PartPrefab.Modules[moduleIndex];
+			handler.LoadedModuleBase = module;
+			partData.modules.Add(handler);
 
-			moduleHandler.handlerIsEnabled = Lib.ConfigValue(handlerNode, nameof(handlerIsEnabled), true);
-			persistentHandler.Load(handlerNode);
+			if (handlerType.isKsmModule)
+			{
+				KsmPartModule ksmModule = (KsmPartModule) module;
+				ksmModule.ModuleHandler = handler;
+			}
 
-			Lib.LogDebug($"Instantiated persisted {moduleHandler} for {partData} on {partData.vesselData}");
+			Lib.LogDebug($"Added {handler} to part {partData.Title} on {partData.vesselData}");
+			return handler;
+		}
+
+		public static ModuleHandler GetForProtoModule(PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
+		{
+			if (!handlerTypesByModuleName.TryGetValue(protoModule.moduleName, out ModuleHandlerType handlerType))
+				return null;
+
+			return GetForProtoModule(handlerType, partData, protoPart, protoModule, protoModuleIndex, context);
+		}
+
+		public static ModuleHandler GetForProtoModule(ModuleHandlerType handlerType, PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
+		{
+			if ((handlerType.activation & context) == 0)
+				return null;
+
+			if (!protoHandlersByProtoModule.TryGetValue(protoModule, out ModuleHandler handler))
+			{
+				handler = handlerType.Instantiate();
+				protoHandlersByProtoModule[protoModule] = handler;
+			}
+
+			if (!Lib.TryFindModulePrefab(protoPart, ref protoModuleIndex, out PartModule modulePrefab))
+				return null;
+
+			handler.partData = partData;
+			handler.moduleIndex = protoModuleIndex;
+			handler.PrefabModuleBase = modulePrefab;
+			handler.protoModule = protoModule;
+			partData.modules.Add(handler);
+
+			Lib.LogDebug($"Added {handler} to part {partData.Title} on {partData.vesselData}");
+			return handler;
+		}
+
+		internal void ParseEnabled(ProtoPartModuleSnapshot protoModule, ConfigNode moduleNode = null)
+		{
+			if (moduleNode == null || !moduleNode.TryGetValue(nameof(handlerIsEnabled), ref handlerIsEnabled))
+			{
+				if (!protoModule.moduleValues.TryGetValue(nameof(PartModule.isEnabled), ref handlerIsEnabled))
+				{
+					handlerIsEnabled = false;
+				}
+			}
+		}
+
+		internal void ParseEnabled(PartModule module, ConfigNode moduleNode = null)
+		{
+			if (moduleNode == null || !moduleNode.TryGetValue(nameof(handlerIsEnabled), ref handlerIsEnabled))
+			{
+				handlerIsEnabled = module.isEnabled;
+			}
 		}
 
 		#endregion
 
 		#region Abstract implementation : internals
 
-		protected bool setupDone = false;
-		protected bool started = false;
+
+		public ModuleHandlerType handlerType;
+		public bool setupDone = false;
+		public bool started = false;
+		public int moduleIndex = -1;
 
 		/// <summary>
 		/// TODO : this currently is used inconsistently (ex : FixedUpdate is called but not VesselDataUpdate).
@@ -449,12 +287,12 @@ namespace KERBALISM
 		/// <summary>
 		/// Non-generic, untyped reference to the loaded module. You usually want to use the generic typed loadedModule field instead.
 		/// </summary>
-		public abstract PartModule LoadedModuleBase { get; }
+		public abstract PartModule LoadedModuleBase { get; set; }
 
 		/// <summary>
 		/// Non-generic, untyped reference to the module prefab. You usually want to use the generic typed modulePrefab field instead.
 		/// </summary>
-		public abstract PartModule PrefabModuleBase { get; }
+		public abstract PartModule PrefabModuleBase { get; set; }
 
 		/// <summary>
 		/// Name of the type of the PartModule the handler will be attached to. Implemented by default in KsmModuleHandler and
@@ -472,11 +310,7 @@ namespace KERBALISM
 		/// </summary>
 		public abstract ActivationContext Activation { get; }
 
-		public abstract void ClearLoadedAndProtoModuleReferences();
-
 		public override string ToString() => $"{GetType().Name} - loaded={LoadedModuleBase != null}";
-
-		public abstract void SetModuleReferences(PartModule prefabModule, PartModule loadedModule);
 
 		public virtual void FirstSetup()
 		{
@@ -492,10 +326,14 @@ namespace KERBALISM
 			else
 				handlerIsEnabled = Lib.Proto.GetBool(protoModule, "isEnabled", true);
 
-			setupDone = true;
 			OnFirstSetup();
+			setupDone = true;
 		}
 
+		/// <summary>
+		/// For persistent handler, this will be called only once in the part life, the first time the handler is instantiatied
+		/// For non-persistent handlers, this will be called every time the handler is instantiated
+		/// </summary>
 		public virtual void OnFirstSetup() { }
 
 		public virtual void Start()
@@ -524,18 +362,13 @@ namespace KERBALISM
 		/// - After Load/OnLoad and after all the Part/Module references have been set <br/>
 		/// - After VesselData instantiation and loading, after the first VesselData evaluation <br/>
 		/// - On loaded parts, after the PartModule Awake() but before its OnStart() <br/>
-		/// - On loaded parts, there is no garantee the other parts / other modules will be initialized when this is called
+		/// - On loaded parts, there is no garantee the other parts / other modules are initialized when this is called
 		/// </summary>
 		public virtual void OnStart() { }
 
 		public void FlightPartWillDie()
 		{
 			OnFlightPartWillDie();
-
-			if (this is IPersistentModuleHandler persistentHandler)
-			{
-				persistentFlightModuleHandlers.Remove(persistentHandler.FlightId);
-			}
 		}
 
 		/// <summary>

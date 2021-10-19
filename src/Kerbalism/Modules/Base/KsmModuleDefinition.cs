@@ -30,7 +30,6 @@ namespace KERBALISM
 
 		/// <summary>
 		/// Get the module definition for that module/handler.
-		/// Note that if the part was just created, that method will also assign the persisted definitionId KSPField.
 		/// </summary>
 		public static KsmModuleDefinition GetDefinition(KsmPartModule module, string definitionId = null)
 		{
@@ -55,9 +54,9 @@ namespace KERBALISM
 			return definition;
 		}
 
-		public static bool TryGetDefinition(ProtoPartModuleSnapshot protoModule, out KsmModuleDefinition definition)
+		public static bool TryGetDefinition(string definitionId, out KsmModuleDefinition definition)
 		{
-			return definitions.TryGetValue(Lib.Proto.GetString(protoModule, "definitionId"), out definition);
+			return definitions.TryGetValue(definitionId, out definition);
 		}
 
 		public static void Init(Assembly executingAssembly)

@@ -2838,100 +2838,91 @@ namespace KERBALISM
 			return false;
 		}
 
-		public static bool TryFindModulePrefab(ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, out PartModule prefab)
+		private static ProtoPartSnapshot lastProtoPartPrefabSearch;
+		private static bool lastProtoPartPrefabSearchIsSync;
+
+
+		/// <summary>
+		/// Find the PartModule instance in the Part prefab corresponding to a ProtoPartModuleSnapshot
+		/// </summary>
+		/// <param name="protoModuleIndex">
+		/// The index of the ProtoPartModuleSnapshot in the protoPart.
+		/// If the prefab isn't synchronized due to a configs change, the parameter is updated to the module index in the prefab
+		/// </param>
+		public static bool TryFindModulePrefab(ProtoPartSnapshot protoPart, ref int protoModuleIndex, out PartModule prefab)
 		{
-			prefab = null;
-			int protoModulesCount = protoPart.modules.Count;
-			int prefabModulesCount = protoPart.partInfo.partPrefab.Modules.Count;
-
-			for (int i = 0; i < protoModulesCount; i++)
+			if (protoPart == lastProtoPartPrefabSearch)
 			{
-				if (protoPart.modules[i] != protoModule)
-					continue;
-
-				// if modules count match in the prefab and in the protopart, and if module type name match, 
-				// we can assume that the module at the same index is the right prefab. This can return a false
-				// positive if there was multiple consecutive modules of the same type and the config has changed
-				// by removing one of these modules.
-				if (protoModulesCount == prefabModulesCount && protoPart.partInfo.partPrefab.Modules[i].moduleName == protoModule.moduleName)
+				if (lastProtoPartPrefabSearchIsSync)
 				{
-					prefab = protoPart.partInfo.partPrefab.Modules[i];
-					break;
+					prefab = protoPart.partPrefab.Modules[protoModuleIndex];
+					return true;
 				}
-				// otherwise, we search all modules of that type name in both list, and assume that while the indexes have changed
-				// because a module was addded or removed in the part config, our module is still at same relative position within
-				// all modules of that type (in other words, if it was the nth module of that type, it still is)
-				else
+			}
+			else
+			{
+				lastProtoPartPrefabSearch = protoPart;
+				lastProtoPartPrefabSearchIsSync = ArePrefabModulesInSync(protoPart.partPrefab, protoPart.modules);
+				if (lastProtoPartPrefabSearchIsSync)
 				{
-					int protoIndexInType = 0;
-					foreach (ProtoPartModuleSnapshot otherppms in protoPart.modules)
-					{
-						if (otherppms.moduleName == protoModule.moduleName)
-						{
-							if (otherppms == protoModule)
-								break;
+					prefab = protoPart.partPrefab.Modules[protoModuleIndex];
+					return true;
+				}
+			}
 
-							protoIndexInType++;
-						}
+			prefab = null;
+			int protoIndexInType = 0;
+			ProtoPartModuleSnapshot module = protoPart.modules[protoModuleIndex];
+			foreach (ProtoPartModuleSnapshot otherppms in protoPart.modules)
+			{
+				if (otherppms.moduleName == module.moduleName)
+				{
+					if (otherppms == module)
+						break;
+
+					protoIndexInType++;
+				}
+			}
+
+			int prefabIndexInType = 0;
+			for (int i = 0; i < protoPart.partPrefab.Modules.Count; i++)
+			{
+				if (protoPart.partPrefab.Modules[i].moduleName == module.moduleName)
+				{
+					if (prefabIndexInType == protoIndexInType)
+					{
+						prefab = protoPart.partPrefab.Modules[i];
+						protoModuleIndex = i;
+						break;
 					}
 
-					int prefabIndexInType = 0;
-					foreach (PartModule pm in protoPart.partInfo.partPrefab.Modules)
-					{
-						if (pm.moduleName == protoModule.moduleName)
-						{
-							if (prefabIndexInType == protoIndexInType)
-							{
-								prefab = pm;
-								break;
-							}
-							prefabIndexInType++;
-						}
-					}
-
-					break;
+					prefabIndexInType++;
 				}
 			}
 
 			if (prefab == null)
 			{
-				Log($"PartModule prefab not found for {protoModule.moduleName} on {protoPart.partName}, has the part configuration changed ?", LogLevel.Warning);
+				Log($"PartModule prefab not found for {module.moduleName} on {protoPart.partPrefab.partName}, has the part configuration changed ?", Lib.LogLevel.Warning);
 				return false;
 			}
 
 			return true;
 		}
 
-
-		///<summary>used by ModulePrefab function, to support multiple modules of the same type in a part</summary>
-		public sealed class Module_prefab_data
+		private static bool ArePrefabModulesInSync(Part partPrefab, List<ProtoPartModuleSnapshot> protoPartModules)
 		{
-			public int index;                         // index of current module of this type
-			public List<PartModule> prefabs;          // set of module prefabs of this type
-		}
+			if (partPrefab.Modules.Count != protoPartModules.Count)
+				return false;
 
-		///<summary>
-		/// get module prefab
-		///  This function is used to solve the problem of obtaining a specific module prefab,
-		/// and support the case where there are multiple modules of the same type in the part.
-		/// </summary>
-		public static PartModule ModulePrefab(List<PartModule> module_prefabs, string module_name, Dictionary<string, Module_prefab_data> PD)
-		{
-			// get data related to this module type, or create it
-			Module_prefab_data data;
-			if (!PD.TryGetValue(module_name, out data))
+			for (int i = 0; i < protoPartModules.Count; i++)
 			{
-				data = new Module_prefab_data
+				if (partPrefab.Modules[i].moduleName != protoPartModules[i].moduleName)
 				{
-					prefabs = module_prefabs.FindAll(k => k.moduleName == module_name)
-				};
-				PD.Add(module_name, data);
+					return false;
+				}
 			}
 
-			// return the module prefab, and increment module-specific index
-			// note: if something messed up the prefab, or module were added dynamically,
-			// then we have no chances of finding the module prefab so we return null
-			return data.index < data.prefabs.Count ? data.prefabs[data.index++] : null;
+			return true;
 		}
 
 		public static double GetBaseConverterEfficiencyBonus(BaseConverter module, VesselDataBase vessel)

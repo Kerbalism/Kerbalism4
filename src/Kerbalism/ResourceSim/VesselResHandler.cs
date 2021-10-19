@@ -347,13 +347,6 @@ namespace KERBALISM
 		/// </summary>
 		public void ForceHandlerSync()
 		{
-			//foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
-			//{
-			//	resourceWrapper.ClearPartResources(true, false);
-			//}
-
-			//SyncPartResources();
-
 			foreach (VesselResource resource in resources.Values)
 			{
 				if (resource.ResourceWrapper != null)
@@ -368,14 +361,13 @@ namespace KERBALISM
 			vesselData = vd;
 			simulationType = SimulationType.Vessel;
 
-			foreach (int kspResourceId in allKSPResourcesIds)
+			foreach (VesselResource resource in resources.Values)
 			{
-				if (resources.TryGetValue(kspResourceId, out VesselResource resource) && resource is VesselResourceKSP kspResource)
+				if (resource is VesselResourceKSP kspResource)
 				{
 					PartResourceWrapperCollection newWrapper = CreateWrapper();
 					newWrapper.SyncWithOtherWrapper(kspResource.ResourceWrapper);
 					kspResource.SetWrapper(newWrapper);
-					//resourceWrappers[allResourceIdsByName[kspResourceName]] = newWrapper;
 				}
 			}
 		}

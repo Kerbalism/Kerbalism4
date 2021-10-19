@@ -87,7 +87,7 @@ namespace KERBALISM
 			{
 				this.coilData = coilData;
 				this.protectionFactor = protectionFactor;
-				coilDataId = coilData.FlightId;
+				//coilDataId = coilData.FlightId;
 			}
 
 			private CoilArrayShielding(ConfigNode.Value value)
@@ -101,7 +101,7 @@ namespace KERBALISM
 				if (coilData != this.coilData)
 				{
 					this.coilData = coilData;
-					coilDataId = coilData.FlightId;
+					//coilDataId = coilData.FlightId;
 				}
 
 				this.protectionFactor = protectionFactor;
@@ -111,14 +111,14 @@ namespace KERBALISM
 			{
 				for (int i = coilArrays.Count - 1; i >= 0; i--)
 				{
-					if (ModuleHandler.TryGetPersistentFlightHandler<ModuleKsmRadiationCoil, RadiationCoilHandler, RadiationCoilDefinition>(coilArrays[i].coilDataId, out RadiationCoilHandler coilData))
-					{
-						coilArrays[i].coilData = coilData;
-					}
-					else
-					{
-						coilArrays.RemoveAt(i);
-					}
+					//if (ModuleHandler.TryGetPersistentFlightHandler<ModuleKsmRadiationCoil, RadiationCoilHandler, RadiationCoilDefinition>(coilArrays[i].coilDataId, out RadiationCoilHandler coilData))
+					//{
+					//	coilArrays[i].coilData = coilData;
+					//}
+					//else
+					//{
+					//	coilArrays.RemoveAt(i);
+					//}
 				}
 			}
 

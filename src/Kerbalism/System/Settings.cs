@@ -93,6 +93,10 @@ namespace KERBALISM
 
 			DepressuriationDefaultDurationValue = Lib.ConfigDuration(node, "DepressuriationDefaultDuration", false, "5m");
 
+			// radiation configs are in rad/h, convert to rad/s
+			StormRadiation /= 3600f;
+			ExternRadiation /= 3600f;
+
 			if (!PartResourceLibrary.Instance.resourceDefinitions.Contains(HabitatAtmoResource))
 				ErrorManager.AddError(true, "KERBALISM_SETTINGS parsing error", $"HabitatAtmoResource {HabitatAtmoResource} doesn't exists");
 			else
@@ -255,8 +259,10 @@ namespace KERBALISM
 		[CFGValue] public static float StormFrequency = 0.4f;
 		[CFGValue] public static int StormDurationHours = 2;
 		[CFGValue] public static float StormEjectionSpeed = 0.33f;
-		[CFGValue] public static float StormRadiation = 5f / 3600f;
-		[CFGValue] public static float ExternRadiation = 0.04f / 3600f;
+		/// <summary>solar storm radiation. Config value in rad/h, instance value in rad/s</summary>
+		[CFGValue] public static float StormRadiation = 5f;
+		/// <summary>background radiation. Config value in rad/h, instance value in rad/s</summary>
+		[CFGValue] public static float ExternRadiation = 0.04f;
 		/// <summary>use sievert instead of rad</summary>
 		[CFGValue] public static bool RadiationInSievert = false;
 

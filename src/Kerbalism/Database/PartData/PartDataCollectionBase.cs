@@ -71,7 +71,7 @@ namespace KERBALISM
 			Parts.RemoveAt(index);
 		}
 
-		public void Add(PartData item)
+		public virtual void Add(PartData item)
 		{
 			Parts.Add(item);
 		}
@@ -86,7 +86,7 @@ namespace KERBALISM
 			Parts.CopyTo(array, arrayIndex);
 		}
 
-		public bool Remove(PartData item)
+		public virtual bool Remove(PartData item)
 		{
 			return Parts.Remove(item);
 		}

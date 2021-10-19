@@ -11,9 +11,7 @@
 	{
 		ModuleHandler ModuleHandler { get; }
 
-		int FlightId { get; set; }
-
-		int ShipId { get; set; }
+		bool ConfigLoaded { get; set; }
 
 		void Load(ConfigNode node);
 

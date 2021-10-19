@@ -19,8 +19,7 @@ namespace KERBALISM
 		public override ActivationContext Activation => ActivationContext.Editor | ActivationContext.Loaded | ActivationContext.Unloaded;
 
 		public ModuleHandler ModuleHandler => this;
-		public int FlightId { get; set; }
-		public int ShipId { get; set; }
+		public bool ConfigLoaded { get; set; }
 
 		public enum PanelState
 		{
@@ -244,13 +243,13 @@ namespace KERBALISM
 				editorEnabledBaseField.guiActive = false;
 				editorEnabledBaseField.guiActiveEditor = true;
 				editorEnabledBaseField.uiControlEditor = toggle;
-				loadedModule.Fields.Add(editorEnabledBaseField);
+				LoadedModuleBase.Fields.Add(editorEnabledBaseField);
 
 				UI_Label statusLabel = new UI_Label();
 				statusPAWField = new BaseField(statusLabel, panelStatusField, this);
 				statusPAWField.guiName = Local.SolarPanelFixer_Solarpanel; //Solar panel
 				statusPAWField.uiControlFlight = statusLabel;
-				loadedModule.Fields.Add(statusPAWField);
+				LoadedModuleBase.Fields.Add(statusPAWField);
 
 				if (Sim.stars.Count > 1 && IsTracking)
 				{
@@ -258,7 +257,7 @@ namespace KERBALISM
 					trackingEvent.guiName = Local.SolarPanelFixer_Selecttrackedstar; //Select tracked star
 					trackingEvent.active = true;
 					trackingEvent.guiActive = true;
-					trackingPAWEvent = new BaseEvent(loadedModule.Events, "SelectStar", ManualStarTrackingPopup, trackingEvent);
+					trackingPAWEvent = new BaseEvent(LoadedModuleBase.Events, "SelectStar", ManualStarTrackingPopup, trackingEvent);
 				}
 			}
 

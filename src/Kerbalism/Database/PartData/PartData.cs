@@ -10,7 +10,7 @@ namespace KERBALISM
 		private static Dictionary<int, PartData> loadedPartDatas = new Dictionary<int, PartData>();
 		private static Dictionary<uint, PartData> flightPartDatas = new Dictionary<uint, PartData>();
 
-		public static void ClearOnLoad()
+		public static void ClearOnSceneSwitch()
 		{
 			loadedPartDatas.Clear();
 			flightPartDatas.Clear();
@@ -111,6 +111,9 @@ namespace KERBALISM
 			{
 				ModuleHandler moduleHandler = modules[i];
 
+				ModuleHandler.protoHandlersByProtoModule.Remove(moduleHandler.protoModule);
+				moduleHandler.protoModule = null;
+
 				// Remove handlers that don't have the loaded context
 				if ((moduleHandler.Activation & ModuleHandler.ActivationContext.Loaded) == 0)
 				{
@@ -120,8 +123,9 @@ namespace KERBALISM
 
 				// acquire the loaded module reference
 				PartModule module = loadedPart.Modules[PartPrefab.Modules.IndexOf(moduleHandler.PrefabModuleBase)];
+
 				ModuleHandler.loadedHandlersByModuleInstanceId[module.GetInstanceID()] = moduleHandler;
-				moduleHandler.SetModuleReferences(moduleHandler.PrefabModuleBase, module);
+				moduleHandler.LoadedModuleBase = module;
 
 				if (module is KsmPartModule ksmModule)
 					ksmModule.ModuleHandler = moduleHandler;
@@ -131,21 +135,28 @@ namespace KERBALISM
 
 			for (var i = 0; i < loadedPart.Modules.Count; i++)
 			{
-				// if the module is type we haven't a handler for, continue
-				if (!ModuleHandler.TryGetModuleHandlerType(loadedPart.Modules[i].moduleName, out ModuleHandler.ModuleHandlerType handlerType))
+				PartModule module = loadedPart.Modules[i];
+
+				// if the module is a type we haven't a handler for, continue
+				if (!ModuleHandler.TryGetModuleHandlerType(module.moduleName, out ModuleHandler.ModuleHandlerType handlerType))
 					continue;
 
 				// instantiate handlers that don't have the unloaded context and have the loaded context
 				if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) == 0 && (handlerType.activation & ModuleHandler.ActivationContext.Loaded) != 0)
 				{
-					ModuleHandler.NewLoaded(handlerType, loadedPart.Modules[i], i, this, false);
+					ModuleHandler handler = ModuleHandler.GetForLoadedModule(handlerType, this, module, i, ModuleHandler.ActivationContext.Loaded);
+					if (handler != null)
+					{
+						handler.FirstSetup();
+						handler.Start();
+					}
 				}
 
 				// TODO : KsmStart() is supposed to happen after B9PS subtype switching.
 				// We are calling this from the Part.Start() prefix, so it won't be the case...
 				if (handlerType.isKsmModule)
 				{
-					KsmPartModule ksmModule = (KsmPartModule)loadedPart.Modules[i];
+					KsmPartModule ksmModule = (KsmPartModule)module;
 					ksmModule.KsmStart();
 					ksmModule.SetupActions();
 				}
@@ -164,8 +175,6 @@ namespace KERBALISM
 				{
 					int instanceID = modules[i].LoadedModuleBase.GetInstanceID();
 					ModuleHandler.loadedHandlersByModuleInstanceId.Remove(instanceID);
-					ModuleHandler.handlerFlightIdsByModuleInstanceId.Remove(instanceID);
-					ModuleHandler.handlerShipIdsByModuleInstanceId.Remove(instanceID);
 				}
 				else if (!ReferenceEquals(modules[i].LoadedModuleBase, null))
 				{
@@ -185,14 +194,13 @@ namespace KERBALISM
 		{
 			for (int i = modules.Count - 1; i >= 0; i--)
 			{
-				modules[i].OnBecomingUnloaded();
+				ModuleHandler handler = modules[i];
+				handler.OnBecomingUnloaded();
 
 				// If the handler doesn't have the unloaded activation context, remove it
-				// For non-persistent handlers we have no way to find the corresponding protomodule if the vessel goes from loaded to unloaded.
-				// So also remove any non-persistent handlers. In case the handler has both the loaded and unloaded context, it will be recreated
-				// in the SetProtopartReferenceOnVesselUnload() call.
-				if ((modules[i].Activation & ModuleHandler.ActivationContext.Unloaded) == 0 || !(modules[i] is IPersistentModuleHandler))
+				if ((handler.Activation & ModuleHandler.ActivationContext.Unloaded) == 0)
 				{
+					ModuleHandler.loadedHandlersByModuleInstanceId.Remove(handler.LoadedModuleBase.GetInstanceID());
 					modules.RemoveAt(i);
 				}
 			}
@@ -206,25 +214,27 @@ namespace KERBALISM
 			this.protoPart = protoPart;
 			IsLoaded = false;
 
-			foreach (ProtoPartModuleSnapshot protoModule in protoPart.modules)
+			foreach (ModuleHandler moduleHandler in modules)
 			{
+				moduleHandler.protoModule = protoPart.modules[moduleHandler.moduleIndex];
+			}
+
+			for (int i = 0; i < protoPart.modules.Count; i++)
+			{
+				ProtoPartModuleSnapshot protoModule = protoPart.modules[i];
+
 				if (!ModuleHandler.handlerTypesByModuleName.TryGetValue(protoModule.moduleName, out ModuleHandler.ModuleHandlerType handlerType))
 					continue;
 
-				if (handlerType.isPersistent)
+				// instantiate handlers that don't have the loaded context and have the unloaded context
+				if ((handlerType.activation & ModuleHandler.ActivationContext.Loaded) == 0 && (handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
 				{
-					int flightId = Lib.Proto.GetInt(protoModule, ModuleHandler.VALUENAME_FLIGHTID, 0);
-					if (flightId != 0 && ModuleHandler.TryGetPersistentFlightHandler(flightId, out ModuleHandler moduleData))
+					ModuleHandler handler = ModuleHandler.GetForProtoModule(handlerType, this, protoPart, protoModule, i, ModuleHandler.ActivationContext.Unloaded);
+					if (handler != null)
 					{
-						moduleData.protoModule = protoModule;
-						continue;
+						handler.FirstSetup();
+						handler.Start();
 					}
-				}
-				else if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
-				{
-					ModuleHandler unloadedHandler = ModuleHandler.NewFlightFromProto(handlerType, protoPart, protoModule, this);
-					unloadedHandler.FirstSetup();
-					unloadedHandler.Start();
 				}
 			}
 		}
