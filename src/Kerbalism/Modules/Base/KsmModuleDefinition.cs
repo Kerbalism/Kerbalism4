@@ -230,6 +230,30 @@ namespace KERBALISM
 
 			Lib.LogDebug($"Added definition : `{definitionName}` for `{moduleType}`{(string.IsNullOrEmpty(partName) ? "" : $" on part `{partName}`")}");
 
+			// Attempt to handle the EVA kerbal parts mess.
+			// For some reason, the AvailablePart.name of kerbalEVA is always set to the "vintage" versions, even if the vintage versions doesn't exist...
+			if (!string.IsNullOrEmpty(partName))
+			{
+				if (partName == "kerbalEVA")
+				{
+					if (TryCreateDefinitionId(moduleType, definitionName, "kerbalEVAVintage", out string vintageDefinitionId))
+					{
+						KsmModuleDefinition vintageDefinition = activator.Invoke();
+						vintageDefinition.Init(definitionNode, vintageDefinitionId, definitionName, moduleType);
+						definitions.Add(vintageDefinitionId, vintageDefinition);
+					}
+				}
+				else if (partName == "kerbalEVAfemale")
+				{
+					if (TryCreateDefinitionId(moduleType, definitionName, "kerbalEVAfemaleVintage", out string vintageDefinitionId))
+					{
+						KsmModuleDefinition vintageDefinition = activator.Invoke();
+						vintageDefinition.Init(definitionNode, vintageDefinitionId, definitionName, moduleType);
+						definitions.Add(vintageDefinitionId, vintageDefinition);
+					}
+				}
+			}
+
 			KsmModuleDefinition definition = activator.Invoke();
 			definition.Init(definitionNode, definitionId, definitionName, moduleType);
 			definitions.Add(definitionId, definition);

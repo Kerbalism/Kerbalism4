@@ -8,7 +8,8 @@ namespace KERBALISM
 	/// <summary>
 	/// loaded/unloaded/editor state independant persisted data and logic used by the ModuleKsmHabitat module.
 	/// </summary>
-	public class HabitatHandler : KsmModuleHandler<ModuleKsmHabitat, HabitatHandler, HabitatDefinition>, IRadiationReceiver
+	public class HabitatHandler : KsmModuleHandler<ModuleKsmHabitat, HabitatHandler, HabitatDefinition>,
+		IRadiationReceiver, IMultipleRecipeExecutedCallback
 	{
 		#region ENUMS AND TYPES
 
@@ -84,6 +85,7 @@ namespace KERBALISM
 		private VesselResourceKSP wasteResInfo;
 		private bool isEditor;
 
+		private List<Recipe> executedRecipes = new List<Recipe>(3);
 		public Recipe deployRecipe;
 		public Recipe centrifugeRecipe;
 		public RecipeInput centrifugeECInput;
@@ -936,6 +938,9 @@ namespace KERBALISM
 		}
 
 		#endregion
+
+		bool IRecipeExecutedCallback.IsCallbackRegistered { get; set; }
+		public List<Recipe> ExecutedRecipes { get; private set; } = new List<Recipe>(3);
 
 		private void OnDepressurizationRecipeExecuted(double elapsedSec)
 		{

@@ -1,12 +1,5 @@
 ﻿using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using static KERBALISM.ModuleHandler;
-using ActivationContext = KERBALISM.ModuleHandler.ActivationContext;
 
 namespace KERBALISM.Events
 {
@@ -20,7 +13,7 @@ namespace KERBALISM.Events
 			{
 				if (handler is IPersistentModuleHandler persistentHandler)
 				{
-					ConfigNode moduleNode = node.AddNode("KSM_MODULE");
+					ConfigNode moduleNode = node.AddNode(NODENAME_KSMMODULE);
 					moduleNode.AddValue(nameof(ModuleHandler.handlerIsEnabled), handler.handlerIsEnabled);
 					persistentHandler.Save(moduleNode);
 				}
@@ -51,7 +44,7 @@ namespace KERBALISM.Events
 
 				if (!persistentHandler.ConfigLoaded)
 				{
-					ConfigNode moduleNode = node.GetNode("KSM_MODULE");
+					ConfigNode moduleNode = node.GetNode(NODENAME_KSMMODULE);
 					if (moduleNode != null)
 					{
 						handler.setupDone = true;
@@ -59,6 +52,20 @@ namespace KERBALISM.Events
 						persistentHandler.Load(moduleNode);
 						persistentHandler.ConfigLoaded = true;
 					}
+					else if (handlerType.isKsmModule)
+					{
+						((KsmModuleHandler)handler).Definition = KsmModuleDefinitionLibrary.GetDefinition((KsmPartModule)__instance, null);
+					}
+				}
+			}
+
+			if (handler.LoadedModuleBase == null)
+			{
+				handler.LoadedModuleBase = __instance;
+
+				if (handlerType.isKsmModule)
+				{
+					((KsmPartModule)__instance).ModuleHandler = handler;
 				}
 			}
 		}
@@ -91,7 +98,7 @@ namespace KERBALISM.Events
 
 				if (!persistentHandler.ConfigLoaded)
 				{
-					ConfigNode moduleNode = __instance.moduleValues.GetNode("KSM_MODULE");
+					ConfigNode moduleNode = __instance.moduleValues.GetNode(NODENAME_KSMMODULE);
 					if (moduleNode != null)
 					{
 						handler.setupDone = true;
@@ -99,6 +106,20 @@ namespace KERBALISM.Events
 						persistentHandler.Load(moduleNode);
 						persistentHandler.ConfigLoaded = true;
 					}
+					else if (handlerType.isKsmModule)
+					{
+						((KsmModuleHandler)handler).Definition = KsmModuleDefinitionLibrary.GetDefinition((KsmPartModule)module, null);
+					}
+				}
+			}
+
+			if (handler.LoadedModuleBase == null)
+			{
+				handler.LoadedModuleBase = module;
+
+				if (handlerType.isKsmModule)
+				{
+					((KsmPartModule)module).ModuleHandler = handler;
 				}
 			}
 		}
@@ -125,7 +146,7 @@ namespace KERBALISM.Events
 
 				if (!persistentHandler.ConfigLoaded)
 				{
-					ConfigNode moduleNode = node.GetNode("KSM_MODULE");
+					ConfigNode moduleNode = node.GetNode(NODENAME_KSMMODULE);
 					if (moduleNode != null)
 					{
 						handler.setupDone = true;
@@ -138,8 +159,30 @@ namespace KERBALISM.Events
 		}
 	}
 
+	[HarmonyPatch(typeof(ProtoPartModuleSnapshot))]
+	[HarmonyPatch(nameof(ProtoPartModuleSnapshot.Save))]
+	class ProtoPartModuleSnapshot_Save
+	{
+		static void Prefix(ProtoPartModuleSnapshot __instance)
+		{
+			if (!protoHandlersByProtoModule.TryGetValue(__instance, out ModuleHandler handler))
+				return;
+
+			if (!handler.handlerType.isPersistent)
+				return;
+
+			ConfigNode moduleNode = __instance.moduleValues.GetNode(NODENAME_KSMMODULE);
+			if (moduleNode == null)
+				moduleNode = __instance.moduleValues.AddNode(NODENAME_KSMMODULE);
+			else
+				moduleNode.ClearData();
+
+			moduleNode.AddValue(nameof(ModuleHandler.handlerIsEnabled), handler.handlerIsEnabled);
+			((IPersistentModuleHandler)handler).Save(moduleNode);
+		}
+	}
+
 	public class PartModuleLifecycle
 	{
-
 	}
 }

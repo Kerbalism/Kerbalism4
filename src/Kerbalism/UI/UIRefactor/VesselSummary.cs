@@ -305,7 +305,7 @@ namespace KERBALISM
 					}
 				//}
 
-				textComponent.Text = ks.End();
+				textComponent.Text = ks.GetStringAndRelease();
 			}
 		}
 
@@ -516,7 +516,7 @@ namespace KERBALISM
 
 				solarExposureText.Text = KsmString.Get
 					.Add(Local.TELEMETRY_SolarPanelsAverageExposure, " : ")
-					.Format(vd.SolarPanelsAverageExposure.ToString("P1"), KF.Color(vd.SolarPanelsAverageExposure < 0.2, Kolor.Orange), KF.Bold).End();
+					.Format(vd.SolarPanelsAverageExposure.ToString("P1"), KF.Color(vd.SolarPanelsAverageExposure < 0.2, Kolor.Orange), KF.Bold).GetStringAndRelease();
 			}
 			else if (solarExposure.Enabled == true)
 			{
@@ -534,7 +534,7 @@ namespace KERBALISM
 
 			if (habitatSpace.Enabled)
 			{
-				habRadiation.Text = KsmString.Get.Info("Hab radiation", KF.ReadableRadiation(vd.Habitat.radiationRate), 90).End(); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
+				habRadiation.Text = KsmString.Get.Info("Hab radiation", KF.ReadableRadiation(vd.Habitat.radiationRate), 90).GetStringAndRelease(); // habitat radiation -> tooltip : high radiation, low radiation, shielding %, blocked storm radiation...
 				habStormProtection.Text = Lib.BuildString("Sun shielding", "<pos=50%>", (1.0 - vd.Habitat.sunRadiationFactor).ToString("P1"));
 				habPressure.Text = Lib.BuildString("Avg. pressure", "<pos=50%>", vd.Habitat.pressure.ToString("P1"));
 				habCO2.Text = Lib.BuildString("CO2 level", "<pos=50%>", vd.Habitat.poisoningLevel.ToString("P2"));
@@ -570,7 +570,7 @@ namespace KERBALISM
 			if (vd.Habitat.activeRadiationShielding > 0.0)
 				ks.Info("Active shielding", "-" + Lib.HumanReadableRadiation(vd.Habitat.activeRadiationShielding, false, false));
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private string HabPressureTooltip()
@@ -584,7 +584,7 @@ namespace KERBALISM
 				atmoResource.BrokerListTooltip(ks);
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private string HabCO2Tooltip()
@@ -604,7 +604,7 @@ namespace KERBALISM
 			ks.Info("Total volume", Lib.HumanReadableVolume(vd.Habitat.totalVolume));
 			ks.Info("Enabled and pressurized volume", Lib.HumanReadableVolume(vd.Habitat.livingVolume));
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private void UpdateSupplies()
@@ -721,7 +721,7 @@ namespace KERBALISM
 
 			if (!vd.ConnectionInfo.Linked)
 			{
-				signal.Text = KsmString.Get.Info("Signal", "No connecton", KF.KolorOrange, KF.Bold, commsLabelColumnWidth).End();
+				signal.Text = KsmString.Get.Info("Signal", "No connecton", KF.KolorOrange, KF.Bold, commsLabelColumnWidth).GetStringAndRelease();
 			}
 			else
 			{
@@ -740,7 +740,7 @@ namespace KERBALISM
 				if (vd.ConnectionInfo.DataRate > 0.0)
 					ks.Add(" (", Lib.HumanReadableDataRate(vd.ConnectionInfo.DataRate), ")");
 
-				signal.Text = ks.End();
+				signal.Text = ks.GetStringAndRelease();
 			}
 
 			ks = KsmString.Get;
@@ -770,7 +770,7 @@ namespace KERBALISM
 				}
 			}
 
-			transmit.Text = ks.End();
+			transmit.Text = ks.GetStringAndRelease();
 
 			ks = KsmString.Get;
 			ks.Add("Data");
@@ -785,7 +785,7 @@ namespace KERBALISM
 
 			}
 
-			storedData.Text = ks.End();
+			storedData.Text = ks.GetStringAndRelease();
 
 			//if (vdFlight.vesselComms.drives.Count > 0)
 			//	storedData.SetTooltip(KsmString.Get.Add(filesCount.ToString(), " ", "file(s)", "\n", "Science value", " : ", Lib.HumanReadableScience(filesScience, true, true)).End());
@@ -827,7 +827,7 @@ namespace KERBALISM
 				ks.Add(" (", vd.VesselSituations.BiomeTitle, ")");
 			}
 
-			bodyAndBiome.Text = ks.End();
+			bodyAndBiome.Text = ks.GetStringAndRelease();
 			//if (bodyAndBiome.TextComponent.isTextTruncated)
 			//	bodyAndBiome.SetTooltipText(sb.ToString());
 			//else
@@ -839,10 +839,10 @@ namespace KERBALISM
 			// ignore the "global" situation
 			if (vd.VesselSituations.virtualBiomes.Count > 1)
 				ks.Add(" (+" + (vd.VesselSituations.virtualBiomes.Count - 1) + ")");
-			situations.Text = ks.End();
+			situations.Text = ks.GetStringAndRelease();
 
-			temperature.Text = KsmString.Get.Add("Temperature").Format(KF.ReadableTemperature(vd.EnvTemperature), KF.Position(envLabelColumnWidth)).End();
-			radiation.Text = KsmString.Get.Add("Radiation").Format(KF.ReadableRadiation(vd.EnvRadiation), KF.Position(envLabelColumnWidth)).End();
+			temperature.Text = KsmString.Get.Add("Temperature").Format(KF.ReadableTemperature(vd.EnvTemperature), KF.Position(envLabelColumnWidth)).GetStringAndRelease();
+			radiation.Text = KsmString.Get.Add("Radiation").Format(KF.ReadableRadiation(vd.EnvRadiation), KF.Position(envLabelColumnWidth)).GetStringAndRelease();
 
 		}
 
@@ -865,7 +865,7 @@ namespace KERBALISM
 					.Format(vdFlight.Connection.control_path[i][2], KF.Position(220), KF.BreakAfter);
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private string TransmitTooltip()
@@ -897,7 +897,7 @@ namespace KERBALISM
 				}
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private string SituationTooltip()
@@ -916,7 +916,7 @@ namespace KERBALISM
 				ks.Format(vd.VesselSituations.virtualBiomes[i].Title(), KF.List);
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private string TemperatureTooltip()
@@ -927,7 +927,7 @@ namespace KERBALISM
 				.Info("Sun irradiance", KF.ReadableIrradiance(vd.IrradianceStarTotal), 100)
 				.Info("Bodies albedo", KF.ReadableIrradiance(vd.IrradianceAlbedo), 100)
 				.Info("Bodies core", KF.ReadableIrradiance(vd.IrradianceBodiesCore), 100)
-				.Info("Bodies emissive", KF.ReadableIrradiance(vd.IrradianceBodiesEmissive), 100).End();
+				.Info("Bodies emissive", KF.ReadableIrradiance(vd.IrradianceBodiesEmissive), 100).GetStringAndRelease();
 		}
 
 		private class RadiationTooltip : KsmGuiVerticalLayout

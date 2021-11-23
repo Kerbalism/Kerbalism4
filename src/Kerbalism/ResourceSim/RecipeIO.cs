@@ -57,7 +57,17 @@ namespace KERBALISM
 			vesselResource = resHandler.GetResource(resourceId);
 			requestedRate = nominalRate * ioScale;
 			amount = requestedRate * elapsedSec;
-			invAmount = amount > 0.0 ? 1.0 / amount : 1.0;
+			if (amount.IsZeroOrNegativeOrNaN())
+			{
+				invAmount = 1.0;
+			}
+			else
+			{
+				// attempt to limit FP precision issues, by always bumping invAmount
+				// to the next higher positive double. Limited testing show this is quite
+				// effective at eliminating "execution remainders".
+				invAmount = Lib.NextHigherPositiveDouble(1.0 / amount);
+			}
 		}
 
 		internal abstract double GetWorstIO(double initialIO);

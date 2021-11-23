@@ -6,23 +6,15 @@ namespace KERBALISM
 {
 	public class ExperimentDefinition : KsmModuleDefinition, IKsmModuleDefinitionLateInit
 	{
-		private static StringBuilder sb = new StringBuilder();
-
 		private ConfigNode definitionNode;
 
-		public ExperimentInfo ExpInfo { get; private set; }
+		public ExperimentInfo ExpInfo { get; protected set; }
 
 		/// <summary> Id of the EXPERIMENT_DEFINITION </summary>
 		[CFGValue] protected string ExperimentId { get; set; }
 
 		/// <summary> EC requirement (units/second) </summary>
 		[CFGValue] public double RequiredEC { get; private set; } = 0.01;
-
-		/// <summary> If true, the experiment will generate mass out of nothing (surface samples) </summary>
-		[CFGValue] public bool SampleCollecting { get; private set; } = false;
-
-		/// <summary> the amount of samples this unit is shipped with </summary>
-		[CFGValue] public double Samples { get; private set; } = 0.0;
 
 		/// <summary> don't show UI when the experiment is unavailable </summary>
 		[CFGValue] public bool HideWhenInvalid { get; private set; } = false;
@@ -68,10 +60,15 @@ namespace KERBALISM
 				if (!double.TryParse(p[1], out double rate) || rate < double.Epsilon) continue;  // rate <= 0
 				Resources.Add(new ObjectPair<int, double>(resId, rate));
 			}
+
+			for (int i = Resources.Count - 1; i >= 0; i--)
+			{
+				
+			}
 		}
 
 		// Finish parsing the definition, now that the ScienceDB exists
-		public void OnLateInit()
+		public virtual void OnLateInit()
 		{
 			if (string.IsNullOrEmpty(ExperimentId))
 				return;
@@ -90,41 +87,50 @@ namespace KERBALISM
 
 		public string ModuleDescription(bool completeWithExperimentInfo)
 		{
-			sb.Clear();
+			KsmString ks = KsmString.Get;
 
 			if (completeWithExperimentInfo)
-				sb.AppendInfo("Base value", Lib.HumanReadableScience(ExpInfo.ScienceCap, true, true));
+				ks.Info("Base value", KF.ReadableScience(ExpInfo.ScienceCap));
 
 			double expSize = ExpInfo.DataSize;
-			if (ExpInfo.SampleMass == 0.0)
+			if (this is SampleExperimentDefinition sampleDefinition)
 			{
-				sb.AppendInfo(Local.Module_Experiment_Specifics_info1, Lib.HumanReadableDataSize(expSize)); //"Data size"
-				if (DataRate > 0)
+				ks.Info("Sample collecting", ExpInfo.SampleCollecting ? Local.Generic_YES : Local.Generic_NO);
+				if (ExpInfo.SampleCollecting)
 				{
-					sb.AppendInfo(Local.Module_Experiment_Specifics_info2, Lib.HumanReadableDataRate(DataRate));
-					sb.AppendInfo(Local.Module_Experiment_Specifics_info3, Lib.HumanReadableDuration(Duration));
+					ks.Info("Part", sampleDefinition.SampleCollectingCargoPart.title);
+					double amount = ExpInfo.sampleStorageParts[sampleDefinition.SampleCollectingCargoPart].SampleAmount;
+					ks.Info(Local.Module_Experiment_Specifics_info6, amount.ToString("F2")); //"Samples"
+					ks.Info(Local.Module_Experiment_Specifics_info4, (amount * ExpInfo.SampleVolume).ToString("0.0 L")); //"Sample size"
+					ks.Info(Local.Module_Experiment_Specifics_info5, KF.ReadableMass(amount * ExpInfo.SampleMass)); //"Sample mass"
 				}
+				else
+				{
+					ks.Info(Local.Module_Experiment_Specifics_info4, ExpInfo.SampleVolume.ToString("0.0 L")); //"Sample size"
+					ks.Info(Local.Module_Experiment_Specifics_info5, KF.ReadableMass(ExpInfo.SampleMass)); //"Sample mass"
+				}
+
+				if (Duration > 0)
+					ks.Info(Local.Module_Experiment_Specifics_info3, KF.ReadableDuration(Duration));
 			}
 			else
 			{
-				sb.AppendInfo(Local.Module_Experiment_Specifics_info4, Lib.HumanReadableSampleSize(expSize));//"Sample size"
-				sb.AppendInfo(Local.Module_Experiment_Specifics_info5, Lib.HumanReadableMass(ExpInfo.SampleMass));//"Sample mass"
-				if (ExpInfo.SampleMass > 0.0 && !SampleCollecting)
-					sb.AppendInfo(Local.Module_Experiment_Specifics_info6, Lib.BuildString(Samples.ToString("F2"), " (", Lib.HumanReadableMass(ExpInfo.SampleMass * Samples), ")"));//"Samples"
-				if (Duration > 0)
-					sb.AppendInfo(Local.Module_Experiment_Specifics_info7_sample, Lib.HumanReadableDuration(Duration));
+				ks.Info(Local.Module_Experiment_Specifics_info1, KF.ReadableDataSize(expSize)); //"Data size"
+				if (DataRate > 0)
+				{
+					ks.Info(Local.Module_Experiment_Specifics_info2, KF.ReadableDataRate(DataRate));
+					ks.Info(Local.Module_Experiment_Specifics_info3, KF.ReadableDuration(Duration));
+				}
 			}
 
 			if (completeWithExperimentInfo && ExpInfo.IncludedExperiments.Count > 0)
 			{
-				sb.AppendKSPNewLine();
-				sb.AppendKSPLine(Lib.Color("Included experiments:", Lib.Kolor.Cyan, true));
+				ks.Break();
+				ks.Format("Included experiments:", KF.KolorCyan, KF.Bold).Break();
 				List<string> includedExpInfos = new List<string>();
 				ExperimentInfo.GetIncludedExperimentTitles(ExpInfo, includedExpInfos);
 				foreach (string includedExp in includedExpInfos)
-				{
-					sb.AppendList(includedExp);
-				}
+					ks.Format(includedExp, KF.List);
 			}
 
 			if (completeWithExperimentInfo)
@@ -132,50 +138,50 @@ namespace KERBALISM
 				List<string> situations = ExpInfo.AvailableSituations();
 				if (situations.Count > 0)
 				{
-					sb.AppendKSPNewLine();
-					sb.AppendKSPLine(Lib.Color(Local.Module_Experiment_Specifics_Situations, Lib.Kolor.Cyan, true));//"Situations:"
+					ks.Break();
+					ks.Format(Local.Module_Experiment_Specifics_Situations, KF.KolorCyan, KF.Bold).Break(); //"Situations:"
 					foreach (string s in situations)
-						sb.AppendList(Lib.Bold(s));
+						ks.Format(s, KF.Bold, KF.List);
 				}
-			}
 
-			if (completeWithExperimentInfo && ExpInfo.ExpBodyConditions.HasConditions)
-			{
-				sb.AppendKSPNewLine();
-				sb.AppendKSPLine(ExpInfo.ExpBodyConditions.ConditionsToString());
+				if (ExpInfo.ExpBodyConditions.HasConditions)
+				{
+					ks.Break();
+					ks.Add(ExpInfo.ExpBodyConditions.ConditionsToString()).Break();
+				}
 			}
 
 			if (RequiredEC > 0 || Resources.Count > 0)
 			{
-				sb.AppendKSPNewLine();
-				sb.AppendKSPLine(Lib.Color(Local.Module_Experiment_Specifics_info8, Lib.Kolor.Cyan, true));//"Needs:"
+				ks.Break();
+				ks.Format(Local.Module_Experiment_Specifics_info8, KF.KolorCyan, KF.Bold).Break();//"Needs:"
 				if (RequiredEC > 0)
-					sb.AppendInfo(PartResourceLibrary.Instance.GetDefinition(PartResourceLibrary.ElectricityHashcode).displayName, Lib.HumanReadableRate(RequiredEC));
+					ks.Info(PartResourceLibrary.Instance.GetDefinition(PartResourceLibrary.ElectricityHashcode).displayName, KF.ReadableRate(RequiredEC));
 				foreach (var p in Resources)
-					sb.AppendInfo(PartResourceLibrary.Instance.GetDefinition(p.Key).displayName, Lib.HumanReadableRate(p.Value));
+					ks.Info(PartResourceLibrary.Instance.GetDefinition(p.Key).displayName, KF.ReadableRate(p.Value));
 			}
 
 			if (CrewOperate)
 			{
-				sb.AppendKSPNewLine();
-				sb.AppendInfo(Local.Module_Experiment_Specifics_info11, CrewOperate.Info());
+				ks.Break();
+				ks.Info(Local.Module_Experiment_Specifics_info11, CrewOperate.Info());
 			}
 
 			if (Requirements.Requires.Length > 0)
 			{
-				sb.AppendKSPNewLine();
-				sb.AppendKSPLine(Lib.Color(Local.Module_Experiment_Requires, Lib.Kolor.Cyan, true));//"Requires:"
+				ks.Break();
+				ks.Format(Local.Module_Experiment_Requires, KF.KolorCyan, KF.Bold).Break();//"Requires:"
 				foreach (RequireDef req in Requirements.Requires)
-					sb.AppendInfo(Lib.BuildString("• <b>", ReqName(req.require), "</b>"), ReqValueFormat(req.require, req.value));
+					ks.Info(ReqName(req.require), ReqValueFormat(req.require, req.value));
 			}
 
 			if (!AllowShrouded)
 			{
-				sb.AppendKSPNewLine();
-				sb.AppendKSPLine(Lib.Bold("Unavailable while shrouded"));
+				ks.Break();
+				ks.Format("Unavailable while shrouded", KF.Bold).Break();
 			}
 
-			return sb.ToString();
+			return ks.GetStringAndRelease();
 		}
 	}
 }

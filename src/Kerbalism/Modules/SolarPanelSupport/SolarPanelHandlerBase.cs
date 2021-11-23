@@ -441,7 +441,7 @@ namespace KERBALISM
 			double finalFactor = wearFactor * distanceFactor * exposureFactor;
 
 			// produce EC
-			recipe.RequestExecution(VesselData.ResHandler, finalFactor);
+			recipe.RequestExecution(VesselData.ResHandler, null, finalFactor);
 			return true;
 		}
 
@@ -498,7 +498,7 @@ namespace KERBALISM
 							break;
 					}
 
-					panelStatus = status.End();
+					panelStatus = status.GetStringAndRelease();
 				}
 			}
 		}
@@ -545,7 +545,7 @@ namespace KERBALISM
 					.Add(Local.SolarPanelFixer_Trackedstar, KF.WhiteSpace)
 					.Add(manualTracking ? ":" : Local.SolarPanelFixer_AutoTrack, KF.WhiteSpace)
 					.Add(trackedStar.Star.body.name)
-					.End();
+					.GetStringAndRelease();
 			}
 		}
 

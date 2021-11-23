@@ -88,9 +88,24 @@ namespace KERBALISM
 
 		public static bool TryDeserialize(string strValue, Type type, out object result)
 		{
-			if (parsers.TryGetValue(type, out ValueParser parser) && parser.DeserializeToObject(strValue, out result))
+			if (type.IsEnum)
 			{
-				return true;
+				try
+				{
+					result = Enum.Parse(type, strValue);
+					return true;
+				}
+				catch
+				{
+					Lib.Log($"ERROR : could not deserialize enum value {strValue} to enum type {type.Name}");
+				}
+			}
+			else
+			{
+				if (parsers.TryGetValue(type, out ValueParser parser) && parser.DeserializeToObject(strValue, out result))
+				{
+					return true;
+				}
 			}
 
 			result = default;

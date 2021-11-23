@@ -97,6 +97,9 @@ namespace KERBALISM
 		internal static Texture2D sample32;
 		internal static Texture2D transmit32;
 
+		internal static Sprite cargoInstall32;
+		internal static Sprite cargoInstalled32;
+
 
 		// timer controller
 		internal static float nextFlashing = Time.unscaledTime;
@@ -199,6 +202,9 @@ namespace KERBALISM
 			locked32 = Lib.GetKerbalismTexture("UI/locked-32");
 			sample32 = Lib.GetKerbalismTexture("UI/sample-32");
 			transmit32 = Lib.GetKerbalismTexture("UI/transmit-32");
+
+			cargoInstall32 = GetSprite("UI/cargoInstall-32", 32, 32);
+			cargoInstalled32 = GetSprite("UI/cargoInstalled-32", 32, 32);
 
 			//Texture2D winBg = Lib.GetTexture("ui-core/window-background", 64, 64);
 			//// inspecting pixelPerUnit gives 92.75362, but 100f is the default value and seems to work fine

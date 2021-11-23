@@ -235,7 +235,7 @@ public class KerbalismScansat : PartModule
 				if (size > double.Epsilon)
 				{
 					// store what we can
-					foreach (var d in DriveHandler.GetDrives(vd))
+					foreach (var d in DriveHandler.GetAllDrives(vd))
 					{
 						var available = d.FileCapacityAvailable();
 						var chunk = Math.Min(size, available);

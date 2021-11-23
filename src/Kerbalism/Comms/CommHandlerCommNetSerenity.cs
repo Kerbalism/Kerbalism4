@@ -8,7 +8,7 @@ namespace KERBALISM
 
 		protected override void UpdateInputs(ConnectionInfo connection)
 		{
-			connection.transmitting = vd.filesTransmitted.Count > 0;
+			connection.transmitting = vd.vesselComms.transmittedFiles.Count > 0;
 			connection.storm = vd.EnvStorm;
 
 			if (cluster == null)

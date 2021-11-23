@@ -5,6 +5,9 @@ namespace KERBALISM
 {
 	public class CommHandlerRemoteTech : CommHandler
 	{
+		// I have no idea what to do about RT, so we're using the stock formula value
+		public static double DataRateDampingExponentRT => DataRateDampingExponent;
+
 		const double bitsPerMB = 1024.0 * 1024.0 * 8.0;
 
 		private double baseRate;
@@ -68,7 +71,7 @@ namespace KERBALISM
 					double dist = RemoteTech.GetCommsDistance(vd.VesselId, controlPath[0]);
 					double maxDist = RemoteTech.GetCommsMaxDistance(vd.VesselId, controlPath[0]);
 					connection.strength = maxDist > 0.0 ? 1.0 - (dist / Math.Max(maxDist, 1.0)) : 0.0;
-					connection.strength = Math.Pow(connection.strength, Sim.DataRateDampingExponentRT);
+					connection.strength = Math.Pow(connection.strength, DataRateDampingExponentRT);
 
 					connection.rate = baseRate * connection.strength;
 
@@ -277,6 +280,5 @@ namespace KERBALISM
 				}
 			}
 		}
-
 	}
 }

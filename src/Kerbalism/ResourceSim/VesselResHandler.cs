@@ -107,6 +107,7 @@ namespace KERBALISM
 		private Dictionary<int, VesselResource> resources = new Dictionary<int, VesselResource>();
 		private List<Recipe> requestedRecipes = new List<Recipe>();
 		private List<Recipe> executedRecipes = new List<Recipe>();
+		private List<IRecipeExecutedCallback> recipeCallbacks = new List<IRecipeExecutedCallback>();
 		public bool ExecutedRecipesAreParsed { get; private set; }
 
 		public string VesselName => vesselData.VesselName;
@@ -264,6 +265,22 @@ namespace KERBALISM
 			requestedRecipes.Add(recipe);
 		}
 
+		public void RequestRecipeCallback(IRecipeExecutedCallback callback)
+		{
+			recipeCallbacks.Add(callback);
+		}
+
+		public void RequestRecipeCallback(IMultipleRecipeExecutedCallback callback, Recipe recipe)
+		{
+			if (!callback.IsCallbackRegistered)
+			{
+				callback.IsCallbackRegistered = true;
+				recipeCallbacks.Add(callback);
+			}
+			
+			callback.ExecutedRecipes.Add(recipe);
+		}
+
 		public void ResourceUpdate(double elapsedSec, EditorStep editorStep = EditorStep.None)
 		{
 			//foreach (PartResourceWrapperCollection resourceWrapper in resourceWrappers.Values)
@@ -327,13 +344,34 @@ namespace KERBALISM
 					resource.Supply.Evaluate(vesselData, resource);
 			}
 
-			foreach (Recipe executedRecipe in executedRecipes)
+			foreach (IRecipeExecutedCallback recipeExecutedCallback in recipeCallbacks)
 			{
-				if (executedRecipe.hasCallback)
+				if (recipeExecutedCallback is IMultipleRecipeExecutedCallback multiRecipeCallback)
 				{
-					executedRecipe.onRecipeExecutedCallback(elapsedSec);
+					foreach (Recipe executedRecipe in multiRecipeCallback.ExecutedRecipes)
+						executedRecipe?.onRecipeExecuted(elapsedSec);
+
+					if (recipeExecutedCallback is ICommonRecipeExecutedCallback commonRecipeCallback)
+						commonRecipeCallback.OnRecipesExecuted(elapsedSec);
+
+					multiRecipeCallback.ExecutedRecipes.Clear();
 				}
+				else if (recipeExecutedCallback is ICommonRecipeExecutedCallback commonRecipeCallback)
+				{
+					commonRecipeCallback.OnRecipesExecuted(elapsedSec);
+				}
+
+				recipeExecutedCallback.IsCallbackRegistered = false;
 			}
+			recipeCallbacks.Clear();
+
+			//foreach (Recipe executedRecipe in executedRecipes)
+			//{
+			//	if (executedRecipe.hasCallback)
+			//	{
+			//		executedRecipe.onRecipeExecutedCallback(elapsedSec);
+			//	}
+			//}
 
 			ExecutedRecipesAreParsed = false;
 

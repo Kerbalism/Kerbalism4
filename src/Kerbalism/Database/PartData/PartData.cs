@@ -53,6 +53,25 @@ namespace KERBALISM
 		public PartResourceCollection resources;
 		public List<ModuleHandler> modules = new List<ModuleHandler>();
 
+		private static List<ModuleHandler> modulesCopy = new List<ModuleHandler>();
+
+		/// <summary>
+		/// return a copy of the modules list, allow to iterate on the original items while adding/removing elements.
+		/// Used to Start()/FirstSetup() modules that might themselves be adding modules (inventories)
+		/// </summary>
+		public List<ModuleHandler> ModulesCopy
+		{
+			get
+			{
+				modulesCopy.Clear();
+				for (int i = 0; i < modules.Count; i++)
+				{
+					modulesCopy.Add(modules[i]);
+				}
+				return modulesCopy;
+			}
+		}
+
 		/// <summary> Localized part title </summary>
 		public string Title => partInfo.title;
 
@@ -144,7 +163,7 @@ namespace KERBALISM
 				// instantiate handlers that don't have the unloaded context and have the loaded context
 				if ((handlerType.activation & ModuleHandler.ActivationContext.Unloaded) == 0 && (handlerType.activation & ModuleHandler.ActivationContext.Loaded) != 0)
 				{
-					ModuleHandler handler = ModuleHandler.GetForLoadedModule(handlerType, this, module, i, ModuleHandler.ActivationContext.Loaded);
+					ModuleHandler handler = ModuleHandler.SetupForLoadedModule(handlerType, this, module, i, ModuleHandler.ActivationContext.Loaded);
 					if (handler != null)
 					{
 						handler.FirstSetup();
@@ -158,7 +177,7 @@ namespace KERBALISM
 				{
 					KsmPartModule ksmModule = (KsmPartModule)module;
 					ksmModule.KsmStart();
-					ksmModule.SetupActions();
+					//ksmModule.SetupActions();
 				}
 			}
 		}
@@ -229,7 +248,7 @@ namespace KERBALISM
 				// instantiate handlers that don't have the loaded context and have the unloaded context
 				if ((handlerType.activation & ModuleHandler.ActivationContext.Loaded) == 0 && (handlerType.activation & ModuleHandler.ActivationContext.Unloaded) != 0)
 				{
-					ModuleHandler handler = ModuleHandler.GetForProtoModule(handlerType, this, protoPart, protoModule, i, ModuleHandler.ActivationContext.Unloaded);
+					ModuleHandler handler = ModuleHandler.SetupForProtoModule(handlerType, this, protoPart, protoModule, i, ModuleHandler.ActivationContext.Unloaded);
 					if (handler != null)
 					{
 						handler.FirstSetup();
@@ -247,6 +266,14 @@ namespace KERBALISM
 			}
 		}
 
+		public void FirstSetup()
+		{
+			foreach (ModuleHandler module in ModulesCopy)
+			{
+				module.FirstSetup();
+			}
+		}
+
 		public void Start()
 		{
 			if (Started)
@@ -256,9 +283,10 @@ namespace KERBALISM
 
 			radiationData.PostInstantiateSetup(); // TODO : this shouldn't be here
 
-			foreach (ModuleHandler handler in modules)
+			// We don't foreach here because modules might get added by inventories
+			foreach (ModuleHandler module in ModulesCopy)
 			{
-				handler.Start();
+				module.Start();
 			}
 		}
 
@@ -296,6 +324,19 @@ namespace KERBALISM
 				default:
 					return partInfo.partPrefab;
 			}
+		}
+
+		public T GetModuleHandler<T>() where T : ModuleHandler
+		{
+			foreach (ModuleHandler moduleHandler in modules)
+			{
+				if (moduleHandler is T typedHandler)
+				{
+					return typedHandler;
+				}
+			}
+
+			return null;
 		}
 	}
 }

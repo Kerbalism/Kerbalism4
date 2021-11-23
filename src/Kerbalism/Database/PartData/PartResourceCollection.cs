@@ -139,6 +139,16 @@ namespace KERBALISM
 			RemoveAll(p => p.ResName == resName);
 		}
 
+		// TODO : resource sync is a major performance hog. We should get ride of the pooling based sync logic and rely on events.
+		//   - Loaded has GameEvents.onPartResourceListChange, and we can implement our own for unloaded
+		//   - Loaded/unloaded state changes can also be made event based, this is trivial to do
+		// Also, maybe we should look at how to better inline the amount/capacity getters/setters.
+		// Currently every call has a 3 layer deep call stack (ksm wrapper -> stock wrapper -> stock resource)
+		// The middle wrapper exists so we can mutate the top wrapper without having to reacquire a reference to it
+		// when changing between the loaded/unloaded states. It's quite convenient, but maybe we could implement an event based thing here
+		// too. Currently, uses case of wrappers references are :
+		// - vessel resource holders
+		// - modules
 		public void Synchronize()
 		{
 			if (partData.IsLoaded)

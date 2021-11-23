@@ -5,17 +5,8 @@ using static KERBALISM.DriveHandler;
 namespace KERBALISM
 {
 	public class ModuleKsmDrive : KsmPartModule<ModuleKsmDrive, DriveHandler, DriveDefinition>,
-		IScienceDataContainer,
-		IPartMassModifier
+		IScienceDataContainer
 	{
-		public float GetModuleMass(float defaultMass, ModifierStagingSituation sit)
-		{
-			return moduleHandler == null ? 0f : (float)moduleHandler.SamplesMass;
-		}
-
-		public ModifierChangeWhen GetModuleMassChangeWhen() => ModifierChangeWhen.CONSTANTLY;
-
-
 		// IScienceDataContainer implementation
 		// The sole purpose of this is to allow mods using custom logic to search
 		// for a science container to store some science data to find one. Normal
@@ -53,20 +44,13 @@ namespace KERBALISM
 
 			double size = data.dataAmount;
 			DriveHandler drive = moduleHandler;
-			IEnumerator<DriveHandler> vesselDrives = GetDrives(moduleHandler.VesselData).GetEnumerator();
+			IEnumerator<DriveHandler> vesselDrives = GetAllDrives(moduleHandler.VesselData).GetEnumerator();
 			while (size > 0.0 && vesselDrives.MoveNext())
 			{
-				KsmScienceData convertedData;
-				if (data.baseTransmitValue > Science.maxXmitDataScalarForSample || data.transmitBonus > Science.maxXmitDataScalarForSample)
-					convertedData = drive.RecordFile(subjectData, size, true, data.extraResultString, true);
-				else
-					convertedData = drive.RecordSample(subjectData, size, true, data.extraResultString, true);
-
+				KsmScienceData convertedData = drive.RecordFile(subjectData, size, true, data.extraResultString, true);
 				size -= convertedData.Size;
 				drive = vesselDrives.Current;
 			}
 		}
-
-
 	}
 }

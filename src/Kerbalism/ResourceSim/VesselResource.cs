@@ -231,7 +231,7 @@ namespace KERBALISM
 		{
 			KsmString ks = KsmString.Get;
 			BrokerListTooltip(ks, showSummary);
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 	}
 }

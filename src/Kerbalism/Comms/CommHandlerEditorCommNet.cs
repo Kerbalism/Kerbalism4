@@ -78,16 +78,16 @@ namespace KERBALISM
 
 			connection.maxRange = Math.Sqrt(connection.basePower * dsnPower);
 
-			connection.minDistanceStrength = Sim.SignalStrength(connection.maxRange, connection.minDsnDistance);
-			connection.maxDistanceStrength = Sim.SignalStrength(connection.maxRange, connection.maxDsnDistance);
+			connection.minDistanceStrength = CommHandler.SignalStrength(connection.maxRange, connection.minDsnDistance);
+			connection.maxDistanceStrength = CommHandler.SignalStrength(connection.maxRange, connection.maxDsnDistance);
 
 			if (transmitterCount > 1)
 				connection.baseRate = Math.Pow(connection.baseRate, 1.0 / transmitterCount);
 			else if (transmitterCount == 0)
 				connection.baseRate = 0.0;
 
-			connection.minDistanceRate = connection.baseRate * Math.Pow(connection.minDistanceStrength, Sim.DataRateDampingExponent);
-			connection.maxDistanceRate = connection.baseRate * Math.Pow(connection.maxDistanceStrength, Sim.DataRateDampingExponent);
+			connection.minDistanceRate = connection.baseRate * Math.Pow(connection.minDistanceStrength, CommHandler.DataRateDampingExponent);
+			connection.maxDistanceRate = connection.baseRate * Math.Pow(connection.maxDistanceStrength, CommHandler.DataRateDampingExponent);
 
 			// set minimal data rate to what is defined in Settings (1 bit/s by default) 
 			if (connection.minDistanceRate > 0.0 && connection.minDistanceRate * Lib.bitsPerMB < Settings.DataRateMinimumBitsPerSecond)

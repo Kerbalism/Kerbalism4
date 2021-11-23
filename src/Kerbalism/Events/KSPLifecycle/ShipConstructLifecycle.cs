@@ -11,7 +11,7 @@ namespace KERBALISM.Events
 	{
 		public void OnEditorShipModified(ShipConstruct data)
 		{
-			ModuleKsmExperiment.CheckEditorExperimentMultipleRun();
+			ExperimentHandlerUtils.CheckEditorExperimentMultipleRun();
 			//Planner.Planner.EditorShipModifiedEvent(data);
 		}
 
@@ -137,11 +137,7 @@ namespace KERBALISM.Events
 
 			foreach (PartData part in newPartDatas)
 			{
-				foreach (ModuleHandler handler in part.modules)
-				{
-					handler.FirstSetup();
-				}
-
+				part.FirstSetup();
 				part.Start();
 			}
 

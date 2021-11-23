@@ -57,7 +57,7 @@ namespace KERBALISM
 					return false;
 				}
 
-				DriveHandler.ScienceFile file = drive.RecordFile(subjectData, dataSize);
+				ScienceFile file = drive.RecordFile(subjectData, dataSize);
 				if (file == null)
 				{
 					__result = true;

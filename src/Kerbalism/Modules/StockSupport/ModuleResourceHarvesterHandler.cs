@@ -67,7 +67,7 @@ namespace KERBALISM
 			double expBonus = Lib.GetBaseConverterEfficiencyBonus(prefabModule, VesselData);
 
 			// execute and scale recipe with crew bonus
-			recipe.RequestExecution(VesselData.ResHandler, expBonus);
+			recipe.RequestExecution(VesselData.ResHandler, null, expBonus);
 
 			// prevent stock post-facto catchup by forcing BaseConverter.lastUpdateTime to now
 			lastUpdateTime.Value = Planetarium.GetUniversalTime();

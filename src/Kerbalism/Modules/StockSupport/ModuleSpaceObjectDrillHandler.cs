@@ -8,7 +8,7 @@ namespace KERBALISM
 	// - ignore stock temperature mechanics
 	// - fully refactored 11/2020
 
-	public class ModuleSpaceObjectDrillHandler : TypedModuleHandler<BaseDrill>
+	public class ModuleSpaceObjectDrillHandler : TypedModuleHandler<BaseDrill>, ICommonRecipeExecutedCallback
 	{
 		public override ActivationContext Activation => ActivationContext.Unloaded;
 
@@ -40,7 +40,7 @@ namespace KERBALISM
 				return;
 			}
 
-			recipe = new Recipe(partData.Title, RecipeCategory.Harvester, OnRecipeExecuted);
+			recipe = new Recipe(partData.Title, RecipeCategory.Harvester);
 
 			string spaceObjectInfoModuleName;
 			string resourceModuleName;
@@ -134,14 +134,15 @@ namespace KERBALISM
 			double expBonus = Lib.GetBaseConverterEfficiencyBonus(prefabModule, VesselData);
 
 			// execute and scale recipe with crew bonus
-			recipe.RequestExecution(VesselData.ResHandler, expBonus);
+			recipe.RequestExecution(VesselData.ResHandler, this, expBonus);
 
 			// prevent stock post-facto catchup by forcing BaseConverter.lastUpdateTime to now
 			lastUpdateTime.Value = Planetarium.GetUniversalTime();
         }
 
-        public void OnRecipeExecuted(double elapsedSec)
-        {
+        bool IRecipeExecutedCallback.IsCallbackRegistered { get; set; }
+		void ICommonRecipeExecutedCallback.OnRecipesExecuted(double elapsedSec)
+		{
 	        // consume asteroid mass
 			double mass = currentMass.Value;
 

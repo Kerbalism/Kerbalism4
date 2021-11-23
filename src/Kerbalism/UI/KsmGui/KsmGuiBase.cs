@@ -92,13 +92,13 @@ namespace KERBALISM.KsmGui
 
 		/// <summary> callback that will be called on this object Update(). Won't be called if Enabled = false </summary>
 		/// <param name="updateFrequency">seconds between updates, or set to 0f to update every frame</param>
-		public void SetUpdateAction(Action action, float updateFrequency = 0.2f)
+		public void SetUpdateAction(Action action, float updateFrequency = -1f)
 		{
 			if (UpdateHandler == null)
 				UpdateHandler = TopObject.AddComponent<KsmGuiUpdateHandler>();
 
 			UpdateHandler.updateAction = action;
-			UpdateHandler.updateFrequency = updateFrequency;
+			UpdateHandler.updateFrequency = updateFrequency == -1f ? Lib.RandomFloat(0.18f, 0.22f) : updateFrequency;
 			UpdateHandler.UpdateASAP();
 		}
 
@@ -181,13 +181,13 @@ namespace KERBALISM.KsmGui
 
 		public void StaticLayout(int width, int height, int horizontalOffset = 0, int verticalOffset = 0, HorizontalEdge horizontalEdge = HorizontalEdge.Left, VerticalEdge verticalEdge = VerticalEdge.Top)
 		{
-			TopTransform.anchorMin = new Vector2(horizontalEdge == HorizontalEdge.Left ? 0f : 1f, verticalEdge == VerticalEdge.Top ? 0f : 1f);
+			TopTransform.anchorMin = new Vector2(horizontalEdge == HorizontalEdge.Left ? 0f : 1f, verticalEdge == VerticalEdge.Top ? 1f : 0f);
 			TopTransform.anchorMax = TopTransform.anchorMin;
 
 			TopTransform.sizeDelta = new Vector2(width, height);
 			TopTransform.anchoredPosition = new Vector2(
 				horizontalEdge == HorizontalEdge.Left ? horizontalOffset + width * TopTransform.pivot.x : horizontalOffset - width * (1f - TopTransform.pivot.x),
-				verticalEdge == VerticalEdge.Top ? verticalOffset + height * TopTransform.pivot.y : verticalOffset - height * (1f - TopTransform.pivot.y));
+				verticalEdge == VerticalEdge.Top ? -verticalOffset - height * TopTransform.pivot.y : -verticalOffset + height * (1f - TopTransform.pivot.y));
 		}
 
 		/// <summary>

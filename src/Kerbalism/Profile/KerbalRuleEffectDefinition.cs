@@ -332,7 +332,7 @@ namespace KERBALISM
 			// TODO : refactor the lost science effect once science data handling refactor is complete
 
 			//int count;
-			//foreach (DriveHandler drive in DriveHandler.GetDrives(vd, true))
+			//foreach (DriveHandler drive in DriveHandler.GetAllDrives(vd, true))
 			//{
 			//	count = drive.files.Count;
 			//	if (count > 0)

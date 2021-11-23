@@ -55,7 +55,7 @@ namespace KERBALISM
 
 				for (int i = 0; i < part.Modules.Count; i++)
 				{
-					ModuleHandler.GetForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
+					ModuleHandler.SetupForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 				}
 			}
 		}
@@ -80,7 +80,7 @@ namespace KERBALISM
 
 				for (int i = 0; i < protopart.modules.Count; i++)
 				{
-					ModuleHandler.GetForProtoModule(partData, protopart, protopart.modules[i], i, ModuleHandler.ActivationContext.Unloaded);
+					ModuleHandler.SetupForProtoModule(partData, protopart, protopart.modules[i], i, ModuleHandler.ActivationContext.Unloaded);
 				}
 			}
 		}
@@ -96,7 +96,7 @@ namespace KERBALISM
 
 				for (int i = 0; i < part.Modules.Count; i++)
 				{
-					ModuleHandler.GetForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
+					ModuleHandler.SetupForLoadedModule(partData, part.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 				}
 			}
 		}

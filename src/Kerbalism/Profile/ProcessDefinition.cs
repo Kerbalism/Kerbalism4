@@ -154,7 +154,7 @@ namespace KERBALISM
 				ks.Info(title, KF.ReadableRate(input.rate * capacity, false), KF.KolorNegRate, 100);
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		private void LogMassConservation()
@@ -226,7 +226,7 @@ namespace KERBALISM
 				ks.Add($"Process is conservating mass (balance : {gperh:+0.###############;-0.###############;0} g/h)").Break();
 			}
 
-			Lib.Log(ks.End());
+			Lib.Log(ks.GetStringAndRelease());
 		}
 	}
 }

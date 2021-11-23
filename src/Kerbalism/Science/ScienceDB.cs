@@ -488,6 +488,11 @@ namespace KERBALISM
 			return expInfo;
 		}
 
+		public static bool TryGetExperimentInfo(string experimentId, out ExperimentInfo expInfo)
+		{
+			return experiments.TryGetValue(experimentId, out expInfo);
+		}
+
 		/// <summary> return the subject information for the given experiment and situation, or null if the situation isn't available. </summary>
 		public static SubjectData GetSubjectData(ExperimentInfo expInfo, Situation situation)
 		{

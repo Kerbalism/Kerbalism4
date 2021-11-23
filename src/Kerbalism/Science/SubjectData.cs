@@ -241,7 +241,7 @@ namespace KERBALISM
 		/// <param name="fromVessel">passed to the OnScienceRecieved gameevent on subject completion. Can be null if not available</param>
 		/// <param name="file">if not null, the "subject completed" completed message will use the result text stored in the file. If null, it will be a generic message</param>
 		/// <returns>The amount of science credited, accounting for the subject + included subjects remaining science value</returns>
-		public double RetrieveScience(double scienceValue, bool showMessage = false, ProtoVessel fromVessel = null, DriveHandler.ScienceFile file = null)
+		public double RetrieveScience(double scienceValue, bool showMessage = false, ProtoVessel fromVessel = null, ScienceFile file = null)
 		{
 			if (!ExistsInRnD)
 				CreateSubjectInRnD();
@@ -264,7 +264,7 @@ namespace KERBALISM
 			return scienceRetrieved;
 		}
 
-		private void OnSubjectCompleted(bool showMessage = false, ProtoVessel fromVessel = null, DriveHandler.ScienceFile file = null)
+		private void OnSubjectCompleted(bool showMessage = false, ProtoVessel fromVessel = null, KsmScienceData data = null)
 		{
 			// fire science transmission game event. This is used by stock contracts and a few other things.
 			// note : in stock, it is fired with a null protovessel in some cases, so doing it should be safe.
@@ -290,7 +290,7 @@ namespace KERBALISM
 
 			// notify the player
 			string subjectResultText;
-			if (file == null || string.IsNullOrEmpty(file.ResultText))
+			if (data == null || string.IsNullOrEmpty(data.ResultText))
 			{
 				subjectResultText = Lib.TextVariant(
 					Local.SciencresultText1,//"Our researchers will jump on it right now"
@@ -301,7 +301,7 @@ namespace KERBALISM
 			}
 			else
 			{
-				subjectResultText = file.ResultText;
+				subjectResultText = data.ResultText;
 			}
 			subjectResultText = Lib.WordWrapAtLength(subjectResultText, 70);
 			Message.Post(Lib.BuildString(

@@ -71,12 +71,22 @@
     <!-- Nuget packages & other dependencies-->
     <Reference Include="0Harmony, Version=2.0.4.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Lib.Harmony.2.0.4\lib\net45\0Harmony.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="Flee.Net45, Version=1.0.0.0, Culture=neutral, PublicKeyToken=951a102ce2413032, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Flee.1.2.2\lib\net45\Flee.Net45.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="..\..\packages\KSPBurst*\Plugins\*.dll">
       <Name>KSPBurst (all provided dlls)</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="..\..\packages\InventoryAPI*\*.dll">
+      <Name>InventoryAPI</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="..\..\packages\MultipleModuleInPartAPI*\*.dll">
+      <Name>MultipleModuleInPartAPI</Name>
       <Private>False</Private>
     </Reference>
     <!-- System Dlls from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
@@ -133,11 +143,27 @@
     <Compile Include="Database\DB.cs" />
     <Compile Include="Database\VesselDataComponents\VesselComms.cs" />
     <Compile Include="Events\KSPLifecycle\GameLifecyle.cs" />
+    <Compile Include="Modules\Base\IMultipleModule.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleUIButton.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleInteractableBase.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleUICargoResource.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleUILabel.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleUIToggle.cs" />
+    <Compile Include="Modules\Base\ModuleUI\Patches.cs" />
+    <Compile Include="Modules\InventoryHandler\ActiveCargoPartsDB.cs" />
+    <Compile Include="Modules\InventoryHandler\CargoResourcePAWItem.cs" />
+    <Compile Include="Modules\InventoryHandler\Patches.cs" />
+    <Compile Include="Modules\KsmExperiment\ExperimentHandlerUtils.cs" />
+    <Compile Include="Modules\KsmExperiment\ModuleKsmFileExperiment.cs" />
+    <Compile Include="Modules\KsmExperiment\ModuleKsmSampleExperiment.cs" />
     <Compile Include="Modules\KsmLocalProcess\LocalRecipeDefinition.cs" />
     <Compile Include="Modules\KsmLocalProcess\ModuleKsmLocalProcess.cs" />
     <Compile Include="Modules\KsmLocalProcess\LocalProcessDefinition.cs" />
     <Compile Include="Modules\KsmLocalProcess\LocalProcessHandler.cs" />
-    <Compile Include="Modules\StockSupport\ModuleInventoryPartHandler.cs" />
+    <Compile Include="Modules\KsmSampleStorage\ModuleKsmSampleStorage.cs" />
+    <Compile Include="Modules\KsmSampleStorage\SampleStorageDefinition.cs" />
+    <Compile Include="Modules\KsmSampleStorage\SampleStorageHandler.cs" />
+    <Compile Include="Modules\InventoryHandler\ModuleInventoryPartHandler.cs" />
     <Compile Include="Profile\ComfortValue.cs" />
     <Compile Include="Profile\ComfortDefinition.cs" />
     <Compile Include="Profile\Process.cs" />
@@ -149,7 +175,7 @@
     <Compile Include="Events\KSPLifecycle\VesselLifecycle.cs" />
     <Compile Include="Modules\Base\ForeignModuleHandler.cs" />
     <Compile Include="Modules\Base\IB9Switchable.cs" />
-    <Compile Include="Modules\Base\IModuleHandlerInteractable.cs" />
+    <Compile Include="Modules\Base\ModuleUI\ModuleUIBase.cs" />
     <Compile Include="Modules\Base\IKsmModuleDefinitionLateInit.cs" />
     <Compile Include="Modules\Base\IPersistentModuleHandler.cs" />
     <Compile Include="Modules\Base\IKsmModuleHandlerLateInit.cs" />
@@ -158,10 +184,10 @@
     <Compile Include="Modules\KsmDrive\DriveDefinition.cs" />
     <Compile Include="Modules\KsmDrive\DriveHandler.cs" />
     <Compile Include="Modules\KsmDrive\ModuleKsmDrive.cs" />
-    <Compile Include="Modules\KsmExperiment\ExperimentHandler.cs" />
+    <Compile Include="Modules\KsmExperiment\ExperimentHandlerBase.cs" />
     <Compile Include="Modules\Base\Interfaces.cs" />
     <Compile Include="Modules\Base\ModuleHandler.cs" />
-    <Compile Include="Modules\KsmExperiment\ExperimentDefinition.cs" />
+    <Compile Include="Modules\KsmExperiment\ExperimentDefinitionBase.cs" />
     <Compile Include="Modules\KsmGreenhouse\GreenhouseHandler.cs" />
     <Compile Include="Modules\KsmGreenhouse\GreenhouseDefinition.cs" />
     <Compile Include="Profile\ComfortInfo.cs" />
@@ -227,6 +253,7 @@
     <Compile Include="ResourceSim\RecipePriorityHint.cs" />
     <Compile Include="ResourceSim\VesselResHandler.cs" />
     <Compile Include="ResourceSim\PartResourceWrapperCollection.cs" />
+    <Compile Include="Science\KsmScienceData.cs" />
     <Compile Include="Science\ScienceModuleInfo.cs" />
     <Compile Include="Sim\SimProfiler.cs" />
     <Compile Include="Sim\SimVessel.cs" />
@@ -245,6 +272,7 @@
     <Compile Include="UI\KsmGui\KsmGuiContextMenu.cs" />
     <Compile Include="UI\KsmGui\KsmGuiDestroyCallback.cs" />
     <Compile Include="UI\KsmGui\KsmGuiIconToggle.cs" />
+    <Compile Include="UI\KsmGui\KsmGuiRaycastTarget.cs" />
     <Compile Include="UI\KsmGui\KsmGuiInputLock.cs" />
     <Compile Include="UI\KsmGui\KsmGuiPopup.cs" />
     <Compile Include="UI\KsmGui\KsmGuiScrollableWindow.cs" />
@@ -275,7 +303,7 @@
     <Compile Include="External\SCANsat.cs" />
     <Compile Include="Modules\Harvester.cs" />
     <Compile Include="Modules\Laboratory.cs" />
-    <Compile Include="Modules\KsmExperiment\ModuleKsmExperiment.cs" />
+    <Compile Include="Modules\KsmExperiment\ModuleKsmExperimentBase.cs" />
     <Compile Include="Modules\SolarPanelSupport\SolarPanelFixer.cs" />
     <Compile Include="Events\StockPatches\AsteroidAndCometSurfaceSample.cs" />
     <Compile Include="Renderer\LineRenderer.cs" />
@@ -287,9 +315,7 @@
     <Compile Include="ResourceSim\VesselResourceKSP.cs" />
     <Compile Include="Science\ExperimentRequirements.cs" />
     <Compile Include="Science\ExperimentInfo.cs" />
-    <Compile Include="Science\File.cs" />
     <Compile Include="Science\Hijacker.cs" />
-    <Compile Include="Science\Sample.cs" />
     <Compile Include="Science\Science.cs" />
     <Compile Include="Science\ScienceDB.cs" />
     <Compile Include="Science\ScienceSituation.cs" />

@@ -101,66 +101,50 @@ namespace KERBALISM
 
 			double scienceToCredit = 0.0;
 
-			foreach (DriveHandler drive in DriveHandler.GetDrives(vd))
+			foreach (DriveHandler drive in DriveHandler.GetAllDrives(vd))
 			{
-				foreach (DriveHandler.ScienceFile file in drive.Files)
+				foreach (ScienceFile file in drive.Files)
 				{
-					double subjectValue = file.SubjectData.ScienceValue(file.Size);
-					file.SubjectData.RemoveScienceCollectedInFlight(subjectValue);
-
-					if (file.UseStockCrediting)
-					{
-						file.ConvertToStockData().Save(protoHardDrive.moduleValues.AddNode("ScienceData"));
-						file.SubjectData.SetAsPersistent();
-					}
-					else
-					{
-						double scienceCredited = file.SubjectData.RetrieveScience(subjectValue, false, pv);
-						scienceToCredit += scienceCredited;
-
-						// stock recovery dialog is shown only if quick is false
-						if (!quick)
-						{
-							RecoveryWidgetData entry = new RecoveryWidgetData(
-								file.SubjectData.RnDSubject,
-								(float)scienceCredited,
-								Lib.BuildString(file.SubjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
-								Lib.BuildString(file.SubjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
-								Lib.BuildString(scienceCredited.ToString("+0.0"), " ", "earned"));
-
-							recoveryScienceWidgets.Add(entry);
-						}
-					}
+					RecoverScienceData(file, protoHardDrive, pv, quick, ref scienceToCredit);
 				}
+			}
 
-				foreach (DriveHandler.ScienceSample sample in drive.Samples)
+			foreach (SampleStorageHandler sampleStorage in SampleStorageHandler.GetAllSampleStorages(vd))
+			{
+				foreach (ScienceSample sample in sampleStorage.Samples)
 				{
-					double subjectValue = sample.SubjectData.ScienceValue(sample.Size);
-					sample.SubjectData.RemoveScienceCollectedInFlight(subjectValue);
+					RecoverScienceData(sample, protoHardDrive, pv, quick, ref scienceToCredit);
+				}
+			}
+		}
 
-					if (sample.UseStockCrediting)
-					{
-						sample.ConvertToStockData().Save(protoHardDrive.moduleValues.AddNode("ScienceData"));
-						sample.SubjectData.SetAsPersistent();
-					}
-					else
-					{
-						double scienceCredited = sample.SubjectData.RetrieveScience(subjectValue, false, pv);
-						scienceToCredit += scienceCredited;
+		private static void RecoverScienceData(KsmScienceData data, ProtoPartModuleSnapshot protoHardDrive, ProtoVessel pv, bool quick, ref double scienceToCredit)
+		{
+			SubjectData subject = data.SubjectData;
+			double subjectValue = subject.ScienceValue(data.Size);
+			subject.RemoveScienceCollectedInFlight(subjectValue);
 
-						// stock recovery dialog is shown only if quick is false
-						if (!quick)
-						{
-							RecoveryWidgetData entry = new RecoveryWidgetData(
-								sample.SubjectData.RnDSubject,
-								(float)scienceCredited,
-								Lib.BuildString(sample.SubjectData.ScienceMaxValue.ToString("F1"), " ", "subject value"),
-								Lib.BuildString(sample.SubjectData.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
-								Lib.BuildString(scienceCredited.ToString("+0.0"), " ", "earned"));
+			if (data.UseStockCrediting)
+			{
+				data.ConvertToStockData().Save(protoHardDrive.moduleValues.AddNode("ScienceData"));
+				data.SubjectData.SetAsPersistent();
+			}
+			else
+			{
+				double scienceCredited = subject.RetrieveScience(subjectValue, false, pv);
+				scienceToCredit += scienceCredited;
 
-							recoveryScienceWidgets.Add(entry);
-						}
-					}
+				// stock recovery dialog is shown only if quick is false
+				if (!quick)
+				{
+					RecoveryWidgetData entry = new RecoveryWidgetData(
+						subject.RnDSubject,
+						(float)scienceCredited,
+						Lib.BuildString(subject.ScienceMaxValue.ToString("F1"), " ", "subject value"),
+						Lib.BuildString(subject.ScienceRetrievedInKSC.ToString("F1"), " ", "in RnD"),
+						Lib.BuildString(scienceCredited.ToString("+0.0"), " ", "earned"));
+
+					recoveryScienceWidgets.Add(entry);
 				}
 			}
 		}
@@ -189,11 +173,11 @@ namespace KERBALISM
 
 				widget.scienceWidgetDataContent.sprite = widget.scienceWidgetScienceContent.sprite;
 				TextMeshProUGUI dataTextComponent = Lib.ReflectionValue<TextMeshProUGUI>(widget.scienceWidgetDataContent, "textComponent");
-				dataTextComponent.color = Lib.KolorToColor(Lib.Kolor.Science);
+				dataTextComponent.color = Kolor.Science;
 
 				widget.scienceWidgetValueContent.sprite = widget.scienceWidgetScienceContent.sprite;
 				TextMeshProUGUI valueTextComponent = Lib.ReflectionValue<TextMeshProUGUI>(widget.scienceWidgetValueContent, "textComponent");
-				valueTextComponent.color = Lib.KolorToColor(Lib.Kolor.Science);
+				valueTextComponent.color = Kolor.Science;
 
 
 				dialog.scienceEarned += entry.scienceAdded;

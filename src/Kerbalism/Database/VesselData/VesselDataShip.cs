@@ -39,10 +39,7 @@ namespace KERBALISM
 
 			foreach (PartData part in ShipParts)
 			{
-				foreach (ModuleHandler handler in part.modules)
-				{
-					handler.FirstSetup();
-				}
+				part.FirstSetup();
 			}
 
 			// From now on, we assume that nobody will be altering part resources. Synchronize the resource sim state.

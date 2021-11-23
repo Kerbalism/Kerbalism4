@@ -100,7 +100,7 @@ namespace KERBALISM
 				ks.Info(title, KF.ReadableRate(input.rate * recipeModifier, false), KF.KolorNegRate, 80);
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 		}
 
 		public override string ModuleTitle => title;

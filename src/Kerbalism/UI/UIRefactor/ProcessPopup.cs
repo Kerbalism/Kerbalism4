@@ -41,7 +41,7 @@ namespace KERBALISM
 
 			// top header
 			KsmGuiHeader topHeader = new KsmGuiHeader(window, process.definition.title, null, default, 120);
-			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltip(KsmString.Get.Add(Local.SCIENCEARCHIVE_onvessel, " : ").Format(vd.VesselName, KF.Bold).End);
+			if (vd.VesselName.Length > 0) topHeader.TextObject.SetTooltip(KsmString.Get.Add(Local.SCIENCEARCHIVE_onvessel, " : ").Format(vd.VesselName, KF.Bold).GetStringAndRelease);
 			topHeader.AddButton(Textures.KsmGuiTexHeaderClose, () => window.Close(), Local.SCIENCEARCHIVE_closebutton);
 
 			// content panel
@@ -178,7 +178,7 @@ namespace KERBALISM
 
 			ks.Info("Execution level", process.recipe.ExecutedFactor.ToString("P1"));
 
-			statusBox.Text = ks.End();
+			statusBox.Text = ks.GetStringAndRelease();
 
 			if (enableButton != null)
 				enableButton.Text = process.enabled ? Local.Generic_ENABLED : Local.Generic_DISABLED;
@@ -278,8 +278,8 @@ namespace KERBALISM
 
 			protected virtual void Update()
 			{
-				resRateText.Text = KsmString.Get.Format(KF.ReadableRate(NominalRate), KF.Color(NominalRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).End();
-				resStatusText.Text = KsmString.Get.Format(KF.ReadableRate(io.SignedExecutedRate), KF.Color(io.SignedExecutedRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).End();
+				resRateText.Text = KsmString.Get.Format(KF.ReadableRate(NominalRate), KF.Color(NominalRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).GetStringAndRelease();
+				resStatusText.Text = KsmString.Get.Format(KF.ReadableRate(io.SignedExecutedRate), KF.Color(io.SignedExecutedRate > 0.0 ? Kolor.PosRate : Kolor.NegRate)).GetStringAndRelease();
 
 				//if (isInput && resource.AvailabilityFactor == 0.0)
 				//{

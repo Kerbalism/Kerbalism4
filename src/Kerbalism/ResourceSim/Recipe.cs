@@ -4,6 +4,22 @@ using System.Runtime.CompilerServices;
 
 namespace KERBALISM
 {
+	public interface IRecipeExecutedCallback
+	{
+		bool IsCallbackRegistered { get; set; }
+	}
+
+	public interface IMultipleRecipeExecutedCallback : IRecipeExecutedCallback
+	{
+		List<Recipe> ExecutedRecipes { get; }
+		
+	}
+
+	public interface ICommonRecipeExecutedCallback : IRecipeExecutedCallback
+	{
+		void OnRecipesExecuted(double elapsedSec);
+	}
+
 	public sealed class Recipe
 	{
 		public class UnknownBroker
@@ -51,24 +67,32 @@ namespace KERBALISM
 		// % of the recipe is left to execute, internal variable
 		private double left = 1.0;
 
+		public Action<double> onRecipeExecuted;
+
 		public double ExecutedFactor
 		{
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			get => 1.0 - left;
 		}
 
+		/// <summary>
+		/// Create a resource input/output recipe. To trigger the execution of that recipe, call its <see cref="RequestExecution"/> method every update.<br/>
+		/// To add a callback called after the recipe execution, either :<br/>
+		/// - Implement the <see cref="ICommonRecipeExecutedCallback"/> interface on an object and pass that object to the <c>RequestExecution()</c> method.<br/>
+		/// - Implement the <see cref="IMultipleRecipeExecutedCallback"/> interface on an object, pass that object to the <c>RequestExecution()</c> method and pass the recipe-specific callback to <paramref name="onRecipeExecuted"/>
+		/// </summary>
+		/// <param name="title"> UI title</param>
+		/// <param name="category"> recipe category</param>
+		/// <param name="onRecipeExecuted">Optional callback called after the recipe execution. Require the RequestExecution() method to be passed a IMultipleRecipeExecutedCallback object</param>
+		/// <param name="overflow">Only applies to output-only recipes. If true, the nominal rate of all outputs is always applied, regardless of their storage capacity</param>
+		/// <param name="underflow">Only applies to input-only recipes. If true, the nominal rate of all inputs is always applied, regardless of their availability</param>
 		public Recipe(string title, RecipeCategory category, Action<double> onRecipeExecuted = null, bool overflow = false, bool underflow = false)
 		{
 			this.title = title;
 			this.category = category;
+			this.onRecipeExecuted = onRecipeExecuted;
 			this.overflow = overflow;
 			this.underflow = underflow;
-
-			if (onRecipeExecuted != null)
-			{
-				hasCallback = true;
-				onRecipeExecutedCallback = onRecipeExecuted;
-			}
 		}
 
 		public override string ToString()
@@ -163,7 +187,7 @@ namespace KERBALISM
 		/// <param name="ioScale">Global scale to apply to all inputs/outputs nominal rates</param>
 		/// <param name="ioMax">[0;1] factor : maximum execution level. This allow setting a custom IO constraint without having to define an input/output for it</param>
 		/// <returns>true if the recipe will be executed, false otherwise</returns>
-		public bool RequestExecution(VesselResHandler resHandler, double ioScale = 1.0, double ioMax = 1.0)
+		public bool RequestExecution(VesselResHandler resHandler, IRecipeExecutedCallback callback = null, double ioScale = 1.0, double ioMax = 1.0)
 		{
 			if (ioScale <= 0.0 || ioMax <= 0.0)
 				return false;
@@ -173,6 +197,20 @@ namespace KERBALISM
 
 			resHandler.RequestRecipeExecution(this);
 
+			if (callback != null)
+			{
+				if (!callback.IsCallbackRegistered)
+				{
+					callback.IsCallbackRegistered = true;
+					resHandler.RequestRecipeCallback(callback);
+				}
+
+				if (callback is IMultipleRecipeExecutedCallback multiCallback)
+				{
+					multiCallback.ExecutedRecipes.Add(this);
+				}
+			}
+			
 			return true;
 		}
 

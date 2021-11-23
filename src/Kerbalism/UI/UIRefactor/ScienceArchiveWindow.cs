@@ -249,7 +249,7 @@ namespace KERBALISM
 					if (!partModule.enabled || !partModule.isEnabled)
 						continue;
 
-					if (partModule is ModuleKsmExperiment experiment)
+					if (partModule is IModuleKsmExperiment experiment)
 					{
 						vesselExpInfos.Add(experiment.Definition.ExpInfo);
 					}

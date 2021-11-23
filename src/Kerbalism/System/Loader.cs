@@ -32,10 +32,15 @@ namespace KERBALISM
 	{
 		public static Harmony HarmonyInstance { get; private set; }
 
+		public static GameObject KerbalismPrefabs { get; private set; }
+
 		private bool mmPostLoadDone = false;
 
 		public void Start()
 		{
+			KerbalismPrefabs = new GameObject("KerbalismPrefabs");
+			DontDestroyOnLoad(KerbalismPrefabs);
+
 			// log version
 			Lib.Log("Version : " + Lib.KerbalismVersion + " - Build : " + Lib.KerbalismDevBuild);
 
@@ -134,6 +139,8 @@ namespace KERBALISM
 
 		void OnPartLoaderLoaded()
 		{
+			ActiveCargoPartsDB.OnPartLoaderLoaded();
+
 			if (!mmPostLoadDone)
 			{
 				ErrorManager.AddError(true, "ModuleManager not found");

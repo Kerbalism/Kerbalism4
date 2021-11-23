@@ -109,15 +109,11 @@ namespace KERBALISM.Events
 					// create and link the ModuleData for every KsmPartModule
 					for (int i = 0; i < __instance.Modules.Count; i++)
 					{
-						ModuleHandler.GetForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Editor);
+						ModuleHandler.SetupForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Editor);
 					}
 				}
 
-				foreach (ModuleHandler handler in partData.modules)
-				{
-					handler.FirstSetup();
-				}
-
+				partData.FirstSetup();
 				partData.Start();
 			}
 			else
@@ -152,14 +148,10 @@ namespace KERBALISM.Events
 
 					for (int i = 0; i < __instance.Modules.Count; i++)
 					{
-						ModuleHandler.GetForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
+						ModuleHandler.SetupForLoadedModule(partData, __instance.Modules[i], i, ModuleHandler.ActivationContext.Loaded);
 					}
 
-					foreach (ModuleHandler handler in partData.modules)
-					{
-						handler.FirstSetup();
-					}
-
+					partData.FirstSetup();
 					partData.Start();
 
 				}

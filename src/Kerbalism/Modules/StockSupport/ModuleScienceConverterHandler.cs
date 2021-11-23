@@ -4,7 +4,7 @@ namespace KERBALISM
 {
     // Basic support for the stock science converter : consume EC and scale data production by EC availability.
     // Should work reliably as long as you don't start using all the weird features of BaseConverter
-    public class ModuleScienceConverterHandler : TypedModuleHandler<ModuleScienceConverter>
+    public class ModuleScienceConverterHandler : TypedModuleHandler<ModuleScienceConverter>, ICommonRecipeExecutedCallback
 	{
 		public override ActivationContext Activation => ActivationContext.Unloaded;
 
@@ -22,7 +22,7 @@ namespace KERBALISM
 				return;
             }
 
-			recipe = new Recipe(partData.Title, RecipeCategory.ScienceLab, OnRecipeExecuted);
+			recipe = new Recipe(partData.Title, RecipeCategory.ScienceLab);
 			recipe.AddInput(VesselResHandler.ElectricChargeId, prefabModule.powerRequirement);
         }
 
@@ -32,8 +32,9 @@ namespace KERBALISM
 	        lastElapsedSec = elapsedSec;
         }
 
-        public void OnRecipeExecuted(double elapsedSec)
-        {
+        bool IRecipeExecutedCallback.IsCallbackRegistered { get; set; }
+		void ICommonRecipeExecutedCallback.OnRecipesExecuted(double elapsedSec)
+		{
 	        if (recipe.ExecutedFactor < 1.0)
 	        {
 				double lastUT = lastUpdateTime.Value;

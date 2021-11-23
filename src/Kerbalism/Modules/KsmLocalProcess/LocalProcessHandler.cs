@@ -273,7 +273,8 @@ namespace KERBALISM
 					definition.modifierExpression.Owner = this;
 					modifier *= definition.modifierExpression.Evaluate();
 				}
-				recipe.RequestExecution(VesselData.ResHandler, modifier);
+
+				recipe.RequestExecution(VesselData.ResHandler, null, modifier);
 			}
 		}
 

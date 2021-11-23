@@ -1,23 +1,20 @@
-using KSP.UI;
-using System;
+using KERBALISM.KsmGui;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using UnityEngine;
-using UnityEngine.Events;
+using static KERBALISM.ExperimentHandlerUtils;
 using static KERBALISM.ExperimentRequirements;
-using static KERBALISM.ModuleKsmExperiment;
-using KERBALISM.KsmGui;
-using static KERBALISM.ExperimentHandler;
-using KSP.Localization;
 
 namespace KERBALISM
 {
-
-	public class ExperimentPopup
+	public class ExperimentPopup<TModule, THandler, TDefinition, TScienceData>
+		where TModule : ModuleKsmExperimentBase<TModule, THandler, TDefinition, TScienceData>
+		where THandler : ExperimentHandlerBase<TModule, THandler, TDefinition, TScienceData>
+		where TDefinition : ExperimentDefinition
+		where TScienceData : KsmScienceData
 	{
 		// args
-		ExperimentHandler data;
+		THandler data;
 
 		VesselData vd;
 
@@ -51,7 +48,7 @@ namespace KERBALISM
 		private static List<long> activePopups = new List<long>();
 		private long popupId;
 
-		public ExperimentPopup(ExperimentHandler data)
+		public ExperimentPopup(THandler data)
 		{
 			this.data = data;
 			this.vd = (VesselData)data.VesselData;
@@ -128,37 +125,43 @@ namespace KERBALISM
 
 			sb.Append(Local.SCIENCEARCHIVE_state);//state
 			sb.Append(" :<pos=20em>");
-			sb.Append(Lib.Bold(RunningStateInfo(data.State)));
+			sb.Append(Lib.Bold(ExperimentHandlerUtils.RunningStateInfo(data.State)));
 			sb.Append("\n");
 			sb.Append(Local.SCIENCEARCHIVE_status);//status
 			sb.Append(" :<pos=20em>");
-			sb.Append(Lib.Bold(StatusInfo(data.Status, data.issue)));
+			sb.Append(Lib.Bold(StatusInfo(data.Status, data.currentDataRate, data.definition.DataRate)));
 
-			if (data.Status == ExpStatus.Running)
+			if (data.Status == ExperimentHandlerUtils.ExpStatus.Running)
 			{
 				sb.Append(", ");
-				sb.Append(RunningCountdown(data.definition.ExpInfo, data.Subject, data.definition.DataRate, true));
+				sb.Append(RunningCountdown(data.definition, data.Subject, data.currentDataRate, true));
 			}
-			else if (data.Status == ExpStatus.Forced && data.Subject != null)
+			else if (data.Status == ExperimentHandlerUtils.ExpStatus.Forced && data.Subject != null)
 			{
 				sb.Append(", ");
 				sb.Append(Lib.Color(data.Subject.PercentCollectedTotal.ToString("P1"), Lib.Kolor.Yellow, true));
 				sb.Append(" ");
 				sb.Append(Local.SCIENCEARCHIVE_collected);//collected
 			}
-
-			if (data.definition.ExpInfo.IsSample && !data.definition.SampleCollecting)
-			{
-				sb.Append("\n");
-				sb.Append(Local.SCIENCEARCHIVE_samples);//samples
-				sb.Append(" :<pos=20em>");
-				sb.Append(Lib.Color((data.remainingSampleMass / data.definition.ExpInfo.SampleMass).ToString("F1"), Lib.Kolor.Yellow, true));
-				sb.Append(" (");
-				sb.Append(Lib.Color(Lib.HumanReadableMass(data.remainingSampleMass), Lib.Kolor.Yellow, true));
-				sb.Append(")");
-			}
-
 			sb.Append("\n");
+
+			sb.Append(Local.Module_Experiment_issue_title);//issue
+			sb.Append(" :<pos=20em>");
+			sb.Append(string.IsNullOrEmpty(data.issue) ? Local.Generic_NONE : data.issue);
+			sb.Append("\n");
+
+			//if (data.definition.ExpInfo.IsSample && !data.definition.SampleCollecting)
+			//{
+			//	sb.Append("\n");
+			//	sb.Append(Local.SCIENCEARCHIVE_samples);//samples
+			//	sb.Append(" :<pos=20em>");
+			//	sb.Append(Lib.Color((data.remainingSampleMass / data.definition.ExpInfo.SampleMass).ToString("F1"), Lib.Kolor.Yellow, true));
+			//	sb.Append(" (");
+			//	sb.Append(Lib.Color(Lib.HumanReadableMass(data.remainingSampleMass), Lib.Kolor.Yellow, true));
+			//	sb.Append(")");
+			//}
+
+			
 			sb.Append(Local.SCIENCEARCHIVE_situation);//situation
 			sb.Append(" :<pos=20em>");
 			sb.Append(Lib.Color(vd.VesselSituations.GetExperimentSituation(data.definition.ExpInfo).GetTitleForExperiment(data.definition.ExpInfo), Lib.Kolor.Yellow, true));
@@ -265,25 +268,23 @@ namespace KERBALISM
 				startStopButton.Text = Local.SCIENCEARCHIVE_start;//"start"
 			}
 
-			startStopButton.Interactable = canInteract && !data.IsBroken;
+			startStopButton.Interactable = canInteract;
 		}
 
 		private void UpdateForcedRunButton()
 		{
-			forcedRunButton.Interactable = canInteract && (data.State == RunningState.Stopped || data.State == RunningState.Running);
+			forcedRunButton.Interactable = canInteract && (data.State == ExperimentHandlerUtils.RunningState.Stopped || data.State == ExperimentHandlerUtils.RunningState.Running);
 		}
 
 		private void Toggle()
 		{
-			ModuleKsmExperiment.Toggle(data);
+			data.Toggle();
 		}
-
 
 		private void ToggleForcedRun()
 		{
-			ModuleKsmExperiment.Toggle(data, true);
+			data.Toggle(true);
 		}
-
 
 		private void ToggleArchivePanel()
 		{

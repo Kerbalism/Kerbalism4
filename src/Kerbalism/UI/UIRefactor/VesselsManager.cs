@@ -105,7 +105,7 @@ namespace KERBALISM
 			activeVesselsHeader = new KsmGuiBase(scrollView);
 			activeVesselsHeader.SetLayoutElement(true, false, -1, -1, -1, 18);
 			activeVesselsHeader.SetColor(Color.black);
-			KsmGuiText headerText = new KsmGuiText(activeVesselsHeader, KsmString.Get.Format("Loaded vessels", KF.Bold, KF.KolorYellow).End());
+			KsmGuiText headerText = new KsmGuiText(activeVesselsHeader, KsmString.Get.Format("Loaded vessels", KF.Bold, KF.KolorYellow).GetStringAndRelease());
 			headerText.StaticLayoutStretchInParent();
 			
 			activeVessels = new KsmGuiVerticalLayout(scrollView);
@@ -113,7 +113,7 @@ namespace KERBALISM
 			pinnedVesselsHeader = new KsmGuiBase(scrollView);
 			pinnedVesselsHeader.SetLayoutElement(true, false, -1, -1, -1, 18);
 			pinnedVesselsHeader.SetColor(Color.black);
-			KsmGuiText pinnedText = new KsmGuiText(pinnedVesselsHeader, KsmString.Get.Format("Pinned vessels", KF.Bold, KF.KolorYellow).End());
+			KsmGuiText pinnedText = new KsmGuiText(pinnedVesselsHeader, KsmString.Get.Format("Pinned vessels", KF.Bold, KF.KolorYellow).GetStringAndRelease());
 			pinnedText.StaticLayoutStretchInParent();
 
 			pinnedVessels = new KsmGuiVerticalLayout(scrollView);
@@ -415,12 +415,12 @@ namespace KERBALISM
 
 				public static InfoTexture sunlight = new InfoTexture(Textures.ttSun, Kolor.Green);
 				public static InfoTexture noSunlight = new InfoTexture(Textures.ttSunStriked, Kolor.Yellow);
-				public static InfoTexture storm = new InfoTexture(Textures.ttStorm, Kolor.Orange, KsmString.Get.Format("Solar storm in progress !", KF.Bold, KF.KolorOrange).End());
-				public static InfoTexture belt = new InfoTexture(Textures.ttBelt, Kolor.Orange, KsmString.Get.Format("Inside the radiation belt !", KF.Bold, KF.KolorOrange).End());
+				public static InfoTexture storm = new InfoTexture(Textures.ttStorm, Kolor.Orange, KsmString.Get.Format("Solar storm in progress !", KF.Bold, KF.KolorOrange).GetStringAndRelease());
+				public static InfoTexture belt = new InfoTexture(Textures.ttBelt, Kolor.Orange, KsmString.Get.Format("Inside the radiation belt !", KF.Bold, KF.KolorOrange).GetStringAndRelease());
 				public static InfoTexture plasma = new InfoTexture(Textures.ttPlasma, Kolor.Yellow);
-				public static InfoTexture radLow = new InfoTexture(Textures.ttRadioactive, Kolor.Yellow, KsmString.Get.Format(Local.Monitor_ExposedRadiation3, KF.Bold, KF.KolorYellow).End()); //"Exposed to moderate radiation"
-				public static InfoTexture radMed = new InfoTexture(Textures.ttRadioactive, Kolor.Orange, KsmString.Get.Format(Local.Monitor_ExposedRadiation2, KF.Bold, KF.KolorOrange).End()); //"Exposed to intense radiation"
-				public static InfoTexture radHigh = new InfoTexture(Textures.ttRadioactive, Kolor.Red, KsmString.Get.Format(Local.Monitor_ExposedRadiation1, KF.Bold, KF.KolorRed).End()); //"Exposed to extreme radiation"
+				public static InfoTexture radLow = new InfoTexture(Textures.ttRadioactive, Kolor.Yellow, KsmString.Get.Format(Local.Monitor_ExposedRadiation3, KF.Bold, KF.KolorYellow).GetStringAndRelease()); //"Exposed to moderate radiation"
+				public static InfoTexture radMed = new InfoTexture(Textures.ttRadioactive, Kolor.Orange, KsmString.Get.Format(Local.Monitor_ExposedRadiation2, KF.Bold, KF.KolorOrange).GetStringAndRelease()); //"Exposed to intense radiation"
+				public static InfoTexture radHigh = new InfoTexture(Textures.ttRadioactive, Kolor.Red, KsmString.Get.Format(Local.Monitor_ExposedRadiation1, KF.Bold, KF.KolorRed).GetStringAndRelease()); //"Exposed to extreme radiation"
 			}
 
 			// button : goto vessel with vessel type icon
@@ -541,7 +541,7 @@ namespace KERBALISM
 					KsmGuiContextMenu.Instance.AddButton("Recover", () => Lib.RecoverVesselPopup(Vd.Vessel));
 
 				if (ownedAndTracked && !Vd.Vessel.loaded)
-					KsmGuiContextMenu.Instance.AddButton(KsmString.Get.Format(Vd.Vessel.DiscoveryInfo.Level == DiscoveryLevels.Owned ? "Terminate" : "Stop tracking", KF.KolorOrange).End(), () => Lib.TerminateVesselPopup(Vd.Vessel));
+					KsmGuiContextMenu.Instance.AddButton(KsmString.Get.Format(Vd.Vessel.DiscoveryInfo.Level == DiscoveryLevels.Owned ? "Terminate" : "Stop tracking", KF.KolorOrange).GetStringAndRelease(), () => Lib.TerminateVesselPopup(Vd.Vessel));
 			}
 
 			private void Update()
@@ -556,7 +556,7 @@ namespace KERBALISM
 				}
 				else
 				{
-					vesselName.Text = KsmString.Get.Add("Class", KF.WhiteSpace, Vd.Vessel.DiscoveryInfo.size.Value, KF.WhiteSpace, "object").End();
+					vesselName.Text = KsmString.Get.Add("Class", KF.WhiteSpace, Vd.Vessel.DiscoveryInfo.size.Value, KF.WhiteSpace, "object").GetStringAndRelease();
 				}
 
 				gotoButton.SetIconTexture(GetVesselTypeIcon(Vd.Vessel));
@@ -773,7 +773,7 @@ namespace KERBALISM
 						{
 							signalDataIcon.SetIconTexture(Textures.ttSignalData);
 
-							if (Vd.filesTransmitted.Count > 0)
+							if (Vd.vesselComms.transmittedFiles.Count > 0)
 							{
 								signalDataIcon.SetIconColor(Lib.KolorScience);
 							}
@@ -797,7 +797,7 @@ namespace KERBALISM
 					KsmString ks = KsmString.Get;
 					ks.Format(Vd.Vessel.DiscoveryInfo.displayName.Value, KF.KolorYellow, KF.Bold, KF.BreakAfter);
 					ks.Info("Mission time", KF.ReadableDuration(Planetarium.GetUniversalTime() - Vd.Vessel.launchTime), KF.Bold);
-					return ks.End();
+					return ks.GetStringAndRelease();
 				}
 				else
 				{
@@ -857,7 +857,7 @@ namespace KERBALISM
 					}
 				}
 
-				return ks.End();
+				return ks.GetStringAndRelease();
 			}
 
 			private string InfoTooltip()
@@ -887,7 +887,7 @@ namespace KERBALISM
 					}
 				}
 
-				return ks.End();
+				return ks.GetStringAndRelease();
 			}
 
 			private string EcTooltip()
@@ -904,7 +904,7 @@ namespace KERBALISM
 
 				Vd.ResHandler.ElectricCharge.BrokerListTooltip(ks);
 
-				return ks.End();
+				return ks.GetStringAndRelease();
 			}
 
 			private string SuppliesTooltip()
@@ -959,7 +959,7 @@ namespace KERBALISM
 					ks.Format(KF.Concat((resCount - 10).ToString(), KF.WhiteSpace, "more..."), KF.Italic, KF.KolorLightGrey);
 				}
 
-				return ks.End();
+				return ks.GetStringAndRelease();
 			}
 
 			private class RulesTooltip : KsmGuiVerticalLayout
@@ -1079,7 +1079,7 @@ namespace KERBALISM
 							else
 								ks.Format(KF.ReadableDuration(rule.TimeToMaxValue, KF.Precision.Tiny), KF.Color(kolor));
 
-							Text = ks.End();
+							Text = ks.GetStringAndRelease();
 						}
 					}
 				}
@@ -1134,17 +1134,18 @@ namespace KERBALISM
 						ks.Info("Max data rate", Lib.HumanReadableDataRate(Vd.Connection.DataRate), 100);
 					}
 
-					if (Vd.filesTransmitted.Count == 0)
+					int transmittedCount = Vd.vesselComms.transmittedFiles.Count;
+					if (transmittedCount > 0)
 					{
 						ks.Info("Transmitting", Local.UI_telemetry, 100);
 					}
 					else
 					{
-						ks.Info("Transmitting", KF.Concat(Vd.filesTransmitted.Count.ToString(), Vd.filesTransmitted.Count > 1 ? " files" : " file"), KF.Bold, 100);
+						ks.Info("Transmitting", KF.Concat(transmittedCount.ToString(), transmittedCount > 1 ? " files" : " file"), KF.Bold, 100);
 					}
 				}
 
-				return ks.End();
+				return ks.GetStringAndRelease();
 			}
 
 			private Texture2D GetVesselTypeIcon(Vessel vessel)
@@ -1217,7 +1218,7 @@ namespace KERBALISM
 				header = new KsmGuiBase(this);
 				header.SetLayoutElement(true, false, -1, -1, -1, 18);
 				header.SetColor(Color.black);
-				KsmGuiText headerText = new KsmGuiText(header, bodyName.End());
+				KsmGuiText headerText = new KsmGuiText(header, bodyName.GetStringAndRelease());
 				headerText.StaticLayoutStretchInParent();
 
 				vesselsLayout = new KsmGuiVerticalLayout(this);

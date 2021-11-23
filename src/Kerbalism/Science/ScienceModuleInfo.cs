@@ -191,10 +191,10 @@ namespace KERBALISM
 
 		public static void AddModuleInfo(PartModule modulePrefab)
 		{
-			if (modulePrefab is ModuleKsmExperiment ksmExperiment && ksmExperiment.Definition.ExpInfo != null)
+			if (modulePrefab is IModuleKsmExperiment ksmExperiment && ksmExperiment.Definition.ExpInfo != null)
 			{
 				ScienceModulesUIInfo uiInfo = ksmExperiment.Definition.ExpInfo.ModulesUIInfo;
-				uiInfo.AddAvailableAtTech(ksmExperiment.part.partInfo.TechRequired);
+				uiInfo.AddAvailableAtTech(ksmExperiment.Part.partInfo.TechRequired);
 				KerbalismVariantInfo variantInfo = uiInfo.variantsInfo.Find(p => p.definition == ksmExperiment.Definition);
 
 				if (variantInfo != null)

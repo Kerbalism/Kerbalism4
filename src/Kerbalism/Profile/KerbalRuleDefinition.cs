@@ -150,7 +150,7 @@ namespace KERBALISM
 				ks.Break();
 			}
 
-			return ks.End();
+			return ks.GetStringAndRelease();
 
 		}
 	}

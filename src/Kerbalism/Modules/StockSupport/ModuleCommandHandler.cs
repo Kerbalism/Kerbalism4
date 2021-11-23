@@ -35,7 +35,7 @@
 			if (prefabModule.minimumCrew == 0 || partData.ProtoPart.protoModuleCrew.Count > 0)
 			{
 				double recipeFactor = hibernating ? Settings.HibernatingEcFactor : 1.0;
-				ecRecipe.RequestExecution(VesselData.ResHandler, recipeFactor);
+				ecRecipe.RequestExecution(VesselData.ResHandler, null, recipeFactor);
 			}
 		}
     }

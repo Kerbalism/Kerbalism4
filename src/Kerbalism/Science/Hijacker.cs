@@ -104,7 +104,7 @@ namespace KERBALISM
 
 			// TODO : fix the hijacker once science data handling is fully refactored
 			meta.vessel.TryGetVesselDataTemp(out VesselData vd);
-			//foreach (var drive in DriveHandler.GetDrives(vd, false))
+			//foreach (var drive in DriveHandler.GetAllDrives(vd, false))
 			//{
 			//	var size = Math.Min(remaining, drive.FileCapacityAvailable());
 			//	if(size > 0)

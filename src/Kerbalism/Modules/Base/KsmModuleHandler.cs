@@ -149,7 +149,7 @@
 				if (!ReferenceEquals(loadedModule, null))
 				{
 					loadedModule.KsmStart();
-					loadedModule.SetupActions();
+					//loadedModule.SetupActions();
 				}
 			}
 			else

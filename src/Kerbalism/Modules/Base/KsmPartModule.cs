@@ -36,17 +36,6 @@ namespace KERBALISM
 		/// </summary>
 		public virtual void KsmStart() { }
 
-		public void SetupActions()
-		{
-			foreach (ModuleAction action in ModuleHandler.Actions)
-			{
-				KSPAction enableKSPAction = new KSPAction("Toggle " + action.Title);
-				BaseActionDelegate baseActionDelegate = (BaseActionDelegate)Delegate.CreateDelegate(typeof(BaseActionDelegate), action, nameof(ModuleAction.Action), false);
-				BaseAction enableAction = new BaseAction(Actions, action.Title, baseActionDelegate, enableKSPAction);
-				Actions.Add(enableAction);
-			}
-		}
-
 		#region IModuleInfo
 
 		public override string GetModuleDisplayName()

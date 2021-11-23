@@ -9,8 +9,6 @@ namespace KERBALISM.KsmGui
 {
 	public class KsmGuiHeader : KsmGuiHorizontalLayout, IKsmGuiText
 	{
-
-
 		public KsmGuiText TextObject { get; private set; }
 
 		public KsmGuiHeader(KsmGuiBase parent, string title, string tooltip = null, Color backgroundColor = default, int textPreferredWidth = -1)

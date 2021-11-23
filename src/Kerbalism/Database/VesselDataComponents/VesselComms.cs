@@ -6,17 +6,19 @@ using static KERBALISM.DriveHandler;
 
 namespace KERBALISM
 {
-	public class VesselComms
+	public class VesselComms : ICommonRecipeExecutedCallback
 	{
 		public struct TransmittedFileInfo
 		{
 			public SubjectData subject;
+			public ScienceFile file;
 			public double transmitRate;
 
-			public TransmittedFileInfo(SubjectData subject, double transmitRate)
+			public TransmittedFileInfo(SubjectData subject, double transmitRate, ScienceFile file = null)
 			{
 				this.subject = subject;
 				this.transmitRate = transmitRate;
+				this.file = file;
 			}
 		}
 
@@ -40,8 +42,11 @@ namespace KERBALISM
 
 		public int DriveCapacityId => drivesCapacity.id;
 		public int TransmitCapacityId => transmitCapacity.id;
-		public double TransmitECRatePerMb;
+		public double transmitECRatePerMb;
+		public double TransmitDataRate => vd.ConnectionInfo.DataRate * (1.0 - transmitCapacity.Level);
+		public double TransmitECRate => vd.ConnectionInfo.Ec * (1.0 - transmitCapacity.Level);
 
+		public double totalDataTransmitted;
 		public double totalScienceTransmitted;
 
 		public void Init(VesselDataBase vd)
@@ -50,7 +55,7 @@ namespace KERBALISM
 			drivesCapacity = vd.ResHandler.AddNewAbstractResourceToHandler();
 			transmitCapacity = vd.ResHandler.AddNewAbstractResourceToHandler();
 
-			transmitRecipe = new Recipe("Stored data transmission", RecipeCategory.ScienceData, OnRecipeExecuted);
+			transmitRecipe = new Recipe("Stored data transmission", RecipeCategory.ScienceData);
 			transmitRecipe.priority = 0;
 			transmitCapacityInput = transmitRecipe.AddInput(transmitCapacity.id, 0.0);
 			transmitECInput = transmitRecipe.AddInput(VesselResHandler.ElectricChargeId, 0.0);
@@ -68,7 +73,7 @@ namespace KERBALISM
 			double transmitDataSize = transmitDataRate * elapsedSec;
 			transmitCapacity.SetAmountAndCapacity(transmitDataSize);
 
-			TransmitECRatePerMb = transmitDataSize == 0.0 ? 0.0 : vd.ConnectionInfo.Ec / transmitDataSize;
+			transmitECRatePerMb = transmitDataSize == 0.0 ? 0.0 : vd.ConnectionInfo.Ec / transmitDataSize;
 
 			drives.Clear();
 			filesToTransmit.Clear();
@@ -81,7 +86,7 @@ namespace KERBALISM
 			// by looping over all files here, instead of randomly selecting the first found ones.
 
 
-			foreach (DriveHandler drive in GetDrives(vd))
+			foreach (DriveHandler drive in GetAllDrives(vd))
 			{
 				drives.Add(drive);
 
@@ -90,13 +95,13 @@ namespace KERBALISM
 				else
 					fileCapacity += drive.definition.FilesCapacity;
 
-				filesSize += drive.FilesSize;
+				filesSize += drive.filesSize;
 
 				if (filesToTransmitSize < transmitDataSize)
 				{
 					foreach (ScienceFile file in drive.Files)
 					{
-						if (file.Transmit)
+						if (file.transmit)
 						{
 							filesToTransmit.Add(file);
 							filesToTransmitSize += file.Size;
@@ -111,8 +116,8 @@ namespace KERBALISM
 			{
 				filesToTransmitSize = Math.Min(filesToTransmitSize, transmitDataSize);
 				transmitCapacityInput.NominalRate = filesToTransmitSize / elapsedSec;
-				transmitECInput.NominalRate = TransmitECRatePerMb * filesToTransmitSize;
-				transmitRecipe.RequestExecution(vd.ResHandler);
+				transmitECInput.NominalRate = transmitECRatePerMb * filesToTransmitSize;
+				transmitRecipe.RequestExecution(vd.ResHandler, this);
 			}
 
 			if (vd.ConnectionInfo.Linked)
@@ -124,12 +129,14 @@ namespace KERBALISM
 
 		public void TransmitScienceData(SubjectData subject, double dataSize, double elapsedSec, ScienceFile file = null)
 		{
-			transmittedFiles.Add(new TransmittedFileInfo(subject, dataSize / elapsedSec));
+			transmittedFiles.Add(new TransmittedFileInfo(subject, dataSize / elapsedSec, file));
 			double scienceValue = dataSize * subject.SciencePerMB;
 			totalScienceTransmitted += subject.RetrieveScience(scienceValue, true, ((VesselData) vd).Vessel.protoVessel, file);
+			totalDataTransmitted += dataSize;
 		}
 
-		private void OnRecipeExecuted(double elapsedSec)
+		bool IRecipeExecutedCallback.IsCallbackRegistered { get; set; }
+		void ICommonRecipeExecutedCallback.OnRecipesExecuted(double elapsedSec)
 		{
 			double executedFactor = transmitRecipe.ExecutedFactor;
 			if (executedFactor < 1e-14)
@@ -149,8 +156,8 @@ namespace KERBALISM
 				TransmitScienceData(scienceFile.SubjectData, transmittedSize, elapsedSec, scienceFile);
 				totalTransmittedSize -= transmittedSize;
 			}
-
 		}
 
+		
 	}
 }

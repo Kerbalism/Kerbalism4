@@ -1,3 +1,4 @@
+using MultipleModuleInPartAPI;
 using UnityEngine;
 
 namespace KERBALISM
@@ -5,42 +6,12 @@ namespace KERBALISM
 	public class ModuleKsmProcessController :
 		KsmPartModule<ModuleKsmProcessController, ProcessControllerHandler, ProcessControllerDefinition>,
 		IModuleInfo,
-		IAnimatedModule
+		IAnimatedModule,
+		IMultipleModuleInPart
 	{
-		[KSPField]
-		[UI_Toggle(scene = UI_Scene.All, affectSymCounterparts = UI_Scene.None)]
-		public bool running;
-
-		private BaseField runningField;
-
-		public override void KsmStart()
-		{
-			runningField = Fields["running"];
-			runningField.OnValueModified += ToggleRunning;
-
-			((UI_Toggle)runningField.uiControlFlight).enabledText = Lib.Color(Local.Generic_ENABLED.ToLower(), Lib.Kolor.Green);
-			((UI_Toggle)runningField.uiControlFlight).disabledText = Lib.Color(Local.Generic_DISABLED.ToLower(), Lib.Kolor.Yellow);
-			((UI_Toggle)runningField.uiControlEditor).enabledText = Lib.Color(Local.Generic_ENABLED.ToLower(), Lib.Kolor.Green);
-			((UI_Toggle)runningField.uiControlEditor).disabledText = Lib.Color(Local.Generic_DISABLED.ToLower(), Lib.Kolor.Yellow);
-
-			if (Definition.processDefinition != null)
-				PAWSetup();
-		}
-
-		public void PAWSetup()
-		{
-			running = moduleHandler.IsRunning;
-			runningField.guiActive = runningField.guiActiveEditor = Definition.processDefinition.canToggle;
-			runningField.guiName = Definition.processDefinition.title;
-
-			if (Definition.uiGroupName != null)
-				runningField.group = new BasePAWGroup(Definition.uiGroupName, Definition.uiGroupDisplayName ?? Definition.uiGroupName, false);
-		}
-
-		private void ToggleRunning(object field)
-		{
-			moduleHandler.IsRunning = !moduleHandler.IsRunning;
-		}
+		[KSPField(isPersistant = true)]
+		public string modulePartConfigId = string.Empty;
+		public string ModulePartConfigId => modulePartConfigId;
 
 		// IModuleInfo : module title
 		public string GetModuleTitle()

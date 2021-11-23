@@ -14,7 +14,10 @@ namespace KERBALISM
 	where THandler : AnimalHandler<TModule, THandler, TDefinition>
 		where TDefinition : AnimalDefinition
 	{
-		public override void OnStart(StartState state) => Lib.Log($"This animal has {moduleHandler.legCount} legs");
+		public override void OnStart(StartState state)
+		{
+			Lib.Log($"This animal has {moduleHandler.legCount} legs");
+		}
 	}
 
 	public abstract class AnimalHandler<TModule, THandler, TDefinition> : KsmModuleHandler<TModule, THandler, TDefinition>

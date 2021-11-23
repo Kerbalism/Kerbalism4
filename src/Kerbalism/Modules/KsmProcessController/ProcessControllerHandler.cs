@@ -1,12 +1,13 @@
 ﻿using Flee.PublicTypes;
 using System;
 using System.Collections.Generic;
+using KERBALISM.ModuleUI;
 
 namespace KERBALISM
 {
 	public class ProcessControllerHandler :
 		KsmModuleHandler<ModuleKsmProcessController, ProcessControllerHandler, ProcessControllerDefinition>,
-		IB9Switchable
+		IB9Switchable, IActiveStoredHandler
 	{
 
 		private bool isRunning;
@@ -18,9 +19,6 @@ namespace KERBALISM
 				if (value != isRunning)
 				{
 					isRunning = value;
-
-					if (IsLoaded)
-						loadedModule.running = value;
 
 					// refresh planner and VAB/SPH ui
 					if (Lib.IsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
@@ -35,8 +33,8 @@ namespace KERBALISM
 
 		public void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition)
 		{
-			if (definition.processDefinition != null && IsLoaded)
-				loadedModule.PAWSetup();
+			//if (definition.processDefinition != null && IsLoaded)
+			//	loadedModule.PAWSetup();
 		}
 
 		public void OnSwitchEnable() { }
@@ -63,6 +61,49 @@ namespace KERBALISM
 			VesselData.VesselProcesses.RegisterProcessController(this);
 		}
 
+		public bool IsActiveCargo => true;
+		public StoredPartData StoredPart { get; set; }
+		public void OnCargoStored()
+		{
+			//throw new NotImplementedException();
+		}
+
+		public void OnCargoUnstored()
+		{
+			//throw new NotImplementedException();
+		}
+
 		public override string ModuleTitle => definition.processDefinition?.title ?? string.Empty;
+
+		protected override ModuleUIGroup CreateUIGroup()
+		{
+			if (definition.uiGroupName == null)
+				return null;
+			
+			return new ModuleUIGroup(definition.uiGroupName, definition.uiGroupDisplayName);
+		}
+
+		private class RunningToggle : ModuleUIToggle<ProcessControllerHandler>
+		{
+			public override bool State => handler.isRunning;
+
+			public override string GetLabel()
+			{
+				KsmString ks = KsmString.Get;
+				if (handler.isRunning)
+					ks.InfoRight(handler.definition.processDefinition.title, Local.Generic_ENABLED, KF.Bold, KF.KolorGreen);
+				else
+					ks.InfoRight(handler.definition.processDefinition.title, Local.Generic_DISABLED, KF.Bold, KF.KolorYellow);
+
+				return ks.GetStringAndRelease(); 
+			}
+
+			public override void OnToggle()
+			{
+				handler.IsRunning = !handler.IsRunning;
+			}
+
+			public override bool IsEnabled => handler.definition.processDefinition?.canToggle ?? false;
+		}
 	}
 }

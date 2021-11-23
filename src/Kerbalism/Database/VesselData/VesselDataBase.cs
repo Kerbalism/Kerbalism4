@@ -287,7 +287,7 @@ namespace KERBALISM
 			{
 				for (int i = 0; i < partData.LoadedPart.Modules.Count; i++)
 				{
-					ModuleHandler.GetForLoadedModule(partData, partData.LoadedPart.Modules[i], i, context);
+					ModuleHandler.SetupForLoadedModule(partData, partData.LoadedPart.Modules[i], i, context);
 				}
 			}
 
@@ -302,11 +302,7 @@ namespace KERBALISM
 				{
 					foreach (PartData partData in thisShipParts)
 					{
-						foreach (ModuleHandler handler in partData.modules)
-						{
-							handler.FirstSetup();
-						}
-
+						partData.FirstSetup();
 						partData.Start();
 					}
 				}

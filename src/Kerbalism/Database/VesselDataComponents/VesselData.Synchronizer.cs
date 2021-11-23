@@ -43,6 +43,7 @@ namespace KERBALISM
 				UnityEngine.Profiling.Profiler.BeginSample("Kerbalism.VesselDataBase.SynchronizerBase.Synchronize");
 				radiationCoilDatas.Clear();
 				radiationEmitters.Clear();
+				bool loaded = vesselData.LoadedOrEditor;
 
 				foreach (PartData partData in vesselData.Parts)
 				{
@@ -50,18 +51,24 @@ namespace KERBALISM
 					partData.resources.Synchronize();
 					UnityEngine.Profiling.Profiler.EndSample();
 
-					if (vesselData.LoadedOrEditor && partData.radiationData.IsEmitter)
+					// TODO : we really shouldn't pool to do that...
+					if (loaded)
 					{
-						radiationEmitters.Add(partData.radiationData);
-					}
-
-					foreach (ModuleHandler moduleData in partData.modules)
-					{
-						if (vesselData.LoadedOrEditor && moduleData is RadiationCoilHandler coilData && coilData.effectData != null)
+						if (partData.radiationData.IsEmitter)
 						{
-							radiationCoilDatas.Add(coilData);
+							radiationEmitters.Add(partData.radiationData);
+						}
+
+						foreach (ModuleHandler moduleData in partData.modules)
+						{
+							if (moduleData is RadiationCoilHandler coilData && coilData.effectData != null)
+							{
+								radiationCoilDatas.Add(coilData);
+							}
 						}
 					}
+
+
 				}
 
 				UnityEngine.Profiling.Profiler.EndSample();

@@ -137,7 +137,7 @@ namespace KERBALISM
 			if (requestedFactor == 0.0)
 				return;
 
-			recipe.RequestExecution(vd.ResHandler, requestedFactor);
+			recipe.RequestExecution(vd.ResHandler, null, requestedFactor);
 		}
 	}
 }

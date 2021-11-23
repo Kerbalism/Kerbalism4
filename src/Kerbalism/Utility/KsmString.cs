@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using static KERBALISM.KF;
 
 namespace KERBALISM
 {
@@ -10,12 +11,27 @@ namespace KERBALISM
 
 		public static KsmString Get => stringBuildersPool.Get();
 
-		public string End()
+		public int Length => sb.Length;
+
+		public string GetStringAndRelease()
 		{
 			string result = sb.ToString();
 			sb.Clear();
 			stringBuildersPool.Return(this);
 			return result;
+		}
+
+		public string GetStringAndClear()
+		{
+			string result = sb.ToString();
+			sb.Clear();
+			return result;
+		}
+
+		public void Release()
+		{
+			sb.Clear();
+			stringBuildersPool.Return(this);
 		}
 
 		public KsmString Insert(int index, string value)
@@ -55,7 +71,26 @@ namespace KERBALISM
 			return this;
 		}
 
+		public KsmString Bold()
+		{
+			sb.Append("<b>");
+			return this;
+		}
+
+		public KsmString BoldReset()
+		{
+			sb.Append("</b>");
+			return this;
+		}
+
 		#region Add
+
+		/// <summary> Append a char </summary>
+		public KsmString Add(char value)
+		{
+			sb.Append(value);
+			return this;
+		}
 
 		/// <summary> Append a string </summary>
 		public KsmString Add(string value)
@@ -1274,15 +1309,157 @@ namespace KERBALISM
 
 		#endregion
 
+		public KsmString Position(int position)
+		{
+			sb.Append(KsmFormatPosition.closingTagBegin);
+			sb.Append(position);
+			sb.Append(KsmFormatPosition.closingTagEnd);
+			return this;
+		}
+
+		public KsmString ReadableRate(double rate, bool showSign = true, string unit = "")
+		{
+			KsmFormatReadableRate.Append(sb, rate, showSign, unit);
+			return this;
+		}
+
+		public KsmString ReadableDuration(double d, Precision precision = Precision.Compact, ulong yearsMax = 99)
+		{
+			KsmFormatReadableDuration.Append(sb, d, precision, yearsMax);
+			return this;
+		}
+
+		public KsmString ReadableCountdown(double d, Precision precision = Precision.Compact, ulong yearsMax = 99)
+		{
+			sb.Append("T-");
+			KsmFormatReadableDuration.Append(sb, d, precision, yearsMax);
+			return this;
+		}
+
+		public KsmString ReadableDistance(double distance)
+		{
+			KsmFormatReadableDistance.Append(sb, distance);
+			return this;
+		}
+
+		public KsmString ReadableSpeed(double speed)
+		{
+			KsmFormatReadableDistance.Append(sb, speed);
+			sb.Append("/s");
+			return this;
+		}
+
+		public KsmString ReadableTemperature(double temp)
+		{
+			KsmFormatReadableTemperature.Append(sb, temp);
+			return this;
+		}
+
+		public KsmString ReadableAngle(double angle)
+		{
+			KsmFormatReadableAngle.Append(sb, angle);
+			return this;
+		}
+
+		public KsmString ReadableIrradiance(double irradiance)
+		{
+			KsmFormatReadableIrradiance.Append(sb, irradiance);
+			return this;
+		}
+
+		public KsmString ThermalFlux(double flux)
+		{
+			KsmFormatReadableThermalFlux.Append(sb, flux);
+			return this;
+		}
+
+		public KsmString ReadableField(double strength)
+		{
+			KsmFormatReadableField.Append(sb, strength);
+			return this;
+		}
+
+		public KsmString ReadableRadiation(double radiation, bool dangerColor = true)
+		{
+			KsmFormatReadableRadiation.Append(sb, radiation, dangerColor);
+			return this;
+		}
+
+		public KsmString ReadablePressure(double pressure)
+		{
+			KsmFormatReadablePressure.Append(sb, pressure);
+			return this;
+		}
+
+		public KsmString ReadableVolume(double volume)
+		{
+			KsmFormatReadableVolume.Append(sb, volume);
+			return this;
+		}
+
+		public KsmString ReadableSurface(double surface)
+		{
+			KsmFormatReadableSurface.Append(sb, surface);
+			return this;
+		}
+
+		public KsmString ReadableMass(double mass)
+		{
+			KsmFormatReadableMass.Append(sb, mass);
+			return this;
+		}
+
+		public KsmString ReadableStorage(double amount, double capacity)
+		{
+			KsmFormatReadableStorage.Append(sb, amount, capacity);
+			return this;
+		}
+
+		public KsmString ReadableAmountCompact(double amount, string unit = null)
+		{
+			KsmFormatReadableAmountCompact.Append(sb, amount, unit);
+			return this;
+		}
+
+		public KsmString ReadableScience(double amount)
+		{
+			KsmFormatReadableScience.Append(sb, amount);
+			return this;
+		}
+
+		public KsmString ReadableDataSize(double size)
+		{
+			KsmFormatReadableDataSize.Append(sb, size);
+			return this;
+		}
+
+		public KsmString ReadableDataSizeCompared(double size, double capacity)
+		{
+			KsmFormatReadableDataSizeCompared.Append(sb, size, capacity);
+			return this;
+		}
+
+		public KsmString ReadableDataRate(double rate)
+		{
+			KsmFormatReadableDataRate.Append(sb, rate);
+			return this;
+		}
+
+		public KsmString ReadableDataRateCompared(double rate, double maxRate)
+		{
+			KsmFormatReadableDataRateCompared.Append(sb, rate, maxRate);
+			return this;
+		}
+
 		#region Info
 
 		private const string KsmInfoPos1 = "<pos=";
 		private const string KsmInfoPos2 = "px><b>";
 		private const string KsmInfoSpecifics = ": <b>";
-		private const string KsmInfoEnd = "</b>\n";
+		private const string KsmInfoEnd = "</b>";
 
 		/// <summary> Format to "label <b>value</b>\n" with the value position at valuePos or "label: <b>value</b>\n" if valuePos is negative</summary>
-		public KsmString Info(string label, string value, int valuePos = -1)
+		public KsmString Info(string label, string value, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1300,6 +1477,8 @@ namespace KERBALISM
 			}
 
 			sb.Append(KsmInfoEnd);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
@@ -1310,7 +1489,7 @@ namespace KERBALISM
 		private const string ksmInfoPosEnd = "px>";
 
 		/// <summary> Format to "label value\n" with the value position at valuePos or "label: value\n" if valuePos is negative, using KsmFormat formatters around the value</summary>
-		public KsmString Info(string label, string value, KF f1, int valuePos = -1)
+		public KsmString Info(string label, string value, KF f1, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1328,12 +1507,13 @@ namespace KERBALISM
 			f1.OpeningTag(sb);
 			sb.Append(value);
 			f1.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label value\n" with the value position at valuePos or "label: value\n" if valuePos is negative, using KsmFormat formatters around the value</summary>
-		public KsmString Info(string label, string value, KF f1, KF f2, int valuePos = -1)
+		public KsmString Info(string label, string value, KF f1, KF f2, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1353,12 +1533,13 @@ namespace KERBALISM
 			sb.Append(value);
 			f1.ClosingTag(sb);
 			f2.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label value\n" with the value position at valuePos or "label: value\n" if valuePos is negative, using KsmFormat formatters around the value</summary>
-		public KsmString Info(string label, string value, KF f1, KF f2, KF f3, int valuePos = -1)
+		public KsmString Info(string label, string value, KF f1, KF f2, KF f3, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1380,12 +1561,13 @@ namespace KERBALISM
 			f1.ClosingTag(sb);
 			f2.ClosingTag(sb);
 			f3.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label value\n" with the value position at valuePos or "label: value\n" if valuePos is negative, using KsmFormat formatters around the value</summary>
-		public KsmString Info(string label, string value, KF f1, KF f2, KF f3, KF f4, int valuePos = -1)
+		public KsmString Info(string label, string value, KF f1, KF f2, KF f3, KF f4, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1409,12 +1591,13 @@ namespace KERBALISM
 			f2.ClosingTag(sb);
 			f3.ClosingTag(sb);
 			f4.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label [KF formatters] \n" with the formatters position at valuePos or "label: [KF formatters]\n" if valuePos is negative</summary>
-		public KsmString Info(string label, KF f1, int valuePos = -1)
+		public KsmString Info(string label, KF f1, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1431,12 +1614,13 @@ namespace KERBALISM
 
 			f1.OpeningTag(sb);
 			f1.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label [KF formatters] \n" with the formatters position at valuePos or "label: [KF formatters]\n" if valuePos is negative</summary>
-		public KsmString Info(string label, KF f1, KF f2, int valuePos = -1)
+		public KsmString Info(string label, KF f1, KF f2, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1455,12 +1639,13 @@ namespace KERBALISM
 			f1.OpeningTag(sb);
 			f1.ClosingTag(sb);
 			f2.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label [KF formatters] \n" with the formatters position at valuePos or "label: [KF formatters]\n" if valuePos is negative</summary>
-		public KsmString Info(string label, KF f1, KF f2, KF f3, int valuePos = -1)
+		public KsmString Info(string label, KF f1, KF f2, KF f3, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1481,12 +1666,13 @@ namespace KERBALISM
 			f1.ClosingTag(sb);
 			f2.ClosingTag(sb);
 			f3.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		/// <summary> Format to "label [KF formatters] \n" with the formatters position at valuePos or "label: [KF formatters]\n" if valuePos is negative</summary>
-		public KsmString Info(string label, KF f1, KF f2, KF f3, KF f4, int valuePos = -1)
+		public KsmString Info(string label, KF f1, KF f2, KF f3, KF f4, int valuePos = -1, bool endLine = true)
 		{
 			sb.Append(label);
 
@@ -1509,10 +1695,185 @@ namespace KERBALISM
 			f2.ClosingTag(sb);
 			f3.ClosingTag(sb);
 			f4.ClosingTag(sb);
-			sb.Append(lineBreak);
+			if (endLine)
+				sb.Append(lineBreak);
 			return this;
 		}
 
 		#endregion
+
+		private const string alignLeft = "<align=left>";
+		private const string alignRight = "<align=right>";
+		private const string overlappingNewLine = "<line-height=0.00001>\n";
+		private const string resetLineHeight = "<line-height=1>";
+
+		/// <summary> Format to "label value" with a left-aligned label and right-aligned value. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, string value)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+			sb.Append(value);
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label value" with a left-aligned label and right-aligned value. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, string value, KF f1)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f1.OpeningTag(sb);
+			sb.Append(value);
+			f1.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label value" with a left-aligned label and right-aligned value. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, string value, KF f1, KF f2)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			sb.Append(value);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label value" with a left-aligned label and right-aligned value. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, string value, KF f1, KF f2, KF f3)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f3.OpeningTag(sb);
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			sb.Append(value);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+			f3.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label value" with a left-aligned label and right-aligned value. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, string value, KF f1, KF f2, KF f3, KF f4)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f4.OpeningTag(sb);
+			f3.OpeningTag(sb);
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			sb.Append(value);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+			f3.ClosingTag(sb);
+			f4.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label [KF formatters]" with a left-aligned label and right-aligned formatters. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, KF f1)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f1.OpeningTag(sb);
+			f1.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label [KF formatters]" with a left-aligned label and right-aligned formatters. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, KF f1, KF f2)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label [KF formatters]" with a left-aligned label and right-aligned formatters. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, KF f1, KF f2, KF f3)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f3.OpeningTag(sb);
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+			f3.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
+
+		/// <summary> Format to "label [KF formatters]" with a left-aligned label and right-aligned formatters. The text component must have its lineSpacing set to 0</summary>
+		public KsmString InfoRight(string label, KF f1, KF f2, KF f3, KF f4)
+		{
+			sb.Append(alignLeft);
+			sb.Append(label);
+			sb.Append(overlappingNewLine);
+			sb.Append(alignRight);
+
+			f4.OpeningTag(sb);
+			f3.OpeningTag(sb);
+			f2.OpeningTag(sb);
+			f1.OpeningTag(sb);
+			f1.ClosingTag(sb);
+			f2.ClosingTag(sb);
+			f3.ClosingTag(sb);
+			f4.ClosingTag(sb);
+
+			sb.Append(resetLineHeight);
+
+			return this;
+		}
 	}
 }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace KERBALISM
 {
-	public class KerbalEVAHandler : TypedModuleHandler<KerbalEVA>
+	public class KerbalEVAHandler : TypedModuleHandler<KerbalEVA>, ICommonRecipeExecutedCallback
 	{
 		public override ActivationContext Activation => ActivationContext.Loaded;
 
@@ -32,7 +32,7 @@ namespace KERBALISM
 					}
 				}
 
-				headLampRecipe = new Recipe("Head lamp", RecipeCategory.Light, OnRecipeExecuted);
+				headLampRecipe = new Recipe("Head lamp", RecipeCategory.Light);
 				headLampRecipe.AddInput(VesselResHandler.ElectricChargeId, Settings.HeadLampsECCost);
 			}
 
@@ -44,7 +44,7 @@ namespace KERBALISM
 		{
 			if (headLampRecipe != null && loadedModule.lampOn)
 			{
-				headLampRecipe.RequestExecution(VesselData.ResHandler);
+				headLampRecipe.RequestExecution(VesselData.ResHandler, this);
 			}
 
 			if (isDead && loadedModule.vessel.isActiveVessel)
@@ -61,7 +61,8 @@ namespace KERBALISM
 
 		}
 
-		public void OnRecipeExecuted(double elapsedSec)
+		bool IRecipeExecutedCallback.IsCallbackRegistered { get; set; }
+		void ICommonRecipeExecutedCallback.OnRecipesExecuted(double elapsedSec)
 		{
 			headLampLight.intensity = (float)headLampRecipe.ExecutedFactor;
 			bool enableFlare = headLampRecipe.ExecutedFactor > 0.5;

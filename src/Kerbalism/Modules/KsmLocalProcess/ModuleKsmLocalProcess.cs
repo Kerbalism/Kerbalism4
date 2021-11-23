@@ -1,11 +1,16 @@
+using MultipleModuleInPartAPI;
 using UnityEngine;
 
 namespace KERBALISM
 {
 	public class ModuleKsmLocalProcess :
 		KsmPartModule<ModuleKsmLocalProcess, LocalProcessHandler, LocalProcessDefinition>,
-		IModuleInfo
+		IModuleInfo, IMultipleModuleInPart
 	{
+		[KSPField(isPersistant = true)]
+		public string modulePartConfigId = string.Empty;
+		public string ModulePartConfigId => modulePartConfigId;
+
 		[KSPField]
 		[UI_Toggle(scene = UI_Scene.All, affectSymCounterparts = UI_Scene.None)]
 		public bool running;

@@ -251,6 +251,12 @@ namespace KERBALISM
 			return value;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static double ClampToPositive(double value)
+		{
+			return value < 0.0 ? 0.0 : value;
+		}
+
 		///<summary>blend between two values</summary>
 		public static float Mix(float a, float b, float k)
 		{
@@ -283,6 +289,16 @@ namespace KERBALISM
 		{
 			long doubleAsLong = *(long*)(&value);
 			return doubleAsLong <= 0L;
+		}
+
+		/// <summary> returns the smallest possible higher value. Only works with non-NaN, non-Infinity, non-zero positive values</summary>
+		// More complete implementation : https://github.com/dotnet/runtime/blob/af4efb1936b407ca5f4576e81484cf5687b79a26/src/libraries/System.Private.CoreLib/src/System/Math.cs#L210-L258
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe double NextHigherPositiveDouble(double value)
+		{
+			long doubleAsLong = *(long*)(&value);
+			doubleAsLong++;
+			return *(double*)(&doubleAsLong);
 		}
 
 		#endregion
@@ -2872,12 +2888,12 @@ namespace KERBALISM
 
 			prefab = null;
 			int protoIndexInType = 0;
-			ProtoPartModuleSnapshot module = protoPart.modules[protoModuleIndex];
+			ProtoPartModuleSnapshot protoModule = protoPart.modules[protoModuleIndex];
 			foreach (ProtoPartModuleSnapshot otherppms in protoPart.modules)
 			{
-				if (otherppms.moduleName == module.moduleName)
+				if (otherppms.moduleName == protoModule.moduleName)
 				{
-					if (otherppms == module)
+					if (otherppms == protoModule)
 						break;
 
 					protoIndexInType++;
@@ -2885,9 +2901,23 @@ namespace KERBALISM
 			}
 
 			int prefabIndexInType = 0;
+			string protoKsmModuleId = null;
 			for (int i = 0; i < protoPart.partPrefab.Modules.Count; i++)
 			{
-				if (protoPart.partPrefab.Modules[i].moduleName == module.moduleName)
+				if (protoPart.partPrefab.Modules[i] is IMultipleKsmModule ksmModule)
+				{
+					if (protoKsmModuleId == null )
+						protoKsmModuleId = protoModule.moduleValues.GetValue(ksmModule.ConfigValueIdName);
+
+					if (!string.IsNullOrEmpty(protoKsmModuleId) && ksmModule.KsmModuleId == protoKsmModuleId)
+					{
+						prefab = protoPart.partPrefab.Modules[i];
+						protoModuleIndex = i;
+						break;
+					}
+				}
+
+				if (protoPart.partPrefab.Modules[i].moduleName == protoModule.moduleName)
 				{
 					if (prefabIndexInType == protoIndexInType)
 					{
@@ -2902,13 +2932,16 @@ namespace KERBALISM
 
 			if (prefab == null)
 			{
-				Log($"PartModule prefab not found for {module.moduleName} on {protoPart.partPrefab.partName}, has the part configuration changed ?", Lib.LogLevel.Warning);
+				Log($"PartModule prefab not found for {protoModule.moduleName} on {protoPart.partPrefab.partName}, has the part configuration changed ?", Lib.LogLevel.Warning);
 				return false;
 			}
 
 			return true;
 		}
 
+		// note : we don't check KsmPartModule ids here for performance reasons.
+		// This mean that a config change where the only modification is a KsmPartModule derivative being replaced
+		// by another of the same type won't be detected. The likeliness of that happening seems extremely low.
 		private static bool ArePrefabModulesInSync(Part partPrefab, List<ProtoPartModuleSnapshot> protoPartModules)
 		{
 			if (partPrefab.Modules.Count != protoPartModules.Count)
@@ -3210,7 +3243,7 @@ namespace KERBALISM
 			// our own science system
 			else
 			{
-				//foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
+				//foreach (var drive in DriveHandler.GetAllDrives(v.GetVesselData(), true))
 				//	if (drive.files.Count > 0) return true;
 				return false;
 			}
@@ -3258,7 +3291,7 @@ namespace KERBALISM
 			else
 			{
 				// select a file at random and remove it
-				//foreach (var drive in DriveHandler.GetDrives(v.GetVesselData(), true))
+				//foreach (var drive in DriveHandler.GetAllDrives(v.GetVesselData(), true))
 				//{
 				//	if (drive.files.Count > 0) //< it should always be the case
 				//	{

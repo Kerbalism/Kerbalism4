@@ -240,7 +240,7 @@ namespace KERBALISM
 		// get next sample to analyze, return null if there isn't a sample
 		private static SubjectData NextSample(Vessel v)
 		{
-			foreach (var drive in DriveHandler.GetDrives(v, true))
+			foreach (var drive in DriveHandler.GetAllDrives(v, true))
 			{
 				// for each sample
 				foreach (Sample sample in drive.samples.Values)
@@ -259,7 +259,7 @@ namespace KERBALISM
 		{
 			Sample sample = null;
 			DriveHandler sampleDrive = null;
-			foreach (var d in DriveHandler.GetDrives(v, true))
+			foreach (var d in DriveHandler.GetAllDrives(v, true))
 			{
 				if (d.samples.ContainsKey(subject) && d.samples[subject].analyze)
 				{

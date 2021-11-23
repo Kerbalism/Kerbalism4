@@ -91,7 +91,7 @@ namespace KERBALISM
 
 			CFGValue.ParseStatic(typeof(Settings), node);
 
-			DepressuriationDefaultDurationValue = Lib.ConfigDuration(node, "DepressuriationDefaultDuration", false, "5m");
+			DepressuriationDefaultDuration = Lib.ConfigDuration(node, "DepressuriationDefaultDuration", false, "5m");
 
 			// radiation configs are in rad/h, convert to rad/s
 			StormRadiation /= 3600f;
@@ -184,8 +184,6 @@ namespace KERBALISM
 		[CFGValue] public static string HabitatBreathableResource = "Oxygen";
 		/// <summary> per second, per kerbal production of the breathable resource. Should match the consumption defined in the breathing rule. Set it to 0 to disable it entirely.</summary>
 		[CFGValue] public static double HabitatBreathableResourceRate = 0.00172379825;
-		/// <summary>duration / m3 of habitat volume</summary>
-		[CFGValue] public static double DepressuriationDefaultDuration = 60.0 * 60.0 * 5.0;
 
 		/// <summary>
 		/// below that threshold, the vessel will be considered under non-survivable pressure and kerbals will put their helmets.
@@ -195,7 +193,7 @@ namespace KERBALISM
 		[CFGValue] public static double PressureThreshold = 0.3;
 
 		/// <summary>seconds / m3 of habitat volume</summary>
-		public static double DepressuriationDefaultDurationValue;
+		public static double DepressuriationDefaultDuration;
 		/// <summary>resource used to manage habitat pressure</summary>
 		public static int HabitatAtmoResourceId;
 		/// <summary>resource used to manage habitat CO2 level (poisoning)</summary>

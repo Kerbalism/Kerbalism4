@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.Text;
 using UnityEngine;
+using static KERBALISM.KsmFormatReadableDataSize;
 
 namespace KERBALISM
 {
@@ -228,7 +229,12 @@ namespace KERBALISM
 		protected static KsmStringObjectPool<KsmFormatReadableMass> factoryKsmFormatReadableMass = new KsmStringObjectPool<KsmFormatReadableMass>();
 		protected static KsmStringObjectPool<KsmFormatReadableStorage> factoryKsmFormatReadableStorage = new KsmStringObjectPool<KsmFormatReadableStorage>();
 		protected static KsmStringObjectPool<KsmFormatReadableAmountCompact> factoryKsmFormatReadableAmountCompact = new KsmStringObjectPool<KsmFormatReadableAmountCompact>();
-
+		protected static KsmStringObjectPool<KsmFormatReadableScience> factoryKsmFormatReadableScience = new KsmStringObjectPool<KsmFormatReadableScience>();
+		protected static KsmStringObjectPool<KsmFormatReadableDataSize> factoryKsmFormatReadableDataSize = new KsmStringObjectPool<KsmFormatReadableDataSize>();
+		protected static KsmStringObjectPool<KsmFormatReadableDataSizeCompared> factoryKsmFormatReadableDataSizeCompared = new KsmStringObjectPool<KsmFormatReadableDataSizeCompared>();
+		protected static KsmStringObjectPool<KsmFormatReadableDataRate> factoryKsmFormatReadableDataRate = new KsmStringObjectPool<KsmFormatReadableDataRate>();
+		protected static KsmStringObjectPool<KsmFormatReadableDataRateCompared> factoryKsmFormatReadableDataRateCompared = new KsmStringObjectPool<KsmFormatReadableDataRateCompared>();
+		
 		/// <summary> Pretty-print a per second rate </summary>
 		public static KsmFormatReadableRate ReadableRate(double rate, bool showSign = true, string unit = "")
 		{
@@ -377,6 +383,50 @@ namespace KERBALISM
 			return formatter;
 		}
 
+		/// <summary> Pretty-print a science point amount in the science color and with the science symbol </summary>
+		public static KsmFormatReadableScience ReadableScience(double amount)
+		{
+			KsmFormatReadableScience formatter = factoryKsmFormatReadableScience.Get();
+			formatter.amount = amount;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print a data size in MB</summary>
+		public static KsmFormatReadableDataSize ReadableDataSize(double size)
+		{
+			KsmFormatReadableDataSize formatter = factoryKsmFormatReadableDataSize.Get();
+			formatter.size = size;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print a data size / data capacity in MB</summary>
+		public static KsmFormatReadableDataSizeCompared ReadableDataSizeCompared(double size, double capacity)
+		{
+			KsmFormatReadableDataSizeCompared formatter = factoryKsmFormatReadableDataSizeCompared.Get();
+			formatter.size = size;
+			formatter.capacity = capacity;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print a data rate in MB/s</summary>
+		public static KsmFormatReadableDataRate ReadableDataRate(double rate)
+		{
+			KsmFormatReadableDataRate formatter = factoryKsmFormatReadableDataRate.Get();
+			formatter.rate = rate;
+			return formatter;
+		}
+
+		/// <summary> Pretty-print a data rate vs max rate in MB/s</summary>
+		public static KsmFormatReadableDataRateCompared ReadableDataRateCompared(double rate, double maxRate)
+		{
+			KsmFormatReadableDataRateCompared formatter = factoryKsmFormatReadableDataRateCompared.Get();
+			formatter.rate = rate;
+			formatter.maxRate = maxRate;
+			return formatter;
+		}
+
+
+		
 		#endregion
 	}
 
@@ -623,8 +673,8 @@ namespace KERBALISM
 
 	public class KsmFormatPosition : KF
 	{
-		private const string closingTagBegin = "<pos=";
-		private const string closingTagEnd = "px>";
+		public const string closingTagBegin = "<pos=";
+		public const string closingTagEnd = "px>";
 
 		public int position;
 
@@ -718,59 +768,59 @@ namespace KERBALISM
 				return;
 			}
 
-			void BuildString(string timeUnit)
-			{
-				string format;
-
-				if (rate > 100.0)
-					format = "F0";
-				else if (rate > 10.0)
-					format = "F1";
-				else if (rate > 1.0)
-					format = "F2";
-				else
-					format = "F3";
-
-				sb.Append(rate.ToString(format));
-
-				if (!string.IsNullOrEmpty(unit))
-				{
-					sb.Append(WhiteSpace);
-					sb.Append(unit);
-				}
-
-				sb.Append(timeUnit);
-			}
-
 			if (rate >= 0.01)
 			{
-				BuildString(Local.Generic_perSecond);
+				BuildString(sb, rate, unit, Local.Generic_perSecond);
 				return;
 			}
 
 			rate *= 60.0; // per-minute
 			if (rate >= 0.01)
 			{
-				BuildString(Local.Generic_perMinute);
+				BuildString(sb, rate, unit, Local.Generic_perMinute);
 				return;
 			}
 
 			rate *= 60.0; // per-hour
 			if (rate >= 0.01)
 			{
-				BuildString(Local.Generic_perHour);
+				BuildString(sb, rate, unit, Local.Generic_perHour);
 				return;
 			}
 
 			rate *= Lib.HoursInDayExact; // per-day
 			if (rate >= 0.01)
 			{
-				BuildString(Local.Generic_perDay);
+				BuildString(sb, rate, unit, Local.Generic_perDay);
 				return;
 			}
 
 			rate *= Lib.DaysInYearExact; // per year
-			BuildString(Local.Generic_perYear);
+			BuildString(sb, rate, unit, Local.Generic_perYear);
+		}
+
+		private static void BuildString(StringBuilder sb, double rate, string unit, string timeUnit)
+		{
+			string format;
+
+			if (rate > 100.0)
+				format = "F0";
+			else if (rate > 10.0)
+				format = "F1";
+			else if (rate > 1.0)
+				format = "F2";
+			else
+				format = "F3";
+
+			sb.Append(rate.ToString(format));
+
+			if (!string.IsNullOrEmpty(unit))
+			{
+				sb.Append(WhiteSpace);
+				sb.Append(unit);
+			}
+
+			sb.Append(timeUnit);
 		}
 	}
 
@@ -1423,6 +1473,190 @@ namespace KERBALISM
 			{
 				sb.Append(unit);
 			}
+		}
+	}
+
+	public class KsmFormatReadableScience : KF
+	{
+		public const string InlineSpriteScience = "<sprite=\"CurrencySpriteAsset\" name=\"Science\" color=#6DCFF6>";
+
+		public double amount;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, amount);
+			factoryKsmFormatReadableScience.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double amount)
+		{
+			sb.Format(amount.ToString("F1"), KolorScience);
+			sb.Append(WhiteSpace);
+			sb.Format(InlineSpriteScience, Bold);
+		}
+	}
+
+	public class KsmFormatReadableDataSize : KF
+	{
+		// Note : config / code base unit for data rate / size is in megabyte (1000^2 bytes)
+		// For UI purposes we use the decimal units (B/kB/MB...), not the binary (1024^2 bytes) units
+		public const double bitsPerMB = 1000.0 * 1000.0 * 8.0;
+
+		public const double BPerMB = 1000.0 * 1000.0;
+		public const double kBPerMB = 1000.0;
+		public const double GBPerMB = 1.0 / 1000.0;
+		public const double TBPerMB = 1.0 / (1000.0 * 1000.0);
+
+		public const double MBPerBTenth = 1.0 / (1000.0 * 1000.0 * 10.0);
+		public const double MBPerkB = 1.0 / 1000.0;
+		public const double MBPerGB = 1000.0;
+		public const double MBPerTB = 1000.0 * 1000.0;
+
+		public double size;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, size);
+			factoryKsmFormatReadableDataSize.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double size)
+		{
+			if (size < MBPerBTenth)  // min size is 0.1 byte
+			{
+				sb.Append("0.0 B");
+				return;
+			}
+
+			if (size < MBPerkB)
+			{
+				sb.Append((size * BPerMB).ToString("0.0 B"));
+				return;
+			}
+
+			if (size < 1.0)
+			{
+				sb.Append((size * kBPerMB).ToString("0.00 kB"));
+				return;
+			}
+
+			if (size < MBPerGB)
+			{
+				sb.Append(size.ToString("0.00 MB"));
+				return;
+			}
+
+			if (size < MBPerTB)
+			{
+				sb.Append((size * GBPerMB).ToString("0.00 GB"));
+				return;
+			}
+
+			sb.Append((size * TBPerMB).ToString("0.00 TB"));
+			return;
+		}
+	}
+
+	public class KsmFormatReadableDataSizeCompared : KF
+	{
+		public double size;
+		public double capacity;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, size, capacity);
+			factoryKsmFormatReadableDataSizeCompared.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double size, double capacity)
+		{
+			if (capacity < MBPerBTenth)  // min size is 0.1 byte
+			{
+				sb.Append("0.0/0.0 B");
+				return;
+			}
+
+			if (capacity < MBPerkB)
+			{
+				sb.Append((size * BPerMB).ToString("0.0"));
+				sb.Append("/");
+				sb.Append((capacity * BPerMB).ToString("0.0 B"));
+				return;
+			}
+
+			if (capacity < 1.0)
+			{
+				sb.Append((size * kBPerMB).ToString("0.00"));
+				sb.Append("/");
+				sb.Append((capacity * kBPerMB).ToString("0.00 kB"));
+				return;
+			}
+
+			if (capacity < MBPerGB)
+			{
+				sb.Append(size.ToString("0.00"));
+				sb.Append("/");
+				sb.Append(capacity.ToString("0.00 MB"));
+				return;
+			}
+
+			if (capacity < MBPerTB)
+			{
+				sb.Append((size * GBPerMB).ToString("0.00"));
+				sb.Append("/");
+				sb.Append((capacity * GBPerMB).ToString("0.00 GB"));
+				return;
+			}
+
+			sb.Append((size * TBPerMB).ToString("0.00"));
+			sb.Append("/");
+			sb.Append((capacity * TBPerMB).ToString("0.00 TB"));
+			return;
+		}
+	}
+
+	public class KsmFormatReadableDataRate : KF
+	{
+		public double rate;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, rate);
+			factoryKsmFormatReadableDataRate.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double rate)
+		{
+			KsmFormatReadableDataSize.Append(sb, rate);
+			sb.Append("/s");
+		}
+	}
+
+	public class KsmFormatReadableDataRateCompared : KF
+	{
+		public double rate;
+		public double maxRate;
+
+		public override void OpeningTag(StringBuilder sb) { }
+
+		public override void ClosingTag(StringBuilder sb)
+		{
+			Append(sb, rate, maxRate);
+			factoryKsmFormatReadableDataRateCompared.Return(this);
+		}
+
+		public static void Append(StringBuilder sb, double rate, double maxRate)
+		{
+			KsmFormatReadableDataSizeCompared.Append(sb, rate, maxRate);
+			sb.Append("/s");
 		}
 	}
 

@@ -25,8 +25,15 @@ namespace KERBALISM
 		/// <summary> UI friendly name of the experiment </summary>
 		public string Description { get; private set; }
 
-		/// <summary> mass of a full sample </summary>
+		/// <summary> mass of a full sample (in tons) </summary>
 		public double SampleMass { get; private set; }
+
+		/// <summary> volume of a full sample (in liters) </summary>
+		public double SampleVolume { get; private set; }
+
+		public bool SampleCollecting { get; private set; }
+
+		public Dictionary<AvailablePart, SampleStorageDefinition> sampleStorageParts = new Dictionary<AvailablePart, SampleStorageDefinition>();
 
 		public BodyConditions ExpBodyConditions { get; private set; }
 
@@ -35,7 +42,11 @@ namespace KERBALISM
 
 		public bool IsSample { get; private set; }
 
+		/// <summary> mass per data size of the sample (in tons) </summary>
 		public double MassPerMB { get; private set; }
+
+		/// <summary> volume per data size of the sample (in liters) </summary>
+		public double VolumePerMB { get; private set; }
 
 		public double DataScale => stockDef.dataScale;
 
@@ -162,12 +173,22 @@ namespace KERBALISM
 			includedExperimentsId = kerbalismExperimentNode.GetValues("IncludeExperiment");
 
 			UnlockResourceSurvey = Lib.ConfigValue(kerbalismExperimentNode, "UnlockResourceSurvey", false);
+
 			SampleMass = Lib.ConfigValue(kerbalismExperimentNode, "SampleMass", 0.0);
+			SampleVolume = Lib.ConfigValue(kerbalismExperimentNode, "SampleVolume", 0.0);
+			SampleCollecting = Lib.ConfigValue(kerbalismExperimentNode, "SampleCollecting", false);
+
 			IsSample = SampleMass > 0.0;
 			if (IsSample)
+			{
 				MassPerMB = SampleMass / DataSize;
+				VolumePerMB = SampleVolume / DataSize;
+			}
 			else
+			{
 				MassPerMB = 0.0;
+				VolumePerMB = 0.0;
+			}
 
 			// Patch stock science def restrictions as BodyAllowed/BodyNotAllowed restrictions
 			if (!(kerbalismExperimentNode.HasValue("BodyAllowed") || kerbalismExperimentNode.HasValue("BodyNotAllowed")))

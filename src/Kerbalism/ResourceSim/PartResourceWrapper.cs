@@ -3,6 +3,20 @@ using System.Reflection;
 
 namespace KERBALISM
 {
+	public class CargoPartResourceWrapper : PartResourceWrapper
+	{
+		public StoredPartData storedPartData;
+
+		public CargoPartResourceWrapper(PartData part, StoredPartData storedPartData, ProtoPartResourceSnapshot cargoResource)
+		{
+			wrapper = new ProtoPartResourceWrapper(cargoResource);
+			this.storedPartData = storedPartData;
+			resId = wrapper.ResId;
+			AddToResHandler(part);
+		}
+	}
+
+
 	/// <summary> Wrapper for manipulating the stock PartResource / ProtoPartResourceSnapshot objects without having to use separate code </summary>
 	public class PartResourceWrapper
 	{
@@ -10,6 +24,9 @@ namespace KERBALISM
 
 		public int resId;
 		public virtual string ResName => wrapper.ResName;
+		public virtual string ResTitle => wrapper.ResTitle;
+		public virtual string ResAbbr => wrapper.ResAbbr;
+		public virtual PartResourceDefinition Definition => wrapper.Definition;
 		public virtual double Amount { get => wrapper.Amount; set => wrapper.Amount = value; }
 		public virtual double Capacity { get => wrapper.Capacity; set => wrapper.Capacity = value; }
 		public virtual double Level => wrapper.Level;
@@ -59,6 +76,9 @@ namespace KERBALISM
 		protected abstract class PartResourceWrapperBase
 		{
 			public abstract string ResName { get; }
+			public abstract string ResTitle { get; }
+			public abstract string ResAbbr { get; }
+			public abstract PartResourceDefinition Definition { get; }
 			public abstract int ResId { get; }
 			public abstract double Amount { get; set; }
 			public abstract double Capacity { get; set; }
@@ -78,6 +98,9 @@ namespace KERBALISM
 			}
 
 			public override string ResName => partResource.resourceName;
+			public override string ResTitle => partResource.info.displayName;
+			public override string ResAbbr => partResource.info.abbreviation;
+			public override PartResourceDefinition Definition => partResource.info;
 			public override int ResId => partResource.info.id;
 			public override double Amount { get => partResource.amount; set => partResource.amount = value; }
 			public override double Capacity { get => partResource.maxAmount; set => partResource.maxAmount = value; }
@@ -101,6 +124,9 @@ namespace KERBALISM
 			}
 
 			public override string ResName => partResource.resourceName;
+			public override string ResTitle => partResource.definition.displayName;
+			public override string ResAbbr => partResource.definition.abbreviation;
+			public override PartResourceDefinition Definition => partResource.definition;
 			public override int ResId => partResource.definition.id;
 			public override double Amount { get => partResource.amount; set => partResource.amount = value; }
 			public override double Capacity { get => partResource.maxAmount; set => partResource.maxAmount = value; }

@@ -82,6 +82,8 @@ namespace KERBALISM
 		/// </summary>
 		private double secSinceLastEval;
 
+		public double currentElapsedTime;
+
 		/// <summary>
 		/// Resource handler for this vessel. <br/>
 		/// This can be null, or not properly initialized while VesselData.IsSimulated is false. <br/>
@@ -104,12 +106,6 @@ namespace KERBALISM
 		/// Prefer using the Parts property unless you are doing something that must be flight/editor agnostic.
 		/// </summary>
 		public PartDataCollectionVessel VesselParts { get; private set; }
-
-		/// <summary>
-        /// List of files being transmitted, or empty if nothing is being transmitted <br/>
-        /// Note that the transmit rates stored in the File objects can be unreliable, do not use it apart from UI purposes
-        /// </summary>
-        public List<DriveFile> filesTransmitted;
 
 		private VesselLogic.VesselRadiation vesselRadiation = new VesselLogic.VesselRadiation();
 
@@ -361,15 +357,15 @@ namespace KERBALISM
 
 			if (Vessel.loaded)
 			{
-				if (!partsAreTransferred)
+				if (partsAreTransferred)
 				{
-					// will instantiate new PartDatas/ModuleHandlers, for which we will need a FirstSetup()/Start()
-					VesselParts = new PartDataCollectionVessel(this, Vessel); 
+					// we must NOT call FirstSetup()/Start() for those parts
+					VesselParts = new PartDataCollectionVessel(this, partDatas);
 				}
 				else
 				{
-					// we must NOT call FirstSetup()/Start() for those parts
-					VesselParts = new PartDataCollectionVessel(this, partDatas); 
+					// will instantiate new PartDatas/ModuleHandlers, for which we will need a FirstSetup()/Start()
+					VesselParts = new PartDataCollectionVessel(this, Vessel);
 				}
 			}
 			else
@@ -379,7 +375,7 @@ namespace KERBALISM
 					Lib.LogStack($"Transfering parts to an unloaded vessel is unsupported ! (Vessel : {vessel.protoVessel.vesselName})", Lib.LogLevel.Error);
 				}
 
-				// vessels can be created unloaded, asteroids for example
+				// vessels can be created unloaded, asteroids or rescue for example
 				// will instantiate new PartDatas/ModuleHandlers, for which we will need a FirstSetup()/Start()
 				VesselParts = new PartDataCollectionVessel(this, Vessel.protoVessel, null); 
 			}
@@ -515,7 +511,6 @@ namespace KERBALISM
 		private void SetInstantiateDefaults(ProtoVessel protoVessel)
 		{
 			simVessel = new SimVessel();
-			filesTransmitted = new List<DriveFile>();
 			VesselSituations = new VesselSituations(this);
 			connection = new ConnectionInfo();
 			CommHandler = CommHandler.GetHandler(this, isSerenityGroundController);
@@ -614,7 +609,7 @@ namespace KERBALISM
 		/// - Calling OnStart() for every part and module handler
 		/// - Initializing any other VesselData component
 		/// </summary>
-		public void Start(bool partsAreTransferred = false)
+		public void Start(bool doPartsSetupAndStart = false)
 		{
 			Lib.LogDebug($"Starting vessel {this} (loaded={LoadedOrEditor})");
 
@@ -625,7 +620,7 @@ namespace KERBALISM
 			// update crew state
 			CrewUpdate();
 
-			if (!partsAreTransferred)
+			if (!doPartsSetupAndStart)
 			{
 				// call every module FirstSetup(), if needed.
 				// SetupDone will be false :
@@ -642,10 +637,7 @@ namespace KERBALISM
 				// - Everything else will be in an undetermined state, notably : resource sim, comms, radiation, science...
 				foreach (PartData part in Parts)
 				{
-					foreach (ModuleHandler handler in part.modules)
-					{
-						handler.FirstSetup();
-					}
+					part.FirstSetup();
 				}
 
 				// From now on, we assume that nobody will be altering part resources. Synchronize the resource sim state.
@@ -752,6 +744,8 @@ namespace KERBALISM
 
 		private void Update(double elapsedSec)
 		{
+			currentElapsedTime = elapsedSec;
+
 			vesselComms.Update(elapsedSec);
 
 			Habitat.ResetBeforeModulesUpdate(this);
@@ -773,7 +767,7 @@ namespace KERBALISM
 					}
 					catch (Exception e)
 					{
-						Lib.Log($"Module {module.GetType()} thrown a {e.GetType()} on vessel \"{VesselName}\", part \"{pd.Name}\":\n{e.Message}", Lib.LogLevel.Error);
+						Lib.Log($"Module {module.GetType()} thrown a {e.GetType()} on vessel \"{VesselName}\", part \"{pd.Name}\":\n{e}", Lib.LogLevel.Error);
 					}
 				}
 			}

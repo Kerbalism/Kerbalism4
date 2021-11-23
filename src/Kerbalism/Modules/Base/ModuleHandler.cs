@@ -1,10 +1,14 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using HarmonyLib;
+using KERBALISM.ModuleUI;
 using Steamworks;
 using UnityEngine;
 
@@ -25,6 +29,8 @@ namespace KERBALISM
 
 	public abstract class ModuleHandler
 	{
+		public const string NODENAME_KSMMODULE = "KSM_MODULE";
+
 		#region Static : type library
 
 		[Flags]
@@ -45,6 +51,7 @@ namespace KERBALISM
 			public readonly ActivationContext activation;
 
 			private readonly Func<ModuleHandler> activator;
+			private readonly List<Func<ModuleUIBase>> uiModuleActivators = new List<Func<ModuleUIBase>>();
 
 			public ModuleHandler Instantiate()
 			{
@@ -53,7 +60,6 @@ namespace KERBALISM
 				return handler;
 			}
 			
-
 			public ModuleHandlerType(Type type)
 			{
 				ConstructorInfo ctor = type.GetConstructor(Type.EmptyTypes);
@@ -69,6 +75,59 @@ namespace KERBALISM
 				isActiveCargo = dummyInstance is IActiveStoredHandler;
 				activation = dummyInstance.Activation;
 				isKsmModule = dummyInstance.GetType().IsSubclassOf(typeof(KsmModuleHandler));
+
+				Type currentType = type;
+				while (currentType != null && currentType != typeof(ModuleHandler))
+				{
+					foreach (Type nestedType in currentType.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic))
+					{
+						if (!nestedType.IsAbstract && typeof(ModuleUIBase).IsAssignableFrom(nestedType))
+						{
+							Func<ModuleUIBase> uiactivator;
+							try
+							{
+								Type typeToInstantiate;
+								if (nestedType.ContainsGenericParameters)
+								{
+									typeToInstantiate = nestedType.MakeGenericType(currentType.GenericTypeArguments);
+								}
+								else
+								{
+									typeToInstantiate = nestedType;
+								}
+
+								ConstructorInfo uiCtor = typeToInstantiate.GetConstructor(Type.EmptyTypes);
+								NewExpression uiexp = Expression.New(uiCtor);
+								LambdaExpression uilambda = Expression.Lambda(typeof(Func<ModuleUIBase>), uiexp);
+								uiactivator = (Func<ModuleUIBase>)uilambda.Compile();
+								uiModuleActivators.Add(uiactivator);
+							}
+							catch (Exception e)
+							{
+								Lib.Log($"Can't create activator for {nestedType.Name} for module {type.Name}\n{e}", Lib.LogLevel.Error);
+							}
+						}
+					}
+
+					currentType = currentType.BaseType;
+				}
+
+
+			}
+
+			public List<ModuleUIBase> GetUIModules(ModuleHandler handler)
+			{
+				List<ModuleUIBase> list = new List<ModuleUIBase>(uiModuleActivators.Count);
+				foreach (Func<ModuleUIBase> uiModuleActivator in uiModuleActivators)
+				{
+					ModuleUIBase moduleUiBase = uiModuleActivator();
+					moduleUiBase.SetHandler(handler);
+					list.Add(moduleUiBase);
+				}
+
+				list.Sort((x, y) => x.Position.CompareTo(y.Position));
+
+				return list;
 			}
 
 			public override string ToString() => handlerTypeName;
@@ -126,10 +185,45 @@ namespace KERBALISM
 
 		#endregion
 
-		#region Static : loaded modules dictionaries
+		#region Static : modules dictionaries
 
 		public static Dictionary<int, ModuleHandler> loadedHandlersByModuleInstanceId = new Dictionary<int, ModuleHandler>();
 		public static Dictionary<ProtoPartModuleSnapshot, ModuleHandler> protoHandlersByProtoModule = new Dictionary<ProtoPartModuleSnapshot, ModuleHandler>();
+
+		public static bool TryGetHandler(PartModule module, out ModuleHandler handler)
+		{
+			return loadedHandlersByModuleInstanceId.TryGetValue(module.GetInstanceID(), out handler);
+		}
+
+		public static bool TryGetHandler<T>(PartModule module, out T handler) where T : ModuleHandler
+		{
+			if (loadedHandlersByModuleInstanceId.TryGetValue(module.GetInstanceID(), out ModuleHandler handlerBase) && handlerBase is T)
+			{
+				handler = (T) handlerBase;
+				return true;
+			}
+
+			handler = null;
+			return false;
+		}
+
+		public static bool TryGetHandler(ProtoPartModuleSnapshot protoModule, out ModuleHandler handler)
+		{
+			return protoHandlersByProtoModule.TryGetValue(protoModule, out handler);
+		}
+
+		public static bool TryGetHandler<T>(ProtoPartModuleSnapshot protoModule, out T handler) where T : ModuleHandler
+		{
+			if (protoHandlersByProtoModule.TryGetValue(protoModule, out ModuleHandler handlerBase) && handlerBase is T)
+			{
+				handler = (T)handlerBase;
+				return true;
+			}
+
+			handler = null;
+			return false;
+		}
+
 
 		#endregion
 
@@ -142,13 +236,6 @@ namespace KERBALISM
 			protoHandlersByProtoModule.Clear();
 		}
 
-		// this called by the Part.Start() prefix patch. It's a "catch all" method for all the situations were a
-		// part is instantiated in flight. It will ensure that the PartData and ModuleData exists and that the
-		// module <> data cross references are set. Common cases :
-		// - all loaded vessels after a scene load
-		// - previously unloaded vessel entering physics range
-		// - KIS created parts
-
 		// TODO : maybe instantiate a PartData for the prefab ?
 		public static void NewForPrefab(KsmPartModule prefabModule)
 		{
@@ -160,15 +247,15 @@ namespace KERBALISM
 			moduleHandler.OnPrefabCompilation();
 		}
 
-		public static ModuleHandler GetForLoadedModule(PartData partData, PartModule module, int moduleIndex, ActivationContext context)
+		internal static ModuleHandler SetupForLoadedModule(PartData partData, PartModule module, int moduleIndex, ActivationContext context)
 		{
 			if (!handlerTypesByModuleName.TryGetValue(module.moduleName, out ModuleHandlerType handlerType))
 				return null;
 
-			return GetForLoadedModule(handlerType, partData, module, moduleIndex, context);
+			return SetupForLoadedModule(handlerType, partData, module, moduleIndex, context);
 		}
 
-		public static ModuleHandler GetForLoadedModule(ModuleHandlerType handlerType, PartData partData, PartModule module, int moduleIndex, ActivationContext context)
+		internal static ModuleHandler SetupForLoadedModule(ModuleHandlerType handlerType, PartData partData, PartModule module, int moduleIndex, ActivationContext context)
 		{
 			if ((handlerType.activation & context) == 0)
 				return null;
@@ -196,15 +283,15 @@ namespace KERBALISM
 			return handler;
 		}
 
-		public static ModuleHandler GetForProtoModule(PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
+		internal static ModuleHandler SetupForProtoModule(PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
 		{
 			if (!handlerTypesByModuleName.TryGetValue(protoModule.moduleName, out ModuleHandlerType handlerType))
 				return null;
 
-			return GetForProtoModule(handlerType, partData, protoPart, protoModule, protoModuleIndex, context);
+			return SetupForProtoModule(handlerType, partData, protoPart, protoModule, protoModuleIndex, context);
 		}
 
-		public static ModuleHandler GetForProtoModule(ModuleHandlerType handlerType, PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
+		internal static ModuleHandler SetupForProtoModule(ModuleHandlerType handlerType, PartData partData, ProtoPartSnapshot protoPart, ProtoPartModuleSnapshot protoModule, int protoModuleIndex, ActivationContext context)
 		{
 			if ((handlerType.activation & context) == 0)
 				return null;
@@ -274,7 +361,7 @@ namespace KERBALISM
 		/// Note that the loaded state can change at any time, so in case you're doing loaded-dependant initialization code,
 		/// you will need to override the 
 		/// </summary>
-		public bool IsLoaded => partData.IsLoaded;
+		public bool IsLoaded => partData?.IsLoaded ?? true;
 
 		public VesselDataBase VesselData => partData?.vesselData;
 
@@ -462,7 +549,85 @@ namespace KERBALISM
 
 		public virtual Texture2D ModuleIcon => null;
 
-		public List<ModuleAction> Actions { get; private set; } = new List<ModuleAction>(2);
+		protected virtual ModuleUIGroup CreateUIGroup()
+		{
+			return null;
+		}
+
+		private ModuleUIGroup uiGroup;
+		public ModuleUIGroup UIGroup
+		{
+			get
+			{
+				if (uiGroup == null)
+				{
+					uiGroup = CreateUIGroup();
+				}
+
+				return uiGroup;
+			}
+		}
+
+		private List<ModuleUIBase> uiElements;
+		public List<ModuleUIBase> UIElements
+		{
+			get
+			{
+				if (uiElements == null)
+					uiElements = handlerType.GetUIModules(this);
+
+				return uiElements;
+			}
+		}
+
+		/// <summary>
+		/// Add the module ModuleUI elements to the part basefield list (and PAW).
+		/// Called when a active cargo module is stored.
+		/// </summary>
+		internal void AddModuleUIToPart(Part part)
+		{
+			if (part.PartActionWindow == null)
+				return;
+
+			foreach (ModuleUIBase moduleUiBase in UIElements)
+			{
+				moduleUiBase.CreatePAWItem(part);
+			}
+
+			part.PartActionWindow.displayDirty = true;
+		}
+
+		/// <summary>
+		/// Remove the ModuleUI elements from the part basefield list and PAW.
+		/// Called when a active cargo module is unstored.
+		/// </summary>
+		internal void RemoveModuleUIFromPart(Part part)
+		{
+			if (part.PartActionWindow == null || uiElements == null || uiElements.Count == 0)
+				return;
+
+			FieldInfo partFieldsInfo = AccessTools.Field(typeof(BaseFieldList), "_fields");
+			List<BaseField> partFields = (List<BaseField>)partFieldsInfo.GetValue(part.Fields);
+
+			if (partFields == null)
+				return;
+
+			foreach (ModuleUIBase moduleUiBase in uiElements)
+			{
+				// Remove the base field from the part internal list. KSP does it for adjusters, but doesn't have
+				// a useable public method for it.
+				partFields.Remove(moduleUiBase.pawField);
+				// Directly remove the field from the PAW UI. The "clean" way would be to trigger
+				// a PAW update (setting it dirty), but this somehow cause a reset of the "held cargo part"
+				// state, causing weird issues. Removing the controls ensure the PAW is visually updated,
+				// and its internal state will be cleaned up when KSP feels like it. Seems to work without issues.
+				part.PartActionWindow.RemoveFieldControl(moduleUiBase.pawField, part, null);
+			}
+
+			// TODO : this will cause a bit of flickering if a group is shared by another module.
+			if (uiGroup != null)
+				part.PartActionWindow.RemoveGroup(uiGroup.name);
+		}
 
 		#endregion
 	}

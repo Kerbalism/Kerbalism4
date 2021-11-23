@@ -63,32 +63,24 @@ namespace KERBALISM.Events
 			{
 				double filesSize = 0.0;
 				double fileCapacity = 0.0;
-				double samplesSize = 0.0;
-				double samplesCapacity = 0.0;
-				int samplesCount = 0;
-				int samplesCountCapacity = 0;
 
 				if (instance.vessel.TryGetVesselData(out VesselData evaVessel))
 				{
-					foreach (DriveHandler drive in DriveHandler.GetDrives(evaVessel))
+					foreach (DriveHandler drive in DriveHandler.GetAllDrives(evaVessel))
 					{
-						filesSize += drive.FilesSize;
-						samplesSize += drive.SamplesSize;
-						samplesCount += drive.Samples.Count;
+						filesSize += drive.filesSize;
 					}
 				}
 
 				if (targetPart.vessel.TryGetVesselData(out VesselData boardedVessel))
 				{
-					foreach (DriveHandler drive in DriveHandler.GetDrives(boardedVessel))
+					foreach (DriveHandler drive in DriveHandler.GetAllDrives(boardedVessel))
 					{
-						fileCapacity += drive.AvailableFileSize();
-						samplesCapacity += drive.AvailableSampleSize(false);
-						samplesCountCapacity += drive.AvailableSampleCount();
+						fileCapacity += drive.AvailableSize();
 					}
 				}
 
-				if (filesSize > fileCapacity || samplesSize > samplesCapacity || samplesCount > samplesCountCapacity)
+				if (filesSize > fileCapacity)
 				{
 					DialogGUIButton cancel = new DialogGUIButton("#autoLOC_116009", delegate { }); // autoLOC_116009 : cancel
 					Callback proceedCallback = delegate { ignoreNextBoardAttemptDriveCheck = true; instance.BoardPart(targetPart); }; // ignore this check on the method next call
@@ -98,7 +90,6 @@ namespace KERBALISM.Events
 						string.Format("The vessel {0} doesn't have enough space to store all the experiments carried by {1}", targetPart.vessel.vesselName, instance.vessel.vesselName),
 						"\n\n",
 						"Files on EVA", " : ", Lib.HumanReadableDataSize(filesSize), " - ", "Storage capacity", " : ", Lib.HumanReadableDataSize(fileCapacity), "\n",
-						"Samples on EVA", " : ", Lib.HumanReadableSampleSize(samplesSize), " - ", "Storage capacity", " : ", Lib.HumanReadableSampleSize(samplesCapacity), "\n\n",
 						"If you proceed, some experiment results will be lost");
 
 					PopupDialog.SpawnPopupDialog(
