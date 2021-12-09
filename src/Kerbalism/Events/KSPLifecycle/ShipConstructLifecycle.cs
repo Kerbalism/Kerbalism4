@@ -18,16 +18,16 @@ namespace KERBALISM.Events
 		// fix for B9PS disabled modules being re-enabled when the part is placed in the editor
 		public void OnEditorPartEvent(ConstructionEventType data0, Part data1)
 		{
-			if (data0 == ConstructionEventType.PartAttached)
-			{
-				foreach (PartModule module in data1.Modules)
-				{
-					if (module is KsmPartModule ksmModule && !ksmModule.switchLastModuleEnabled && ksmModule.enabled)
-					{
-						ksmModule.enabled = false;
-					}
-				}
-			}
+			//if (data0 == ConstructionEventType.PartAttached)
+			//{
+			//	foreach (PartModule module in data1.Modules)
+			//	{
+			//		if (module is KsmPartModule ksmModule && !ksmModule.switchLastModuleEnabled && ksmModule.enabled)
+			//		{
+			//			ksmModule.enabled = false;
+			//		}
+			//	}
+			//}
 		}
 	}
 

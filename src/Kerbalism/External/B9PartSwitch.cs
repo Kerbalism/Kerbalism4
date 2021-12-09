@@ -80,73 +80,7 @@ namespace KERBALISM
 						moduleModifierFindModuleMethod = moduleModifierInfoType.GetMethod("FindModule", BindingFlags.Instance | BindingFlags.NonPublic, null, findModuleArgs, null);
 					}
 
-					Type moduleDataHandlerBasic = a.assembly.GetType("B9PartSwitch.PartSwitch.PartModifiers.ModuleDataHandlerBasic");
-
-					var activate = moduleDataHandlerBasic.GetMethod("Activate", BindingFlags.Instance | BindingFlags.NonPublic);
-					var ActivatePostfixPatch = typeof(B9PartSwitch).GetMethod(nameof(ActivatePostfix), BindingFlags.Static | BindingFlags.NonPublic);
-					Loader.HarmonyInstance.Patch(activate, null, new HarmonyMethod(ActivatePostfixPatch));
-
 					break;
-				}
-			}
-		}
-
-		// General note :
-		// This piece of code capture B9PS module switching events, and abstract what it does in order to consolidate the two separate B9PS calls:
-		// - Deactivate() the current subtype and revert the module config to the prefab config
-		// - Activate() the new subtype and apply its config to the module
-		// This allow to :
-		// - Avoid useless deactivation/activation cycles and reconfiguration cycles, especially when instantiating existing (persisted) modules
-		// - Identify the exact nature of the switch event so the handler can handle them accordingly
-		// To do this, we rely on the assumption that our module only support two specific switch actions :
-		// - switching the KsmModuleDefinition through B9PS changing the KsmPartModule.definition KSPField
-		// - switching the module enabled/disabled state through B9PS changing the KsmPartModule.switchModuleEnabled KSPField
-		// To detect changes, we rely on :
-		// - the actual Definition reference staying untouched, allowing us to compare its name to the KsmPartModule.definition KSPField
-		// - a KsmPartModule.switchLastModuleEnabled field that we maintain synchronized with KsmPartModule.switchModuleEnabled
-
-		// Note on module enabling/disabling :
-		// B9PS handle its "moduleActive" config field through a separate internal "ModuleDeactivator" modifier object, which is derived
-		// from the same "PartModifierBase" class as the "ModuleDataHandlerBasic" we are patching here. Handling the Activate / Deactivate methods
-		// of both objects with patches would be quite a mess, as we would need to move the patching done here further up the B9PS call stack to catch
-		// both objects Activate/Deactivate calls.
-		// Moreover, we don't want to rely on the default module enabling/disabling behaviour of "ModuleDeactivator".
-		// Instead, we implement a "switchModuleEnabled" KSPField on the KsmPartModule base class, which can then be changed in the B9PS subtype DATA{}
-		// node. This allow to catch both cases (configuration change and enabled state change) in the same atomic operation, and to handle it as we want.
-		private static void ActivatePostfix(PartModule ___module)
-		{
-			if (___module is KsmPartModule ksmPartModule && ksmPartModule.ModuleHandler is IB9Switchable switchableHandler)
-			{
-				KsmModuleDefinition lastDefinition;
-				if (switchableHandler.Definition.DefinitionName != ksmPartModule.definition)
-				{
-					lastDefinition = switchableHandler.Definition;
-					switchableHandler.Definition = KsmModuleDefinitionLibrary.GetDefinition(ksmPartModule);
-				}
-				else
-				{
-					lastDefinition = null;
-				}
-
-				if (ksmPartModule.switchLastModuleEnabled == true && ksmPartModule.switchModuleEnabled == false)
-				{
-					ksmPartModule.switchLastModuleEnabled = false;
-					ksmPartModule.enabled = ksmPartModule.isEnabled = false;
-					ksmPartModule.ModuleHandler.handlerIsEnabled = false;
-					switchableHandler.OnSwitchDisable();
-				}
-				else if (ksmPartModule.switchLastModuleEnabled == false && ksmPartModule.switchModuleEnabled == true)
-				{
-					ksmPartModule.switchLastModuleEnabled = true;
-					ksmPartModule.enabled = ksmPartModule.isEnabled = true;
-					ksmPartModule.ModuleHandler.handlerIsEnabled = true;
-					ksmPartModule.ModuleHandler.Start();
-					switchableHandler.OnSwitchEnable();
-				}
-
-				if (lastDefinition != null)
-				{
-					switchableHandler.OnSwitchChangeDefinition(lastDefinition);
 				}
 			}
 		}
@@ -214,7 +148,7 @@ namespace KERBALISM
 
 			public void SetSubTypeDescriptionDetail(string descriptionDetail)
 			{
-				descriptionDetail = descriptionDetail.TrimStart().TrimEnd(); // stop B9PS complaining about trailing "\n"
+				descriptionDetail = descriptionDetail.Trim(); // stop B9PS complaining about trailing "\n"
 				subtypeDescriptionDetailField.SetValue(instance, descriptionDetail);
 			}
 		}

@@ -5,12 +5,13 @@ namespace KERBALISM
 {
 	public class ProcessControllerDefinition : KsmModuleDefinition
 	{
-		[CFGValue] public string processName = string.Empty;
-		[CFGValue] public double capacity = 1.0;
-		[CFGValue] public string uiGroupName = null;         // internal name of the UI group
-		[CFGValue] public string uiGroupDisplayName = null;  // display name of the UI group
-		[CFGValue] public bool running = false; // will the process be running on part creation
-		[CFGValue] public string capacityModifier = string.Empty;
+		[CFGValue] public string processName = string.Empty;      // process name, mandatory
+		[CFGValue] public string controllerTitle = string.Empty;  // module display name, optional (the process title will be used if undefined)
+		[CFGValue] public double capacity = 1.0;                  // multipler for the process input/output rates
+		[CFGValue] public string uiGroupName = null;              // name of the UI group
+		[CFGValue] public string uiGroupDisplayName = null;       // display name of the UI group
+		[CFGValue] public bool running = false;                   // is the process running on part creation
+		[CFGValue] public string capacityModifier = string.Empty; // optional flee expression, must return a double (will be multiplied to the capacity)
 
 		public ProcessDefinition processDefinition;
 
@@ -25,6 +26,17 @@ namespace KERBALISM
 			return processDefinition?.GetInfo(capacity, true);
 		}
 
-		public override string ModuleTitle => processDefinition?.title ?? base.ModuleTitle;
+		public override string ModuleTitle
+		{
+			get
+			{
+				if (controllerTitle.Length == 0)
+				{
+					return processDefinition?.title ?? base.ModuleTitle;
+				}
+
+				return controllerTitle;
+			}
+		}
 	}
 }

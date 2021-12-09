@@ -12,28 +12,28 @@ namespace KERBALISM
 	/// </summary>
 	public interface IB9Switchable
 	{
-		/// <summary>
-		/// Will be called when KsmModuleHandler.Definition has been changed following a B9PS subtype switch<br/>*
-		/// Note that KsmModuleHandler.OnStart() is garanteed to always run before OnSwitchChangeDefinition()
-		/// </summary>
-		void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition);
+		///// <summary>
+		///// Will be called when KsmModuleHandler.Definition has been changed following a B9PS subtype switch<br/>*
+		///// Note that KsmModuleHandler.OnStart() is garanteed to always run before OnSwitchChangeDefinition()
+		///// </summary>
+		//void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition);
 
-		/// <summary>
-		/// Will be called if the module is re-enabled by B9PartSwitch. <br/>
-		/// You don't need to actually enable the KsmPartModule / ModuleHandler, this will already be done <br/>
-		/// Note that depending on the use case, this might be followed by a call to OnSwitchChangeDefinition()
-		/// Also note that this will be preceded by a ModuleHandler.OnStart() and then a KsmPartModule.KsmStart()
-		/// call if the handler was always disabled since its instantiation.
-		/// </summary>
-		void OnSwitchEnable();
+		///// <summary>
+		///// Will be called if the module is re-enabled by B9PartSwitch. <br/>
+		///// You don't need to actually enable the KsmPartModule / ModuleHandler, this will already be done <br/>
+		///// Note that depending on the use case, this might be followed by a call to OnSwitchChangeDefinition()
+		///// Also note that this will be preceded by a ModuleHandler.OnStart() and then a KsmPartModule.KsmStart()
+		///// call if the handler was always disabled since its instantiation.
+		///// </summary>
+		//void OnSwitchEnable();
 
-		/// <summary>
-		/// Will be called if the module is disabled by B9PartSwitch. <br/>
-		/// You don't need to actually disable the KsmPartModule / ModuleHandler, this will already be done.<br/>
-		/// This doesn't make sense from a functional POV, but we have to handle the possibility of a silly config so
-		/// this might be followed by a call to OnSwitchChangeDefinition()
-		/// </summary>
-		void OnSwitchDisable();
+		///// <summary>
+		///// Will be called if the module is disabled by B9PartSwitch. <br/>
+		///// You don't need to actually disable the KsmPartModule / ModuleHandler, this will already be done.<br/>
+		///// This doesn't make sense from a functional POV, but we have to handle the possibility of a silly config so
+		///// this might be followed by a call to OnSwitchChangeDefinition()
+		///// </summary>
+		//void OnSwitchDisable();
 
 		/// <summary>
 		/// Called once for every prefab, after part prefabs have been compiled and after the science DB initialization<br/>

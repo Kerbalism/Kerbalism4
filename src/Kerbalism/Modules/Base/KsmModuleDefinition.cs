@@ -317,6 +317,7 @@ namespace KERBALISM
 
 		public string parentDefinition;
 		[CFGValue] public virtual string ModuleTitle { get; private set; }
+		[CFGValue] public bool disableModule = false;
 
 		public void Init(ConfigNode config, string definitionId, string definitionName, string moduleType)
 		{

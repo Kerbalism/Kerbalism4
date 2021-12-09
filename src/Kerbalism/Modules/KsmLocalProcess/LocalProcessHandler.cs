@@ -1,12 +1,13 @@
 ﻿using Flee.PublicTypes;
 using System;
 using System.Collections.Generic;
+using KERBALISM.ModuleUI;
 
 namespace KERBALISM
 {
 	public class LocalProcessHandler :
 		KsmModuleHandler<ModuleKsmLocalProcess, LocalProcessHandler, LocalProcessDefinition>,
-		IB9Switchable
+		IB9Switchable, IActiveStoredHandler
 	{
 		private Recipe recipe;
 
@@ -26,9 +27,6 @@ namespace KERBALISM
 				if (value != isRunning)
 				{
 					isRunning = value;
-
-					if (IsLoaded)
-						loadedModule.running = value;
 
 					// refresh planner and VAB/SPH ui
 					if (Lib.IsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
@@ -180,42 +178,38 @@ namespace KERBALISM
 			}
 		}
 
-		public void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition)
-		{
-			isRunning = definition.running;
-
-			foreach (RecipeInputBase input in recipe.inputs)
-			{
-				if (input.vesselResource != null && input.vesselResource is VesselResourceAbstract abstractResource)
-				{
-					VesselData.ResHandler.RemoveAbstractResource(abstractResource.id);
-				}
-			}
-
-			recipe = null;
-			if (definition.recipe != null)
-			{
-				if (!SetupRecipe())
-				{
-					isRunning = false;
-				}
-				else
-				{
-					if (IsLoaded)
-					{
-						loadedModule.PAWSetup();
-					}
-				}
-			}
-		}
-
-		public void OnSwitchEnable() { }
-
-		public void OnSwitchDisable() { }
-
 		public string GetSubtypeDescription(KsmModuleDefinition subTypeDefinition, string techRequired)
 		{
 			return subTypeDefinition.ModuleDescription(modulePrefab);
+		}
+
+		public override void OnDefinitionChanging(DefinitionChangeEventType eventType, KsmModuleDefinition oldDefinition)
+		{
+			if (eventType != DefinitionChangeEventType.Disabling)
+			{
+				isRunning = definition.running;
+
+				foreach (RecipeInputBase input in recipe.inputs)
+				{
+					if (input.vesselResource != null && input.vesselResource is VesselResourceAbstract abstractResource)
+					{
+						VesselData.ResHandler.RemoveAbstractResource(abstractResource.id);
+					}
+				}
+
+				recipe = null;
+				if (definition.recipe != null)
+				{
+					if (!SetupRecipe())
+					{
+						isRunning = false;
+					}
+				}
+
+				uiGroup = CreateUIGroup();
+			}
+
+			ForceUIElementsPAWUpdate();
 		}
 
 		public override void OnLoad(ConfigNode node)
@@ -279,5 +273,59 @@ namespace KERBALISM
 		}
 
 		public override string ModuleTitle => definition.title;
+
+		public bool IsActiveCargo => true;
+		public StoredPartData StoredPart { get; set; }
+		public void OnCargoStored()
+		{
+			// throw new NotImplementedException();
+		}
+
+		public void OnCargoUnstored()
+		{
+			// throw new NotImplementedException();
+		}
+
+		protected override ModuleUIGroup CreateUIGroup()
+		{
+			if (definition.uiGroupName == null)
+				return null;
+
+			return new ModuleUIGroup(definition.uiGroupName, definition.uiGroupDisplayName);
+		}
+
+		private class RunningToggle : ModuleUIToggle<LocalProcessHandler>
+		{
+			public override bool State => handler.IsRunning;
+
+			public override string GetLabel()
+			{
+				KsmString ks = KsmString.Get;
+				if (handler.IsRunning)
+					ks.InfoRight(handler.definition.title, Local.Generic_ENABLED, KF.Bold, KF.KolorGreen);
+				else
+					ks.InfoRight(handler.definition.title, Local.Generic_DISABLED, KF.Bold, KF.KolorYellow);
+
+				return ks.GetStringAndRelease();
+			}
+
+			public override void OnToggle()
+			{
+				handler.IsRunning = !handler.IsRunning;
+			}
+
+			public override bool IsEnabled => handler.handlerIsEnabled && handler.definition.canToggle;
+		}
+
+		private class AbstractResourceInfo : ModuleUILabel<LocalProcessHandler>
+		{
+			public override string GetLabel()
+			{
+				VesselResourceAbstract res = handler.abstractResources[0];
+				return KsmString.Get.Info(res.Title, KF.ReadableStorage(res.Amount, res.Capacity), -1, false).GetStringAndRelease();
+			}
+
+			public override bool IsEnabled => handler.handlerIsEnabled && handler.abstractResources != null;
+		}
 	}
 }

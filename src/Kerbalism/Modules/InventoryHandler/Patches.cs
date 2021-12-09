@@ -69,10 +69,13 @@ namespace KERBALISM
 			if (!ModuleHandler.TryGetHandler(__instance, out ModuleInventoryPartHandler handler))
 				return;
 
+			// force start call
 			handler.started = false;
 			handler.Start();
+			// create stored parts
 			handler.ParseStockModule();
-			handler.ForceActiveHandlersSetupAndStart();
+			// install default parts
+			handler.InstallAllStoredParts();
 		}
 	}
 
@@ -82,7 +85,7 @@ namespace KERBALISM
 	{
 		static bool Prefix(UIPartActionInventorySlot __instance, ModuleInventoryPart ___moduleInventoryPart)
 		{
-			// the only matter in flight, avoid useless precessing early
+			// the only matter in flight, avoid useless processing early
 			if (Lib.IsEditor)
 				return true;
 

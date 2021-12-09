@@ -45,7 +45,7 @@ namespace KERBALISM
 		private class DataProductionOptionButton : ModuleUIButton<FileExperimentHandler>
 		{
 			public override int Position => 30;
-			public override bool IsEnabled => !handler.definition.HideWhenInvalid || handler.Subject != null;
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.HideWhenInvalid || handler.Subject != null;
 
 			public override string GetLabel()
 			{

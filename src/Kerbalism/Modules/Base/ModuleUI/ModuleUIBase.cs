@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using HarmonyLib;
 using KERBALISM.Events;
+using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -50,7 +51,6 @@ namespace KERBALISM.ModuleUI
 		public virtual bool IsEnabled => true;
 		public virtual EnabledContext Context => EnabledContext.All;
 		public virtual bool HasTooltip => false;
-		public virtual BasePAWGroup PAWGroup => null;
 		public virtual string GetTooltip() => null;
 
 		public bool HasContext(EnabledContext context)
@@ -73,6 +73,17 @@ namespace KERBALISM.ModuleUI
 				pawField.group = handlerBase.UIGroup;
 
 			part.Fields.Add(pawField);
+		}
+
+		public void UpdatePAWItem()
+		{
+			if (pawField == null)
+				return;
+
+			pawField.guiActive = IsEnabled && HasContext(EnabledContext.Flight);
+			pawField.guiActiveEditor = IsEnabled && HasContext(EnabledContext.Editor);
+			if (handlerBase?.UIGroup != null)
+				pawField.group = handlerBase.UIGroup;
 		}
 
 		public abstract void SetHandler(ModuleHandler handler);

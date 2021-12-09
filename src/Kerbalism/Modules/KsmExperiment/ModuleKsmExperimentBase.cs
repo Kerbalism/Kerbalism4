@@ -14,16 +14,12 @@ namespace KERBALISM
 
 	public abstract class ModuleKsmExperimentBase<TModule, THandler, TDefinition, TScienceData> :
 		KsmPartModule<TModule, THandler, TDefinition>,
-		IModuleKsmExperiment, IMultipleDragCube, IMultipleModuleInPart
+		IModuleKsmExperiment, IMultipleDragCube
 		where TModule : ModuleKsmExperimentBase<TModule, THandler, TDefinition, TScienceData>
 		where THandler : ExperimentHandlerBase<TModule, THandler, TDefinition, TScienceData>
 		where TDefinition : ExperimentDefinition
 		where TScienceData : KsmScienceData
 	{
-		[KSPField(isPersistant = true)]
-		public string modulePartConfigId = string.Empty;
-		public string ModulePartConfigId => modulePartConfigId;
-
 		ExperimentDefinition IModuleKsmExperiment.Definition => Definition;
 		Part IModuleKsmExperiment.Part => part;
 

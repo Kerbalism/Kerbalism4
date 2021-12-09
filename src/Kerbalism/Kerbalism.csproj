@@ -152,7 +152,9 @@
     <Compile Include="Modules\Base\ModuleUI\Patches.cs" />
     <Compile Include="Modules\InventoryHandler\ActiveCargoPartsDB.cs" />
     <Compile Include="Modules\InventoryHandler\CargoResourcePAWItem.cs" />
+    <Compile Include="Modules\InventoryHandler\IActiveStoredHandler.cs" />
     <Compile Include="Modules\InventoryHandler\Patches.cs" />
+    <Compile Include="Modules\InventoryHandler\StoredPartData.cs" />
     <Compile Include="Modules\KsmExperiment\ExperimentHandlerUtils.cs" />
     <Compile Include="Modules\KsmExperiment\ModuleKsmFileExperiment.cs" />
     <Compile Include="Modules\KsmExperiment\ModuleKsmSampleExperiment.cs" />

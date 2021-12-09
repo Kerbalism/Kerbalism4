@@ -90,7 +90,63 @@
 		public override KsmModuleDefinition Definition
 		{
 			get => definition;
-			set => definition = (TDefinition)value;
+			set
+			{
+				if (definition != null && definition != value)
+				{
+					DefinitionChangeEventType type;
+					if (definition.disableModule && !value.disableModule)
+					{
+						type = DefinitionChangeEventType.Enabling;
+
+						if (loadedModule != null)
+							loadedModule.enabled = loadedModule.isEnabled = true;
+
+						handlerIsEnabled = true;
+					}
+					else if (!definition.disableModule && value.disableModule)
+					{
+						type = DefinitionChangeEventType.Disabling;
+
+						if (loadedModule != null)
+							loadedModule.enabled = loadedModule.isEnabled = false;
+
+						handlerIsEnabled = false;
+					}
+					else
+					{
+						type = DefinitionChangeEventType.Switching;
+					}
+
+					KsmModuleDefinition oldDefinition = definition;
+					definition = (TDefinition)value;
+
+					OnDefinitionChanging(type, oldDefinition);
+					return;
+				}
+
+				if (value.disableModule)
+				{
+					if (loadedModule != null)
+						loadedModule.enabled = loadedModule.isEnabled = false;
+
+					handlerIsEnabled = false;
+				}
+
+				definition = (TDefinition)value;
+			}
+		}
+
+		public enum DefinitionChangeEventType
+		{
+			Switching,
+			Enabling,
+			Disabling
+		}
+
+		public virtual void OnDefinitionChanging(DefinitionChangeEventType eventType, KsmModuleDefinition oldDefinition)
+		{
+
 		}
 
 		public override void FirstSetup()
@@ -147,10 +203,7 @@
 				OnStart();
 
 				if (!ReferenceEquals(loadedModule, null))
-				{
 					loadedModule.KsmStart();
-					//loadedModule.SetupActions();
-				}
 			}
 			else
 			{

@@ -554,7 +554,21 @@ namespace KERBALISM
 			return null;
 		}
 
-		private ModuleUIGroup uiGroup;
+		protected void ForceUIElementsPAWUpdate()
+		{
+			if (uiElements == null)
+				return;
+
+			foreach (ModuleUIBase moduleUiBase in uiElements)
+			{
+				moduleUiBase.UpdatePAWItem();
+			}
+
+			if (LoadedModuleBase?.part.PartActionWindow != null)
+				LoadedModuleBase.part.PartActionWindow.displayDirty = true;
+		}
+
+		protected ModuleUIGroup uiGroup;
 		public ModuleUIGroup UIGroup
 		{
 			get
@@ -568,7 +582,7 @@ namespace KERBALISM
 			}
 		}
 
-		private List<ModuleUIBase> uiElements;
+		protected List<ModuleUIBase> uiElements;
 		public List<ModuleUIBase> UIElements
 		{
 			get

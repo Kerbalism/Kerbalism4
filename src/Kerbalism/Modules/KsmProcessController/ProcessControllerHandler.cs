@@ -31,19 +31,15 @@ namespace KERBALISM
 			isRunning = definition.running;
 		}
 
-		public void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition)
-		{
-			//if (definition.processDefinition != null && IsLoaded)
-			//	loadedModule.PAWSetup();
-		}
-
-		public void OnSwitchEnable() { }
-
-		public void OnSwitchDisable() { }
-
 		public string GetSubtypeDescription(KsmModuleDefinition subTypeDefinition, string techRequired)
 		{
 			return subTypeDefinition.ModuleDescription(modulePrefab);
+		}
+
+		public override void OnDefinitionChanging(DefinitionChangeEventType eventType, KsmModuleDefinition oldDefinition)
+		{
+			uiGroup = CreateUIGroup();
+			ForceUIElementsPAWUpdate();
 		}
 
 		public override void OnLoad(ConfigNode node)
@@ -73,7 +69,7 @@ namespace KERBALISM
 			//throw new NotImplementedException();
 		}
 
-		public override string ModuleTitle => definition.processDefinition?.title ?? string.Empty;
+		public override string ModuleTitle => definition.ModuleTitle;
 
 		protected override ModuleUIGroup CreateUIGroup()
 		{
@@ -91,9 +87,9 @@ namespace KERBALISM
 			{
 				KsmString ks = KsmString.Get;
 				if (handler.isRunning)
-					ks.InfoRight(handler.definition.processDefinition.title, Local.Generic_ENABLED, KF.Bold, KF.KolorGreen);
+					ks.InfoRight(handler.definition.ModuleTitle, Local.Generic_ENABLED, KF.Bold, KF.KolorGreen);
 				else
-					ks.InfoRight(handler.definition.processDefinition.title, Local.Generic_DISABLED, KF.Bold, KF.KolorYellow);
+					ks.InfoRight(handler.definition.ModuleTitle, Local.Generic_DISABLED, KF.Bold, KF.KolorYellow);
 
 				return ks.GetStringAndRelease(); 
 			}
@@ -103,7 +99,7 @@ namespace KERBALISM
 				handler.IsRunning = !handler.IsRunning;
 			}
 
-			public override bool IsEnabled => handler.definition.processDefinition?.canToggle ?? false;
+			public override bool IsEnabled => handler.handlerIsEnabled && (handler.definition.processDefinition?.canToggle ?? false);
 		}
 	}
 }

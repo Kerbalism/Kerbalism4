@@ -8,7 +8,6 @@ namespace KERBALISM
 {
 	public class LocalProcessDefinition : KsmModuleDefinition
 	{
-		[CFGValue] public string processName;
 		[CFGValue] public string title = string.Empty;      // UI title
 		[CFGValue] public string desc = string.Empty;       // UI description (long text)
 		[CFGValue] public bool canToggle = true;    // can the process be toggled on/off
@@ -35,9 +34,6 @@ namespace KERBALISM
 
 		public override void OnLoad(ConfigNode definitionNode)
 		{
-			if (string.IsNullOrEmpty(title))
-				title = processName;
-
 			if (string.IsNullOrEmpty(categoryName))
 				categoryName = RecipeCategory.Others.name;
 
@@ -78,7 +74,7 @@ namespace KERBALISM
 		{
 			KsmString ks = KsmString.Get;
 
-			if (desc.Length > 0)
+			if (desc.Length != 0)
 			{
 				ks.Add(desc).Break();
 			}
@@ -89,15 +85,31 @@ namespace KERBALISM
 				ks.Info(title, KF.ReadableRate(output.rate * recipeModifier, false), KF.KolorPosRate, 80);
 			}
 
+			bool hasAbstractInputs = false;
 			foreach (RecipeInputDefinition input in recipe.inputs)
 			{
-				string title;
-				if (input is RecipeAbstractInputDefinition abstractInput)
-					title = abstractInput.title;
-				else
-					title = input.resourceDef.displayName.Length > 10 ? input.resourceDef.abbreviation : input.resourceDef.displayName;
+				if (input is RecipeAbstractInputDefinition)
+				{
+					hasAbstractInputs = true;
+					continue;
+				}
 
-				ks.Info(title, KF.ReadableRate(input.rate * recipeModifier, false), KF.KolorNegRate, 80);
+				string title = input.resourceDef.displayName.Length > 10 ? input.resourceDef.abbreviation : input.resourceDef.displayName;
+				ks.Info(title, KF.ReadableRate(-input.rate * recipeModifier, true), KF.KolorNegRate, 80);
+			}
+
+			if (hasAbstractInputs)
+			{
+				foreach (RecipeInputDefinition input in recipe.inputs)
+				{
+					if (input is RecipeAbstractInputDefinition abstractInput)
+					{
+						ks.Info(abstractInput.title, KF.ReadableAmountCompact(abstractInput.amount));
+						double rate = input.rate * recipeModifier;
+						double duration = abstractInput.amount / rate;
+						ks.Format(KF.ReadableRate(-rate, true), KF.KolorNegRate).Add(" (").ReadableDuration(duration).Add(")").Break();
+					}
+				}
 			}
 
 			return ks.GetStringAndRelease();
@@ -105,6 +117,8 @@ namespace KERBALISM
 
 		public override string ModuleTitle => title;
 
+		// Modifier expression optimization :
+		// Convert "LocalResource/VesselResource("resourceName")" calls into "LocalResource/VesselResource(resourceId)" calls.
 		private static void ParseExpressionResourceCall(ref string expression)
 		{
 			Regex regex = new Regex(@"(Local|Vessel)Resource\(""(.*?)""\)");

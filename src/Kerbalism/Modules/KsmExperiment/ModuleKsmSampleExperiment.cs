@@ -34,7 +34,7 @@ namespace KERBALISM
 		private class MaterialInfo : ModuleUILabel<SampleExperimentHandler>
 		{
 			public override int Position => -10;
-			public override bool IsEnabled => !handler.definition.ExpInfo.SampleCollecting && (!handler.definition.HideWhenInvalid || handler.Subject != null);
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.ExpInfo.SampleCollecting && (!handler.definition.HideWhenInvalid || handler.Subject != null);
 
 			public override string GetLabel()
 			{
@@ -60,7 +60,7 @@ namespace KERBALISM
 		private class SamplesInfo : ModuleUILabel<SampleExperimentHandler>
 		{
 			public override int Position => -5;
-			public override bool IsEnabled => !handler.definition.HideWhenInvalid || handler.Subject != null;
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.HideWhenInvalid || handler.Subject != null;
 			public override EnabledContext Context => EnabledContext.Flight;
 
 			public override string GetLabel()

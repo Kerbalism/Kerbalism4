@@ -217,13 +217,13 @@ namespace KERBALISM
 		private class SupplyEntry : KsmGuiHorizontalLayout
 		{
 			private static StringBuilder sb = new StringBuilder();
-			public VesselResourceKSP Resource { get; private set; }
+			public VesselResource Resource { get; private set; }
 			public bool IsSupply { get; private set; }
 			private int iconWidth = 0;
 			private readonly KsmGuiText textComponent;
 			private readonly KsmGuiImage resourceIcon;
 
-			public SupplyEntry(KsmGuiBase parent, VesselResourceKSP resource) : base(parent)
+			public SupplyEntry(KsmGuiBase parent, VesselResource resource) : base(parent)
 			{
 				this.Resource = resource;
 				SetLayoutElement(true, false, -1, -1, -1, 18);
@@ -613,19 +613,19 @@ namespace KERBALISM
 			bool changed = false;
 			foreach (VesselResource handlerResource in vd.ResHandler.Resources)
 			{
-				if (handlerResource is VesselResourceKSP resource && resource.Capacity > 0.0 && resource.Visible)
+				if (handlerResource.Capacity > 0.0 && handlerResource.Visible)
 				{
 					if (suppliesEntries.Count < resCount + 1)
 					{
 						changed = true;
-						SupplyEntry entry = new SupplyEntry(suppliesScrollView, resource);
+						SupplyEntry entry = new SupplyEntry(suppliesScrollView, handlerResource);
 						suppliesEntries.Add(entry);
 					}
-					else if (suppliesEntries[resCount].Resource.Name != resource.Name)
+					else if (suppliesEntries[resCount].Resource.Name != handlerResource.Name)
 					{
 						changed = true;
 						suppliesEntries[resCount].Destroy();
-						SupplyEntry entry = new SupplyEntry(suppliesScrollView, resource);
+						SupplyEntry entry = new SupplyEntry(suppliesScrollView, handlerResource);
 						suppliesEntries[resCount] = entry;
 					}
 

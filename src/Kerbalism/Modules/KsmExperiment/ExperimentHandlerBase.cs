@@ -163,35 +163,39 @@ namespace KERBALISM
 
 		#region IB9SWITCHABLE
 
-		public void OnSwitchChangeDefinition(KsmModuleDefinition previousDefinition)
-		{
-			if (definition.ExpInfo != null)
-			{
-				loadedModule.OnDefinitionChanged();
-			}
-		}
-
-		public void OnSwitchEnable() { }
-
-		public void OnSwitchDisable() { }
-
 		public string GetSubtypeDescription(KsmModuleDefinition subTypeDefinition, string techRequired)
 		{
 			return subTypeDefinition.ModuleDescription(modulePrefab);
 		}
 
+		public override void OnDefinitionChanging(DefinitionChangeEventType eventType, KsmModuleDefinition oldDefinition)
+		{
+			if (definition.ExpInfo != null)
+			{
+				uiGroup = CreateUIGroup();
+				if (loadedModule != null)
+					loadedModule.OnDefinitionChanged();
+			}
+
+			ForceUIElementsPAWUpdate();
+		}
+
 		#endregion
+
 
 
 		protected override ModuleUIGroup CreateUIGroup()
 		{
+			if (definition.ExpInfo == null)
+				return null;
+
 			return new ModuleUIGroup(definition.ExpInfo.ExperimentId, "Experiment" + ": " + definition.ExpInfo.Title);
 		}
 
 		private class SubjectLabel : ModuleUILabel<THandler>
 		{
 			public override int Position => 0;
-			public override bool IsEnabled => !handler.definition.HideWhenInvalid || handler.Subject != null;
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.HideWhenInvalid || handler.Subject != null;
 
 			public override EnabledContext Context => EnabledContext.Flight;
 
@@ -207,7 +211,7 @@ namespace KERBALISM
 		private class StateToggle : ModuleUIToggle<THandler>
 		{
 			public override int Position => 10;
-			public override bool IsEnabled => !handler.definition.HideWhenInvalid || handler.Subject != null;
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.HideWhenInvalid || handler.Subject != null;
 
 			public override bool State => handler.Status != ExpStatus.Stopped;
 
@@ -225,7 +229,7 @@ namespace KERBALISM
 		private class ShowPopupButton : ModuleUIButton<THandler>
 		{
 			public override int Position => 20;
-			public override bool IsEnabled => !handler.definition.HideWhenInvalid || handler.Subject != null;
+			public override bool IsEnabled => handler.definition.ExpInfo != null && !handler.definition.HideWhenInvalid || handler.Subject != null;
 
 			public override EnabledContext Context => EnabledContext.Flight;
 

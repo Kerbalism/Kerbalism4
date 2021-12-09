@@ -88,25 +88,22 @@ namespace KERBALISM
 					if (moduleModifier.DataNode == null || !(moduleModifier.PartModule is KsmPartModule switchedModule) || !(switchedModule.ModuleHandler is IB9Switchable switchedHandler))
 						continue;
 
-					bool switchModuleEnabled = true;
-					moduleModifier.DataNode.TryGetValue(nameof(KsmPartModule.switchModuleEnabled), ref switchModuleEnabled);
-
-					if (switchModuleEnabled)
+					KsmModuleDefinition switchedDefinition;
+					string definitionName = moduleModifier.DataNode.GetValue(nameof(KsmPartModule.definition));
+					if (!string.IsNullOrEmpty(definitionName))
 					{
-						KsmModuleDefinition switchedDefinition;
-						string definitionName = moduleModifier.DataNode.GetValue(nameof(KsmPartModule.definition));
-						if (!string.IsNullOrEmpty(definitionName))
-						{
-							string defaultDefinition = switchedModule.definition;
-							switchedModule.definition = definitionName;
-							switchedDefinition = KsmModuleDefinitionLibrary.GetDefinition(switchedModule);
-							switchedModule.definition = defaultDefinition;
-						}
-						else
-						{
-							switchedDefinition = KsmModuleDefinitionLibrary.GetDefinition(switchedModule);
-						}
+						string defaultDefinition = switchedModule.definition;
+						switchedModule.definition = definitionName;
+						switchedDefinition = KsmModuleDefinitionLibrary.GetDefinition(switchedModule);
+						switchedModule.definition = defaultDefinition;
+					}
+					else
+					{
+						switchedDefinition = KsmModuleDefinitionLibrary.GetDefinition(switchedModule);
+					}
 
+					if (!switchedDefinition.disableModule)
+					{
 						string description = switchedHandler.GetSubtypeDescription(switchedDefinition, subtype.TechRequired);
 
 						if (!string.IsNullOrEmpty(description))

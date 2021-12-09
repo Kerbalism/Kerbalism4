@@ -1,29 +1,25 @@
-﻿using System;
+﻿using MultipleModuleInPartAPI;
+using System;
 using System.Reflection;
 using UnityEngine;
 
 namespace KERBALISM
 {
-	public abstract class KsmPartModule : PartModule, IModuleInfo
+	public abstract class KsmPartModule : PartModule, IModuleInfo, IMultipleModuleInPart
 	{
 		public const string AvailablePartKsmModuleInfo = "KsmInfoIdx@";
 
 		/// <summary>
-		/// For B9PS module switching : allow changing the module configuration from the DATA{} node in a specific B9PS subtype
+		/// Module definition
 		/// </summary>
 		[KSPField] public string definition = KsmModuleDefinitionLibrary.DEFAULT_LOCAL_DEFINITION;
 
-		/// <summary>
-		/// For B9PS module switching : set it from the B9PS suybtype DATA{} node to enable/disable the module for that subtype.
-		/// This is a functional replacement for the vanilla "moduleActive" field of B9PS, which we don't support.
-		/// </summary>
-		[KSPField] public bool switchModuleEnabled = true;
-		public bool switchLastModuleEnabled = true;
 
-		/// <summary>
-		/// Doesn't have any functional purpose in code, this is for easily identifying target modules in B9PS IDENTIFIER{} nodes
-		/// </summary>
-		[KSPField] public string switchId = string.Empty;          // this is for identifying the module with B9PS
+		[KSPField(isPersistant = true)]
+		public string modulePartConfigId = string.Empty;
+		public string ModulePartConfigId => modulePartConfigId;
+
+		[KSPField] public bool showModuleInfo = true;
 
 		public abstract ModuleHandler ModuleHandler { get; set; }
 
@@ -46,7 +42,7 @@ namespace KERBALISM
 		public override string GetInfo()
 		{
 			// if we should have a part tooltip module info widget, only add a widget if the module isn't switched with B9PS
-			if (ModuleHandler.UIActivation.HasFlag(UIContext.EditorPartTooltip) && switchId.Length == 0)
+			if (ModuleHandler.UIActivation.HasFlag(UIContext.EditorPartTooltip) && showModuleInfo)
 			{
 				// if this is the prefab compilation
 				if (HighLogic.LoadedScene == GameScenes.LOADING)
