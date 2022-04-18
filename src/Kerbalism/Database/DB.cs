@@ -190,10 +190,37 @@ namespace KERBALISM
 		/// </summary>
 		public static string KeyToNodeName(this string key)
 		{
+			// we don't expect invalid characters to happen often, so checking first before building a new string should be faster most of the time
 			if (key.IndexOfAny(invalidNodeNameChars) == -1)
 				return key;
 
-			return key.Replace(' ', '\ue000').Replace('(', '\ue001').Replace(')', '\ue002').Replace("//", "\ue003");
+			char[] charArray = key.ToCharArray();
+
+			for (int i = 0; i < charArray.Length; i++)
+			{
+				char c = charArray[i];
+				
+				if (c == ' ')
+				{
+					charArray[i] = '\ue000';
+				}
+				else if (c == '(')
+				{
+					charArray[i] = '\ue001';
+				}
+				else if (c == ')')
+				{
+					charArray[i] = '\ue002';
+				}
+				else if (c == '/' && i + 1 < charArray.Length && charArray[i + 1] == '/')
+				{
+					charArray[i] = '\ue003';
+					charArray[i + 1] = '\ue003';
+					i++;
+				}
+			}
+
+			return new string(charArray);
 		}
 
 		/// <summary>
@@ -201,10 +228,35 @@ namespace KERBALISM
 		/// </summary>
 		public static string NodeNameToKey(this string key)
 		{
+			// we don't expect invalid characters to happen often, so checking first before building a new string should be faster most of the time
 			if (key.IndexOfAny(invalidNodeNameCharReplacements) == -1)
 				return key;
 
-			return key.Replace('\ue000', ' ').Replace('\ue001', '(').Replace('\ue002', ')').Replace("\ue003", "//");
+			char[] charArray = key.ToCharArray();
+			for (int i = 0; i < charArray.Length; i++)
+			{
+				char c = charArray[i];
+				if (c == '\ue000')
+				{
+					charArray[i] = ' ';
+				}
+				else if (c == '\ue001')
+				{
+					charArray[i] = '(';
+				}
+				else if (c == '\ue002')
+				{
+					charArray[i] = ')';
+				}
+				else if (c == '\ue003' && i + 1 < charArray.Length && charArray[i + 1] == '\ue003')
+				{
+					charArray[i] = '/';
+					charArray[i + 1] = '/';
+					i++;
+				}
+			}
+
+			return new string(charArray);
 		}
 
 		private static char[] invalidNodeNameChars = new[] { ' ', '(', ')', '/' };

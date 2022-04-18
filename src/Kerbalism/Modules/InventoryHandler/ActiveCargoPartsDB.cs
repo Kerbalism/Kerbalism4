@@ -20,6 +20,7 @@ namespace KERBALISM
 			if (!Lib.ConfigValue(node, "isActiveCargoPart", false))
 				return;
 
+			__instance.stackableQuantity = 0; // ensure active parts can never be stacked
 			ActiveCargoPartInfo info = ActiveCargoPartInfo.Parse(node);
 			ActiveCargoPartsDB.activeCargoParts[__instance.part] = info;
 		}

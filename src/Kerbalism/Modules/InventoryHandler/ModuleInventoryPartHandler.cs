@@ -204,7 +204,7 @@ namespace KERBALISM
 				return null;
 
 			StoredPartData storedPart = new StoredPartData(this, stockStoredPart, isInstalled, inventoryNode);
-			storedPart.volume = InventoryAPI.Utils.GetPartCargoVolume(protoPart);
+			storedPart.volume = InventoryAPI.Utility.GetPartCargoVolume(protoPart);
 
 			storedParts.Add(storedPart);
 			storedPartsBySlotIndex.Add(stockStoredPart.slotIndex, storedPart);

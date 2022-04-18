@@ -9,7 +9,7 @@ namespace KERBALISM
 {
 	public class ModuleKsmSampleStorage :
 		KsmPartModule<ModuleKsmSampleStorage, SampleStorageHandler, SampleStorageDefinition>,
-		IPartMassModifier, IVariablePackedVolumeModule, ICargoModuleCustomInfo
+		IPartMassModifier, IVariablePackedVolumeModule //, ICargoModuleCustomInfo
 	{
 		public float GetModuleMass(float defaultMass, ModifierStagingSituation sit)
 		{
@@ -21,9 +21,9 @@ namespace KERBALISM
 			return ModifierChangeWhen.CONSTANTLY;
 		}
 
-		public bool UseMultipleVolume => true;
+		bool IVariablePackedVolumeModule.InterfaceIsActive => true;
 
-		public float CurrentPackedVolume()
+		float IVariablePackedVolumeModule.CurrentPackedVolume(float configVolume, bool isVariantVolume)
 		{
 			if (moduleHandler == null)
 			{
@@ -38,59 +38,58 @@ namespace KERBALISM
 			return (float)moduleHandler.PartVolume;
 		}
 
-		public string CargoModuleInfo()
+		string IVariablePackedVolumeModule.CargoModuleInfo()
 		{
 			return null;
 		}
 
-		public bool OverwriteDefaultWidget => true;
 
-		private struct SampleInfo
-		{
-			public SubjectData subjectData;
-			public double size;
-			public string resultText;
+		//private struct SampleInfo
+		//{
+		//	public SubjectData subjectData;
+		//	public double size;
+		//	public string resultText;
 
-			public SampleInfo(SubjectData subjectData, double size, string resultText)
-			{
-				this.subjectData = subjectData;
-				this.size = size;
-				this.resultText = resultText;
-			}
-		}
+		//	public SampleInfo(SubjectData subjectData, double size, string resultText)
+		//	{
+		//		this.subjectData = subjectData;
+		//		this.size = size;
+		//		this.resultText = resultText;
+		//	}
+		//}
 
-		public IEnumerable<WidgetInfo> GetWidgets(StoredPart storedPart, ProtoPartModuleSnapshot protoModule)
-		{
-			if (!ModuleHandler.TryGetHandler(protoModule, out SampleStorageHandler handler))
-				return null;
+		//public IEnumerable<WidgetInfo> GetWidgets(StoredPart storedPart, ProtoPartModuleSnapshot protoModule)
+		//{
+		//	if (!ModuleHandler.TryGetHandler(protoModule, out SampleStorageHandler handler))
+		//		return null;
 
-			List<WidgetInfo> widgets = new List<WidgetInfo>(handler.samplesDict.Count + 1);
-			ExperimentInfo expInfo = handler.definition.experimentInfo;
+		//	List<WidgetInfo> widgets = new List<WidgetInfo>(handler.samplesDict.Count + 1);
+		//	ExperimentInfo expInfo = handler.definition.experimentInfo;
 
-			KsmString moduleInfo = KsmString.Get;
-			if (!expInfo.SampleCollecting)
-			{
-				moduleInfo.Info("Sample material", (handler.sampleMaterialSize / expInfo.DataSize).ToString("F2"));
-			}
+		//	KsmString moduleInfo = KsmString.Get;
+		//	if (!expInfo.SampleCollecting)
+		//	{
+		//		moduleInfo.Info("Sample material", (handler.sampleMaterialSize / expInfo.DataSize).ToString("F2"));
+		//	}
 
-			moduleInfo.Info("Total mass", KF.ReadableMass((handler.samplesSize + handler.sampleMaterialSize) * expInfo.MassPerMB));
+		//	moduleInfo.Info("Total mass", KF.ReadableMass((handler.samplesSize + handler.sampleMaterialSize) * expInfo.MassPerMB));
 
-			widgets.Add(new WidgetInfo(KsmString.Get.Add("Sample", ": ", expInfo.Title).GetStringAndRelease(), moduleInfo.GetStringAndRelease()));
+		//	widgets.Add(new WidgetInfo(KsmString.Get.Add("Sample", ": ", expInfo.Title).GetStringAndRelease(), moduleInfo.GetStringAndRelease()));
 
-			foreach (ScienceSample sample in handler.Samples)
-			{
-				KsmString info = KsmString.Get;
-				info.Info("Size", (sample.Size / expInfo.DataSize).ToString("F2"));
-				info.Info("Mass", KF.ReadableMass(sample.Size * expInfo.MassPerMB));
-				info.Info("Science value", KF.ReadableScience(sample.Size * sample.SubjectData.SciencePerMB));
-				if (!string.IsNullOrEmpty(sample.ResultText))
-					info.Add(sample.ResultText);
+		//	foreach (ScienceSample sample in handler.Samples)
+		//	{
+		//		KsmString info = KsmString.Get;
+		//		info.Info("Size", (sample.Size / expInfo.DataSize).ToString("F2"));
+		//		info.Info("Mass", KF.ReadableMass(sample.Size * expInfo.MassPerMB));
+		//		info.Info("Science value", KF.ReadableScience(sample.Size * sample.SubjectData.SciencePerMB));
+		//		if (!string.IsNullOrEmpty(sample.ResultText))
+		//			info.Add(sample.ResultText);
 
-				widgets.Add(new WidgetInfo(sample.SubjectData.FullTitle, info.GetStringAndRelease(), Kolor.Science));
-			}
+		//		widgets.Add(new WidgetInfo(sample.SubjectData.FullTitle, info.GetStringAndRelease(), Kolor.Science));
+		//	}
 
-			return widgets;
-		}
+		//	return widgets;
+		//}
 
 
 	}

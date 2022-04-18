@@ -42,7 +42,7 @@ namespace KERBALISM
 			DontDestroyOnLoad(KerbalismPrefabs);
 
 			// log version
-			Lib.Log("Version : " + Lib.KerbalismVersion + " - Build : " + Lib.KerbalismDevBuild);
+			Lib.Log("Version : " + Lib.KerbalismVersion);
 
 			if (LocalHelpers.GenerateEnglishLoc)
 				LocalHelpers.GenerateLoc();

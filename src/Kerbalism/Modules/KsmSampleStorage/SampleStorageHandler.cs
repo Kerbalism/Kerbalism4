@@ -24,7 +24,20 @@ namespace KERBALISM
 		public Dictionary<SubjectData, ScienceSample> samplesDict = new Dictionary<SubjectData, ScienceSample>();
 		public Dictionary<SubjectData, ScienceSample>.ValueCollection Samples => samplesDict.Values;
 
-		public double Mass => definition.experimentInfo.SampleCollecting ? samplesSize * definition.experimentInfo.MassPerMB : definition.SampleAmount * definition.experimentInfo.SampleMass;
+		public double Mass
+		{
+			get
+			{
+				if (definition.experimentInfo == null) // will happen on part prefab compilation
+					return 0.0;
+
+				if (definition.experimentInfo.SampleCollecting)
+					return samplesSize * definition.experimentInfo.MassPerMB;
+				else
+					return definition.SampleAmount * definition.experimentInfo.SampleMass;
+			}
+		}
+
 		public double PartVolume => definition.SampleAmount * definition.experimentInfo.SampleVolume;
 
 		public void OnLatePrefabInit(AvailablePart availablePart)

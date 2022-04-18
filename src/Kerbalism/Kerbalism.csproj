@@ -3,6 +3,7 @@
   <!-- /////////////////////////////////////////////////// -->
   <!-- /////////////// COMMON PROPERTIES ///////////////// -->
   <!-- /////////////////////////////////////////////////// -->
+  <Import Condition="Exists('$(SolutionDir)\UserDevProperties.props')" Project="$(SolutionDir)\UserDevProperties.props" />
   <PropertyGroup>
     <ProjectGuid>{7CF587A9-6E49-46E8-AB3F-87B80A6276DA}</ProjectGuid>
     <ProjectTypeGuids>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -12,114 +13,100 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <NoWin32Manifest>False</NoWin32Manifest>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
     <NoStdLib>False</NoStdLib>
     <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
-    <WarningLevel>4</WarningLevel>
     <SignAssembly>False</SignAssembly>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>KERBALISM</RootNamespace>
-    <AssemblyName>Kerbalism</AssemblyName>
+    <AssemblyName>Kerbalism4</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <Deterministic>true</Deterministic>
+    <PlatformTarget>x64</PlatformTarget>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(KSPInstallPath)\$(KSPExecutable)</StartProgram>
+    <StartWorkingDirectory>$(KSPInstallPath)</StartWorkingDirectory>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
   </PropertyGroup>
   <!-- /////////////////////////////////////////////////// -->
   <!-- //////////// DEBUG CONFIGURATION SETUP //////////// -->
   <!-- /////////////////////////////////////////////////// -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
-    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>portable</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <BaseDefineConstants>DEBUG;TRACE</BaseDefineConstants>
     <ErrorReport>prompt</ErrorReport>
-    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
-    <Prefer32Bit>false</Prefer32Bit>
-    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-    <NoWarn>IDE0018</NoWarn>
-    <DocumentationFile>
-    </DocumentationFile>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <!-- ///////////////////////////////////////////////////// -->
   <!-- //////////// RELEASE CONFIGURATION SETUP //////////// -->
   <!-- ///////////////////////////////////////////////////// -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
-    <WarningLevel>4</WarningLevel>
-    <DebugType>none</DebugType>
-    <Prefer32Bit>false</Prefer32Bit>
-    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-    <NoWarn>IDE0018</NoWarn>
+    <DebugType>portable</DebugType>
     <Optimize>true</Optimize>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OutputPath>bin\Release\</OutputPath>
+    <BaseDefineConstants>TRACE</BaseDefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <!-- /////////////////////////////////////////////////// -->
   <!-- ///////// BUILD SYSTEM AND USER OVERRIDES ///////// -->
   <!-- /////////////////////////////////////////////////// -->
-  <Import Condition="Exists('..\..\BuildSystem\UserConfigDevEnv.xml')" Project="..\..\BuildSystem\UserConfigDevEnv.xml" />
-  <Import Condition="Exists('..\..\BuildSystem\ProjectsCommonProperties.xml')" Project="..\..\BuildSystem\ProjectsCommonProperties.xml" />
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <!-- Note : this is overriden by the build engine, but in order to have the correct constants in the IDE, it has to be there too -->
-    <DefineConstants>TRACE;DEBUG;$(DebugDefineConstants);KSP$(KSPDevVersion)</DefineConstants>
-    <DebugType>$(DebugTypeOverride)</DebugType>
-    <DebugType Condition="'$(DebugTypeOverride)' == ''">none</DebugType>
-  </PropertyGroup>
   <PropertyGroup>
-    <TargetFrameworkVersion>$(FrameworkVersionOverride)</TargetFrameworkVersion>
-    <EffectiveKSPDllPath Condition="'$(Configuration)' == 'Debug'">$(KSPDevPath)\$(KSPDevDllsRelativePath)</EffectiveKSPDllPath>
-    <EffectiveKSPDllPath Condition="'$(Configuration)' == 'Release'">$(KSPReferenceDllsPathPR)</EffectiveKSPDllPath>
+    <ManagedPath>$(KSPInstallPath)\$(ManagedRelativePath)</ManagedPath>
+    <DefineConstants>$(BaseDefineConstants);$(AdditionalDefineConstants)</DefineConstants>
   </PropertyGroup>
   <!-- ///////////////////////////////////////////////////// -->
   <!-- //////////////////// REFERENCES ///////////////////// -->
   <!-- ///////////////////////////////////////////////////// -->
   <ItemGroup>
-    <!-- Nuget packages & other dependencies-->
-    <Reference Include="0Harmony, Version=2.0.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Lib.Harmony.2.0.4\lib\net45\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <!-- Nuget packages-->
     <Reference Include="Flee.Net45, Version=1.0.0.0, Culture=neutral, PublicKeyToken=951a102ce2413032, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Flee.1.2.2\lib\net45\Flee.Net45.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="..\..\packages\KSPBurst*\Plugins\*.dll">
-      <Name>KSPBurst (all provided dlls)</Name>
+    <!-- Dependencies-->
+    <Reference Include="..\..\dependencies\HarmonyKSP*\*.dll">
+      <Name>HarmonyKSP</Name>
       <Private>False</Private>
     </Reference>
-    <Reference Include="..\..\packages\InventoryAPI*\*.dll">
+    <Reference Include="..\..\dependencies\KSPBurst*\Plugins\*.dll">
+      <Name>KSPBurst</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="..\..\dependencies\BetterStockInventoryAPI*\*.dll">
       <Name>InventoryAPI</Name>
       <Private>False</Private>
     </Reference>
-    <Reference Include="..\..\packages\MultipleModuleInPartAPI*\*.dll">
+    <Reference Include="..\..\dependencies\MultipleModuleInPartAPI*\*.dll">
       <Name>MultipleModuleInPartAPI</Name>
       <Private>False</Private>
     </Reference>
-    <!-- System Dlls from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
-    <Reference Include="$(EffectiveKSPDllPath)\System.dll">
-      <Name>System</Name>
-      <HintPath>$(EffectiveKSPDllPath)\System.dll</HintPath>
+    <!-- System Dlls from the KSP dev install -->
+    <Reference Include="$(ManagedPath)\System.dll">
+      <Name>System (KSP/Mono)</Name>
       <Private>False</Private>
     </Reference>
-    <Reference Include="$(EffectiveKSPDllPath)\System.Core.dll">
-      <Name>System.Core</Name>
-      <HintPath>$(EffectiveKSPDllPath)\System.Core.dll</HintPath>
+    <Reference Include="$(ManagedPath)\mscorlib.dll">
+      <Name>System.Core (KSP/Mono)</Name>
       <Private>False</Private>
     </Reference>
-    <Reference Include="$(EffectiveKSPDllPath)\System.Xml.dll">
+    <Reference Include="$(ManagedPath)\System.Xml.dll">
       <Name>System.Xml</Name>
-      <HintPath>$(EffectiveKSPDllPath)\System.Xml.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <!-- KSP Dlls from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
-    <Reference Include="$(EffectiveKSPDllPath)\Assembly-CSharp.dll">
+    <Reference Include="$(ManagedPath)\UnityEngine*.dll">
+      <Name>UnityEngine</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="$(ManagedPath)\Assembly-CSharp.dll">
       <Name>Assembly-CSharp</Name>
-      <HintPath>$(EffectiveKSPDllPath)\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="$(EffectiveKSPDllPath)\Assembly-CSharp-firstpass.dll">
+    <Reference Include="$(ManagedPath)\Assembly-CSharp-firstpass.dll">
       <Name>Assembly-CSharp-firstpass</Name>
-      <HintPath>$(EffectiveKSPDllPath)\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- load all UnityEngine Dlls (since 1.8 we only need those) -->
-    <!-- from either the KSP dev install (debug) or the KSP dlls protected archives (release) -->
-    <Reference Include="$(EffectiveKSPDllPath)\UnityEngine*.dll">
-      <Name>UnityEngine (all KSP provided dlls)</Name>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -395,26 +382,44 @@
     <Compile Include="Radiation\Storm.cs" />
     <Compile Include="Events\StockPatches\ModuleDataTransmitter.cs" />
     <Compile Include="Modules\KsmProcessController\ModuleKsmProcessController.cs" />
+    <Compile Include="Database\VesselDataComponents\VesselData.Synchronizer.cs" />
+    <None Include="packages.config" />
   </ItemGroup>
   <!-- ///////////////////////////////////////////////////// -->
   <!-- ////////// IMPORT DEFAULT MS BUILD PROCESS ////////// -->
   <!-- ///////////////////////////////////////////////////// -->
-  <ItemGroup>
-    <Compile Include="Database\VesselDataComponents\VesselData.Synchronizer.cs" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- This target is called before the build, you can use it for debugging the build system -->
-  <Target Name="BeforeBuild">
-    <!--
-    <ConvertToAbsolutePath Paths="$(OutputPath)">
-      <Output TaskParameter="AbsolutePaths" PropertyName="OutputPathAbs" />
-    </ConvertToAbsolutePath>
-    <Message Text="Kerbalism build MSBuildProjectDirectory='$(MSBuildProjectDirectory)'" Importance="high" />
-    <Message Text="Kerbalism build OutputPathAbs='$(OutputPathAbs)'" Importance="high" />
-    -->
+
+  <Target Name="AfterBuild" Condition="Exists('$(KSPInstallPath)')">
+    <CallTarget Targets="CopyToKSP" />
   </Target>
+
+  <Target Name="CopyToKSP">
+    <RemoveDir Directories="$(KSPInstallPath)\GameData\Kerbalism4-Core;$(KSPInstallPath)\GameData\Kerbalism4-DefaultConfig" />
+    <ItemGroup>
+      <GameDataFiles Include="$(SolutionDir)\GameData\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(GameDataFiles)" DestinationFolder="$(KSPInstallPath)\GameData\%(RecursiveDir)" />
+    <Copy SourceFiles="$(TargetDir)\Kerbalism4.dll" DestinationFolder="$(KSPInstallPath)\GameData\Kerbalism4-Core\Plugins" />
+    <Copy SourceFiles="$(TargetDir)\Kerbalism4.pdb" DestinationFolder="$(KSPInstallPath)\GameData\Kerbalism4-Core\Plugins" />
+  </Target>
+
+  <Target Name="MakeZipPackage">
+    <PropertyGroup>
+      <PublishFolder>$(SolutionDir)\Releases\</PublishFolder>
+      <PublishTempFolderPath>$(PublishFolder)\Temp\</PublishTempFolderPath>
+    </PropertyGroup>
+    <RemoveDir Condition="Exists('$(PublishTempFolderPath)')" Directories="$(PublishTempFolderPath)" />
+    <ItemGroup>
+      <GameDataFiles Include="$(SolutionDir)\GameData\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(GameDataFiles)" DestinationFolder="$(PublishTempFolderPath)\GameData\%(RecursiveDir)" />
+    <Copy SourceFiles="$(TargetDir)\Kerbalism4.dll" DestinationFolder="$(PublishTempFolderPath)\GameData\Kerbalism4-Core\Plugins" />
+    <Copy SourceFiles="$(TargetDir)\Kerbalism4.pdb" DestinationFolder="$(PublishTempFolderPath)\GameData\Kerbalism4-Core\Plugins" />
+    <Copy SourceFiles="$(SolutionDir)\README.md" DestinationFolder="$(PublishTempFolderPath)\GameData\Kerbalism4-Core\" />
+    <ZipDirectory SourceDirectory="$(PublishTempFolderPath)" DestinationFile="$(PublishFolder)\latest.zip" Overwrite="true" />
+  </Target>
+
   <!-- ///////////////////////////////////////////////////// -->
   <!-- ///////////////// KSP-AVC THINGHY /////////////////// -->
   <!-- ///////////////////////////////////////////////////// -->

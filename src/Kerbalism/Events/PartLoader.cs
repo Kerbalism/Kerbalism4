@@ -8,7 +8,8 @@ namespace KERBALISM
 	{
 		static void Postfix(AvailablePart __result)
 		{
-			PartVolumeAndSurface.EvaluatePrefabAtCompilation(__result);
+			if (__result != null)
+				PartVolumeAndSurface.EvaluatePrefabAtCompilation(__result);
 		}
 	}
 }

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    
+    <!-- REQUIRED : Full path to your KSP installation -->
+    <KSPInstallPath>PATH\TO\YOUR\KSP\INSTALL</KSPInstallPath>
+    
+    <!-- OPTIONAL : Additional DEFINE constants to use in debug builds, separate multiple values with semicolons-->
+    <!-- "ENABLE_PROFILER" : use this if you want to use the unity editor profiler-->
+    <!-- "DEBUG_PROFILER" : enable kerbalism in-house profiler (see Utility/Profiler.cs) -->
+    <!-- "DEBUG_RESOURCES" : show hidden resources in the KSP UI (usually pseudo-resources)-->
+    <AdditionalDefineConstants>DEBUG_PROFILER;DEBUG_RESOURCES</AdditionalDefineConstants>
+    
+    <!-- DON'T CHANGE UNLESS NOT WORKING : KSP executable -->
+    <KSPExecutable Condition="$([MSBuild]::IsOsPlatform('Windows'))">KSP_x64.exe</KSPExecutable>
+    <KSPExecutable Condition="$([MSBuild]::IsOsPlatform('OSX'))">KSP.app</KSPExecutable>
+    <KSPExecutable Condition="$([MSBuild]::IsOsPlatform('Linux'))">KSP.x86_64</KSPExecutable>
+    
+    <!-- DON'T CHANGE UNLESS NOT WORKING : Relative path from 'KSPInstallPath' to the folder containing the KSP dlls -->
+    <ManagedRelativePath Condition="$([MSBuild]::IsOsPlatform('Windows'))">KSP_x64_Data\Managed</ManagedRelativePath>
+    <ManagedRelativePath Condition="$([MSBuild]::IsOsPlatform('OSX'))">KSP.app\Contents\Resources\Data\Managed</ManagedRelativePath>
+    <ManagedRelativePath Condition="$([MSBuild]::IsOsPlatform('Linux'))">KSP_Data\Managed</ManagedRelativePath>
+    
+  </PropertyGroup>
+</Project>

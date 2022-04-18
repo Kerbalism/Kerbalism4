@@ -66,6 +66,7 @@ namespace KERBALISM
 
 		// % of the recipe is left to execute, internal variable
 		private double left = 1.0;
+		private bool fullyExecuted = false;
 
 		public Action<double> onRecipeExecuted;
 
@@ -221,6 +222,7 @@ namespace KERBALISM
 				Recipe recipe = recipes[i];
 
 				recipe.left = recipe.ioMax;
+				recipe.fullyExecuted = recipe.left == 0.0;
 				recipe.inputsCount = recipe.inputs.Count;
 				recipe.outputsCount = recipe.outputs.Count;
 
@@ -243,10 +245,13 @@ namespace KERBALISM
 			while (executing)
 			{
 				executing = false;
+				// TODO : possible performance optimization
+				// It might be worthwile to remove recipes from being iterated over once they are executed (left == 0).
+				// We need to profile how frequently 
 				for (int i = 0; i < recipesCount; i++)
 				{
 					Recipe recipe = recipes[i];
-					if (recipe.left > 0.0)
+					if (!recipe.fullyExecuted)
 					{
 						executing |= recipe.ExecuteRecipeStep(resHandler);
 					}
@@ -298,8 +303,15 @@ namespace KERBALISM
 				for (int i = 0; i < outputsCount; ++i)
 					outputs[i].ApplyToResource(worstIO);
 
-				// update % left to execute, avoid a negative value due to FP errors
-				left = Math.Max(0.0, left - worstIO);
+				// update % left to execute, 
+				left = left - worstIO;
+
+				// check if fully executed, avoid a negative value due to FP errors
+				if (left <= 0.0)
+				{
+					left = 0.0;
+					fullyExecuted = true;
+				}
 
 				// the recipe was executed, at least partially
 				return true;

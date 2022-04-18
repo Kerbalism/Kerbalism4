@@ -121,7 +121,7 @@ namespace KERBALISM
 		///<summary> Initializes the icons </summary>
 		internal static void Init()
 		{
-			TexturePath = KSPUtil.ApplicationRootPath + "GameData/Kerbalism/Textures/";
+			TexturePath = Path.Combine(Lib.KerbalismRootPath, "Textures");
 
 			empty = Lib.GetKerbalismTexture("empty");
 
